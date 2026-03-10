@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Scheduler{% endblock %}
+{% block page_title %}Scheduled Tasks{% endblock %}
+{% block topbar_actions %}
+<button class="btn sm primary" onclick="showCreate()">New Scheduled Task</button>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card green">
+    <div class="label">Active</div>
+    <div class="value" id="stActive">{{ scheduled|selectattr('enabled')|list|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Total</div>
+    <div class="value">{{ scheduled|length }}</div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table id="schedTable">
+    <thead>
+      <tr><th>Name</th><th>Type</th><th>Payload</th><th>Target</th><th>Interval</th><th>Last Run</th><th>Next Run</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    {% for s in scheduled %}
+    <tr data-id="{{ s.id }}">
+      <td style="font-weight:500">{{ s.name }}</td>
+      <td><span class="badge type">{{ s.task_type }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.payload }}">{{ s.payload[:60] }}</td>
+      <td><span class="badge alive">{{ s.target }}</span></td>
+      <td style="font-family:var(--font-mono)">{{ s.interval_sec }}s</td>
+      <td style="font-size:11px;color:var(--text-dim)">{{ s.last_run or '—' }}</td>
+      <td style="font-size:11px;color:var(--text-dim)">{{ s.next_run or '—' }}</td>
+      <td>
+        {% if s.enabled %}
+        <span class="badge alive" style="cursor:pointer" onclick="toggleSched('{{ s.id }}')">ON</span>
+        {% else %}
+        <span class="badge dead" style="cursor:pointer" onclick="toggleSched('{{ s.id }}')">OFF</span>
+        {% endif %}
+      </td>
+      <td>
+        <button class="btn sm danger" onclick="deleteSched('{{ s.id }}')">Delete</button>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="color:var(--text-dim);text-align:center;padding:30px">No scheduled tasks — create one to automate recurring commands</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="createModal" onclick="if(event.target===this)hideCreate()">
+  <div class="modal">
+    <h3>Create Scheduled Task</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="stName" placeholder="e.g. Health Check">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Task Type</label>
+        <select id="stType"><option value="cmd">Shell CMD</option><option value="python">Python</option></select>
+      </div>
+      <div class="form-group">
+        <label>Interval (seconds)</label>
+        <input type="number" id="stInterval" value="3600" min="60">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Target</label>
+      <select id="stTarget">
+        <option value="all">All online agents</option>
+        <option value="default">default</option>
+        <option value="servers">servers</option>
+        <option value="workstations">workstations</option>
+        <option value="cloud">cloud</option>
+        <option value="colab">colab</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Payload / Command</label>
+      <textarea id="stPayload" rows="4" style="font-family:var(--font-mono);font-size:12px" placeholder="whoami && uptime"></textarea>
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Shortcuts like <code>:start</code>, <code>:status</code>, <code>:sysinfo</code> are supported.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideCreate()">Cancel</button>
+      <button class="btn primary" onclick="createSched()">Create</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showCreate(){ document.getElementById('createModal').classList.add('active'); }
+function hideCreate(){ document.getElementById('createModal').classList.remove('active'); }
+
+function createSched(){
+  const name = document.getElementById('stName').value.trim();
+  const payload = document.getElementById('stPayload').value.trim();
+  if(!name||!payload) return alert('Name and payload are required');
+  fetch('/api/scheduled/create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name, type: document.getElementById('stType').value,
+      payload, target: document.getElementById('stTarget').value,
+      interval: parseInt(document.getElementById('stInterval').value)||3600
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.status==='ok'){hideCreate();location.reload();}
+    else alert(d.error||'Error');
+  });
+}
+
+function toggleSched(id){
+  fetch(`/api/scheduled/${id}/toggle`,{method:'POST'}).then(()=>location.reload());
+}
+function deleteSched(id){
+  if(confirm('Delete this scheduled task?'))
+    fetch(`/api/scheduled/${id}/delete`,{method:'DELETE'}).then(()=>location.reload());
+}
+</script>
+{% endblock %}

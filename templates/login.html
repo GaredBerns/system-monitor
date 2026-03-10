@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<title>Login &mdash; C2:PANEL.ROG</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .login-decoration {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: .08; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="login-page" style="position:relative;overflow:hidden">
+  <div class="login-decoration" style="width:400px;height:400px;background:var(--accent);top:-100px;left:-100px"></div>
+  <div class="login-decoration" style="width:300px;height:300px;background:var(--red);bottom:-80px;right:-80px"></div>
+  <div class="login-decoration" style="width:200px;height:200px;background:var(--purple);top:50%;left:60%"></div>
+  <div class="login-box">
+    <div class="title">
+      <h1>C2<span style="color:var(--red)">:</span>PANEL<span style="color:var(--text-dim);font-size:.6em">.ROG</span></h1>
+      <p>COMMAND &amp; CONTROL</p>
+    </div>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" autofocus placeholder="operator" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
+        <input type="checkbox" name="remember" id="remember" style="width:auto;accent-color:var(--accent)">
+        <label for="remember" style="margin:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text-dim);font-weight:400;cursor:pointer">Remember me</label>
+      </div>
+      <button type="submit" class="btn primary" style="margin-top:12px">ACCESS SYSTEM</button>
+    </form>
+    <div style="margin-top:20px;text-align:center;font-size:10px;color:var(--text-dim);font-family:var(--font-mono);letter-spacing:1px">C2:PANEL.ROG &bull; ENCRYPTED</div>
+  </div>
+</div>
+</body>
+</html>

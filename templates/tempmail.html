@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Temp Mail{% endblock %}
+{% block page_title %}Temporary Email (Boomlify EDU){% endblock %}
+{% block topbar_actions %}
+<button class="btn sm primary" onclick="createEmail()">+ Create Email</button>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:320px 1fr;gap:20px;height:calc(100vh - 140px)">
+
+<div style="display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+  <div class="card" style="margin-bottom:0;padding:16px">
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Domain (Boomlify EDU)</label>
+      <select id="domainSelect">
+        <option value="">Loading domains...</option>
+      </select>
+    </div>
+    <button class="btn primary" onclick="createEmail()" style="width:100%">Generate New Email</button>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:10px;text-align:center">
+      Source: <a href="https://boomlify.com/RU/EDU-TEMP-MAIL" target="_blank">boomlify.com/EDU-TEMP-MAIL</a>
+    </div>
+  </div>
+
+  <div id="emailList" style="display:flex;flex-direction:column;gap:8px">
+    {% for acc in accounts %}
+    <div class="email-card" data-email="{{ acc.email }}" onclick="selectEmail('{{ acc.email }}')"
+         style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all var(--transition)">
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--accent);word-break:break-all">{{ acc.email }}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span style="font-size:11px;color:var(--text-dim)">{% if acc.is_edu %}<span style="color:var(--green);font-weight:600">EDU</span> &middot; {% endif %}{{ acc.created_at[:16] }}</span>
+        <button class="btn sm danger" onclick="event.stopPropagation();deleteEmail('{{ acc.email }}')" style="padding:2px 8px;font-size:10px">Del</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;color:var(--text-dim);padding:40px;font-size:13px">No emails yet &mdash; click Generate</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div>
+  <div class="card" style="height:100%;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <h2 style="margin:0;border:0;padding:0" id="inboxTitle">Select an email to view inbox</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" onclick="refreshInbox()">Refresh</button>
+        <button class="btn sm" onclick="copyEmail()" id="copyBtn" style="display:none">Copy Address</button>
+      </div>
+    </div>
+
+    <div id="inboxContent" style="flex:1;overflow-y:auto">
+      <div style="text-align:center;color:var(--text-dim);padding:50px">
+        <div style="font-size:48px;margin-bottom:16px;opacity:.2">&#9993;</div>
+        <div style="font-size:14px">Select an email address to check inbox</div>
+      </div>
+    </div>
+
+    <div id="messageView" style="display:none;flex:1;overflow-y:auto">
+      <div style="margin-bottom:14px">
+        <button class="btn sm" onclick="backToInbox()">&larr; Back to inbox</button>
+      </div>
+      <div id="msgFrom" style="font-size:12px;color:var(--text-dim)"></div>
+      <div id="msgSubject" style="font-size:17px;font-weight:700;color:var(--text-bright);margin:8px 0"></div>
+      <div id="msgDate" style="font-size:11px;color:var(--text-dim);margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div id="msgExtracted" style="display:none;background:var(--green-glow);border:1px solid rgba(0,255,136,.25);border-radius:8px;padding:14px;margin-bottom:14px">
+          <span style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;font-weight:700">Extracted</span>
+          <div id="msgCode" style="font-family:var(--font-mono);font-size:20px;color:var(--green);margin-top:6px"></div>
+          <div id="msgLink" style="font-size:12px;margin-top:6px;word-break:break-all"></div>
+        </div>
+        <iframe id="msgBodyFrame" style="width:100%;min-height:300px;border:1px solid var(--border);border-radius:8px;background:#fff;display:none"></iframe>
+        <div id="msgBody" style="font-size:13px;line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentEmail = '';
+let autoRefreshTimer = null;
+
+fetch('/api/tempmail/domains').then(r => r.json()).then(domains => {
+  const sel = document.getElementById('domainSelect');
+  sel.innerHTML = '';
+  const eduDomains = domains.filter(d => d.is_edu);
+  const otherDomains = domains.filter(d => !d.is_edu);
+  if (eduDomains.length) {
+    const og = document.createElement('optgroup');
+    og.label = 'EDU Domains';
+    eduDomains.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d.domain;
+      o.textContent = '@' + d.domain;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }
+  if (otherDomains.length) {
+    const og = document.createElement('optgroup');
+    og.label = 'Other Domains';
+    otherDomains.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d.domain;
+      o.textContent = '@' + d.domain;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }
+}).catch(() => {
+  document.getElementById('domainSelect').innerHTML = '<option value="">Failed to load domains</option>';
+});
+
+function createEmail() {
+  const domain = document.getElementById('domainSelect').value;
+  fetch('/api/tempmail/create', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain: domain || null}) })
+    .then(r => r.json()).then(data => {
+      if (data.error) return alert(data.error);
+      addEmailCard(data);
+      selectEmail(data.email);
+    });
+}
+
+function addEmailCard(acc) {
+  const list = document.getElementById('emailList');
+  if (list.querySelector('.email-card') === null && list.textContent.includes('No emails')) list.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'email-card fade-in';
+  div.dataset.email = acc.email;
+  div.onclick = () => selectEmail(acc.email);
+  div.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:all var(--transition)';
+  const eduTag = acc.is_edu ? '<span style="color:var(--green);font-weight:600">EDU</span> &middot; ' : '';
+  div.innerHTML = `<div style="font-family:var(--font-mono);font-size:12px;color:var(--accent);word-break:break-all">${acc.email}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span style="font-size:11px;color:var(--text-dim)">${eduTag}now</span>
+      <button class="btn sm danger" onclick="event.stopPropagation();deleteEmail('${acc.email}')" style="padding:2px 8px;font-size:10px">Del</button>
+    </div>`;
+  list.prepend(div);
+}
+
+function selectEmail(email) {
+  currentEmail = email;
+  document.querySelectorAll('.email-card').forEach(el => {
+    const active = el.dataset.email === email;
+    el.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    el.style.background = active ? 'var(--accent-glow)' : 'var(--bg-card)';
+  });
+  document.getElementById('inboxTitle').textContent = email;
+  document.getElementById('copyBtn').style.display = '';
+  document.getElementById('messageView').style.display = 'none';
+  document.getElementById('inboxContent').style.display = '';
+  refreshInbox();
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(refreshInbox, 2000);
+}
+
+function refreshInbox() {
+  if (!currentEmail) return;
+  fetch(`/api/tempmail/inbox?email=${encodeURIComponent(currentEmail)}`)
+    .then(r => r.json()).then(messages => {
+      const el = document.getElementById('inboxContent');
+      if (!messages.length) {
+        el.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:50px">
+          <div style="font-size:32px;margin-bottom:14px;opacity:.2" class="pulse">&#9201;</div>
+          <div style="font-size:14px">Inbox empty &mdash; waiting for emails...</div>
+          <div style="font-size:11px;margin-top:8px;color:var(--text-dim)">Auto-refreshing every 2s</div></div>`;
+        return;
+      }
+      el.innerHTML = messages.map(m => `
+        <div onclick="openMessage('${m.id}')" style="padding:14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--transition)"
+             onmouseover="this.style.background='rgba(0,212,255,.03)'" onmouseout="this.style.background=''">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;color:var(--text-bright);font-weight:500">${m.subject || '(no subject)'}</span>
+            <span style="font-size:11px;color:var(--text-dim)">${m.date || ''}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${m.from}</div>
+        </div>
+      `).join('');
+    });
+}
+
+function openMessage(msgId) {
+  fetch(`/api/tempmail/message?email=${encodeURIComponent(currentEmail)}&msg_id=${msgId}`)
+    .then(r => r.json()).then(msg => {
+      document.getElementById('inboxContent').style.display = 'none';
+      document.getElementById('messageView').style.display = '';
+      document.getElementById('msgFrom').textContent = `From: ${msg.from || '?'}`;
+      document.getElementById('msgSubject').textContent = msg.subject || '(no subject)';
+      document.getElementById('msgDate').textContent = msg.date || '';
+
+      const bodyFrame = document.getElementById('msgBodyFrame');
+      const bodyText = document.getElementById('msgBody');
+      if (msg.html) {
+        bodyFrame.style.display = '';
+        bodyText.style.display = 'none';
+        bodyFrame.srcdoc = msg.html;
+      } else {
+        bodyFrame.style.display = 'none';
+        bodyText.style.display = '';
+        bodyText.textContent = msg.body || '(empty)';
+      }
+
+      const extractEl = document.getElementById('msgExtracted');
+      const codeEl = document.getElementById('msgCode');
+      const linkEl = document.getElementById('msgLink');
+      fetch(`/api/tempmail/extract?email=${encodeURIComponent(currentEmail)}&msg_id=${msgId}`)
+        .then(r => r.json()).then(ext => {
+          if (ext.code || ext.link) {
+            extractEl.style.display = '';
+            codeEl.textContent = ext.code ? `Code: ${ext.code}` : '';
+            linkEl.innerHTML = ext.link ? `<a href="${ext.link}" target="_blank" style="color:var(--green)">${ext.link}</a>` : '';
+          } else {
+            extractEl.style.display = 'none';
+          }
+        });
+    });
+}
+
+function backToInbox() {
+  document.getElementById('messageView').style.display = 'none';
+  document.getElementById('inboxContent').style.display = '';
+}
+
+function deleteEmail(email) {
+  if (!confirm(`Delete ${email}?`)) return;
+  fetch(`/api/tempmail/delete?email=${encodeURIComponent(email)}`, {method:'DELETE'})
+    .then(() => {
+      document.querySelector(`.email-card[data-email="${email}"]`)?.remove();
+      if (currentEmail === email) {
+        currentEmail = '';
+        document.getElementById('inboxTitle').textContent = 'Select an email to view inbox';
+        document.getElementById('copyBtn').style.display = 'none';
+        document.getElementById('inboxContent').innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:50px"><div style="font-size:48px;margin-bottom:16px;opacity:.2">&#9993;</div><div style="font-size:14px">Select an email address to check inbox</div></div>';
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      }
+    });
+}
+
+function copyEmail() {
+  navigator.clipboard.writeText(currentEmail).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Address', 1200);
+  });
+}
+</script>
+{% endblock %}

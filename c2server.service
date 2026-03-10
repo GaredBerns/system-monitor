@@ -1,0 +1,19 @@
+[Unit]
+Description=C2 Command & Control Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kali
+WorkingDirectory=/mnt/F/tools/C2_server
+ExecStartPre=-/bin/sh -c 'fuser -k 8443/tcp 2>/dev/null || for p in $(lsof -ti:8443 2>/dev/null); do kill -9 $p; done'
+ExecStartPre=/bin/sleep 2
+ExecStart=/usr/bin/python3 server.py --host 0.0.0.0 --port 8443
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=120
+StartLimitBurst=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

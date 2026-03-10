@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}Auto-Registration{% endblock %}
+{% block page_title %}Auto-Registration Engine{% endblock %}
+{% block topbar_actions %}
+<button class="btn sm primary" onclick="openNewJob()">+ New Registration</button>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card green"><div class="label">Accounts</div><div class="value" id="statCreated">{{ total_accounts }}</div></div>
+  <div class="stat-card"><div class="label">Active Jobs</div><div class="value" id="statJobs">{{ active_jobs }}</div></div>
+  <div class="stat-card yellow"><div class="label">Emails</div><div class="value" id="statEmails">{{ total_emails }}</div></div>
+  <div class="stat-card orange"><div class="label">Platforms</div><div class="value">{{ platforms|length }}</div></div>
+</div>
+
+<div class="card" id="livePanel" style="display:none;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h2 style="margin:0;border:0;padding:0;display:flex;align-items:center;gap:8px">
+      <span class="live-dot"></span>
+      Registration Running &mdash; <span id="livePlatform"></span>
+    </h2>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span id="liveStatus" style="font-size:12px;color:var(--green);font-family:var(--font-mono)"></span>
+      <button class="btn sm" onclick="closeLive()">Hide</button>
+    </div>
+  </div>
+  <div style="font-size:13px;color:var(--text-dim);line-height:1.6">
+    Browser is running in <strong style="color:var(--green)">visible mode</strong>. Control it directly from the opened browser window.
+    The registration process is automated &mdash; you can also intervene manually if needed (e.g. solving captchas).
+  </div>
+  <div id="liveLog" style="margin-top:10px;max-height:200px;overflow-y:auto;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);background:var(--bg-input);border-radius:8px;padding:10px"></div>
+</div>
+
+<div class="card" id="jobsCard">
+  <h2>Running Jobs</h2>
+  <div id="jobsList">
+    {% if not jobs %}
+    <div style="text-align:center;color:var(--text-dim);padding:40px;font-size:13px">No active jobs &mdash; click "+ New Registration" to start</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Registered Accounts <span id="accCount" style="font-size:12px;color:var(--text-dim);font-weight:400"></span></h2>
+  <div style="margin-bottom:14px;display:flex;gap:8px">
+    <input type="text" id="accFilter" placeholder="Search accounts..." style="flex:1" oninput="filterAccounts()">
+    <button class="btn sm" onclick="refreshAccounts()">Refresh</button>
+    <button class="btn sm" onclick="exportAccounts()">JSON</button>
+    <button class="btn sm" onclick="exportCSV()">CSV</button>
+  </div>
+  <div style="overflow-x:auto">
+  <table id="accountsTable">
+    <thead><tr><th>Platform</th><th>Email</th><th>Username</th><th>Password</th><th>Status</th><th>API Key</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody id="accBody"></tbody>
+  </table>
+  </div>
+</div>
+
+<div class="modal-overlay" id="newJobModal" onclick="if(event.target===this)closeModal('newJobModal')">
+  <div class="modal" style="min-width:560px">
+    <h3>New Registration Job</h3>
+    <div class="form-group">
+      <label>Platform</label>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="platformGrid">
+        {% for key, p in platforms.items() %}
+        <div class="platform-btn" data-platform="{{ key }}" onclick="selectPlatform('{{ key }}')">
+          <div style="font-size:24px;margin-bottom:6px">{{ p.icon }}</div>
+          <div style="font-size:11px;font-weight:500">{{ p.name }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div id="customUrlGroup" class="form-group" style="display:none">
+      <label>Custom URL</label><input type="text" id="customUrl" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Count</label><input type="number" id="regCount" value="1" min="1" max="50"></div>
+      <div class="form-group"><label>Proxy</label><input type="text" id="proxyInput" placeholder="socks5://..."></div>
+      <div class="form-group"><label>Browser</label>
+        <select id="headlessMode"><option value="false" selected>Visible (recommended)</option><option value="true">Headless</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('newJobModal')">Cancel</button>
+      <button class="btn primary" onclick="startRegistration()">Start Registration</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="loginModal" onclick="if(event.target===this)closeModal('loginModal')">
+  <div class="modal" style="min-width:400px">
+    <h3>Account Credentials</h3>
+    <div id="loginInfo"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('loginModal')">Close</button>
+      <button class="btn primary" id="loginOpenBtn">Open Login Page</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="apiKeyModal" onclick="if(event.target===this)closeModal('apiKeyModal')">
+  <div class="modal" style="min-width:460px">
+    <h3 style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:22px;height:22px"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      API Key
+    </h3>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Account</div>
+      <div id="apiKeyAccInfo" style="font-family:var(--font-mono);font-size:13px;color:var(--text-bright)"></div>
+    </div>
+    <div class="form-group">
+      <label>API Key / Token</label>
+      <textarea id="apiKeyInput" rows="3" style="font-family:var(--font-mono);font-size:12px;word-break:break-all" placeholder="Paste API key or token here..."></textarea>
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px">API key is stored locally and can be used for automated operations with this account.</p>
+    <div class="modal-actions">
+      <button class="btn sm" onclick="copyApiKey()" title="Copy to clipboard">Copy</button>
+      <button class="btn" onclick="closeModal('apiKeyModal')">Cancel</button>
+      <button class="btn primary" onclick="saveApiKey()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedPlatform = '';
+let currentLiveJob = '';
+let _lastJobsHash = '';
+let _lastAccHash = '';
+let _hasRunning = false;
+
+const LOGIN_URLS = {
+  kaggle:'https://www.kaggle.com/account/login', github:'https://github.com/login',
+  huggingface:'https://huggingface.co/login', replit:'https://replit.com/login',
+  paperspace:'https://console.paperspace.com/login', lightning_ai:'https://lightning.ai/sign-in',
+  custom:'#',
+};
+
+const STATUS_OPTIONS = ['registered','verified','active','created','failed','banned'];
+function statusBadgeClass(s) {
+  if (s === 'verified' || s === 'registered' || s === 'active') return 'alive';
+  if (s === 'created') return 'type';
+  return 'dead';
+}
+
+function selectPlatform(p) {
+  selectedPlatform = p;
+  document.querySelectorAll('.platform-btn').forEach(el => el.classList.toggle('selected', el.dataset.platform === p));
+  document.getElementById('customUrlGroup').style.display = p === 'custom' ? 'block' : 'none';
+}
+function openNewJob() { document.getElementById('newJobModal').classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function startRegistration() {
+  if (!selectedPlatform) return alert('Select a platform');
+  fetch('/api/autoreg/start', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      platform: selectedPlatform, count: parseInt(document.getElementById('regCount').value),
+      headless: document.getElementById('headlessMode').value === 'true',
+      proxy: document.getElementById('proxyInput').value,
+      custom_url: document.getElementById('customUrl')?.value || '',
+    })
+  }).then(r => r.json()).then(d => {
+    closeModal('newJobModal');
+    openLive(d.reg_id, selectedPlatform);
+    pollJobs();
+  });
+}
+
+function openLive(regId, platform) {
+  currentLiveJob = regId;
+  document.getElementById('livePlatform').textContent = platform || regId;
+  document.getElementById('livePanel').style.display = '';
+  document.getElementById('liveStatus').textContent = 'Running...';
+}
+function closeLive() { document.getElementById('livePanel').style.display = 'none'; }
+
+function pollJobs() {
+  fetch('/api/autoreg/jobs').then(r => r.json()).then(jobs => {
+    const c = document.getElementById('jobsList');
+    const anyRunning = jobs.some(j => j.status === 'running');
+    const wasRunning = _hasRunning;
+    _hasRunning = anyRunning;
+
+    const jobsHash = jobs.length + jobs.map(j => j.reg_id + j.status + j.created + j.count).join('|');
+    if (!jobs.length) {
+      if (_lastJobsHash !== '') c.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:40px;font-size:13px">No active jobs</div>';
+      _lastJobsHash = '';
+    } else if (jobsHash !== _lastJobsHash) {
+      _lastJobsHash = jobsHash;
+      c.innerHTML = jobs.map(j => `
+        <div class="job-card ${j.status==='running' ? 'live' : ''}" data-reg-id="${j.reg_id}">
+          <div class="job-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <strong style="color:var(--text-bright);font-size:14px">${j.platform_name}</strong>
+              <span class="badge ${j.status==='running'?'alive':j.status==='completed'?'type':'dead'}">${j.status}</span>
+              ${j.status==='running' ? '<span class="live-dot"></span><span style="color:var(--green);font-size:11px;font-weight:600">LIVE</span>' : ''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim)">${j.created}/${j.count}</span>
+              ${j.status==='running' ? `<button class="btn sm" onclick="skipCurrent('${j.reg_id}')" style="padding:3px 10px;font-size:11px" title="Save current account and move to next">Skip &rarr;</button><button class="btn sm" onclick="cancelJob('${j.reg_id}')" style="padding:3px 10px;font-size:11px" title="Stop after current">Stop All</button><button class="btn sm danger" onclick="permanentStop('${j.reg_id}')" style="padding:3px 10px;font-size:11px" title="Fully stop all account creation now">Permanent Stop</button>` : ''}
+            </div>
+          </div>
+          <div class="job-step" style="font-size:12px;color:var(--accent);margin-bottom:6px;font-weight:500">${j.current_step}</div>
+          <div class="job-log">${(j.log || []).join('\n')}</div>
+        </div>
+      `).join('');
+    } else {
+      jobs.forEach(j => {
+        const card = c.querySelector(`.job-card[data-reg-id="${j.reg_id}"]`);
+        if (!card) return;
+        const stepEl = card.querySelector('.job-step');
+        const logEl = card.querySelector('.job-log');
+        if (stepEl && stepEl.textContent !== j.current_step) stepEl.textContent = j.current_step;
+        const newLog = (j.log || []).join('\n');
+        if (logEl && logEl.textContent !== newLog) logEl.textContent = newLog;
+      });
+    }
+
+    const running = jobs.find(j => j.status === 'running');
+    if (running) {
+      if (document.getElementById('livePanel').style.display === 'none') openLive(running.reg_id, running.platform_name);
+      const logEl = document.getElementById('liveLog');
+      if (logEl && running.log) {
+        const newLogText = running.log.slice(-30).join('\n');
+        if (logEl.dataset.content !== newLogText) {
+          logEl.dataset.content = newLogText;
+          logEl.innerHTML = running.log.slice(-30).map(l => `<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)">${l}</div>`).join('');
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        const statusEl = document.getElementById('liveStatus');
+        if (statusEl && statusEl.textContent !== running.current_step) statusEl.textContent = running.current_step;
+      }
+    }
+    if (currentLiveJob && !running) {
+      document.getElementById('liveStatus').textContent = 'Finished';
+      document.getElementById('liveStatus').style.color = 'var(--text-dim)';
+    }
+    if (wasRunning && !anyRunning) refreshAccounts();
+
+    setTimeout(pollJobs, anyRunning ? 800 : 5000);
+  }).catch(() => setTimeout(pollJobs, 3000));
+}
+
+function skipCurrent(id) {
+  fetch(`/api/autoreg/job/${id}/skip`, {method:'POST'}).then(() => pollJobs());
+}
+
+function cancelJob(id) {
+  if (confirm('Stop after current account?'))
+    fetch(`/api/autoreg/job/${id}/cancel`, {method:'POST'}).then(() => { pollJobs(); refreshAccounts(); });
+}
+function permanentStop(id) {
+  if (confirm('Permanent stop: fully terminate account creation? Current step will abort.'))
+    fetch(`/api/autoreg/job/${id}/permanent_stop`, {method:'POST'}).then(() => { pollJobs(); refreshAccounts(); });
+}
+
+function renderAccountRow(a) {
+  const esc = s => (s||'').toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const statusOpts = STATUS_OPTIONS.map(s => `<option value="${s}" ${a.status===s?'selected':''}>${s}</option>`).join('');
+  const hasKey = !!(a.api_key);
+  return `<tr data-search="${a.platform} ${a.email} ${a.username}" data-id="${a.reg_id}">
+    <td><span class="badge type">${a.platform_name || a.platform}</span></td>
+    <td style="font-family:var(--font-mono);font-size:12px">${a.email}</td>
+    <td>${a.username}</td>
+    <td><span class="pass-hidden" onclick="this.textContent=this.dataset.pw;this.style.cursor='text'" data-pw="${esc(a.password)}" style="cursor:pointer;color:var(--text-dim)">click to reveal</span></td>
+    <td>
+      <select class="status-select ${statusBadgeClass(a.status)}" onchange="setStatus('${a.reg_id}',this.value,this)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-bright);cursor:pointer">${statusOpts}</select>
+    </td>
+    <td>
+      <button class="btn sm${hasKey?' primary':''}" onclick="openApiKey('${a.reg_id}','${esc(a.platform_name||a.platform)}','${esc(a.email)}')" style="padding:3px 10px;font-size:11px;${hasKey?'':'opacity:.7'}">
+        ${hasKey ? '🔑 Set' : '🔑 —'}
+      </button>
+    </td>
+    <td style="font-size:11px;color:var(--text-dim);white-space:nowrap">${(a.created_at||'').slice(0,16)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn sm" onclick="loginAccount('${a.platform}','${esc(a.email)}','${esc(a.password)}')" style="padding:3px 10px;font-size:11px">Login</button>
+      <button class="btn sm danger" onclick="removeAccount('${a.reg_id}')" style="padding:3px 10px;font-size:11px">Del</button>
+    </td>
+  </tr>`;
+}
+
+function refreshAccounts() {
+  fetch('/api/autoreg/accounts').then(r => r.json()).then(accounts => {
+    const body = document.getElementById('accBody');
+    const hash = accounts.length + accounts.map(a => a.reg_id + a.status).join('|');
+    if (hash === _lastAccHash) return;
+    _lastAccHash = hash;
+    document.getElementById('accCount').textContent = `(${accounts.length})`;
+    if (!accounts.length) {
+      body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:30px">No accounts yet</td></tr>';
+      return;
+    }
+    body.innerHTML = accounts.map(renderAccountRow).join('');
+    filterAccounts();
+  });
+}
+
+function setStatus(regId, newStatus, selectEl) {
+  fetch(`/api/autoreg/account/${regId}/status`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status: newStatus})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') {
+      selectEl.className = 'status-select ' + statusBadgeClass(newStatus);
+    }
+  });
+}
+
+function loginAccount(platform, email, password) {
+  const url = LOGIN_URLS[platform] || '#';
+  document.getElementById('loginInfo').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Platform</div>
+      <div style="font-weight:600;font-size:15px;color:var(--text-bright)">${platform}</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Email</div>
+      <div style="font-family:var(--font-mono);color:var(--accent);cursor:pointer;padding:8px 12px;background:var(--bg-input);border-radius:6px;border:1px solid var(--border)"
+           onclick="navigator.clipboard.writeText('${email}');this.textContent='Copied!';setTimeout(()=>this.textContent='${email}',1000)">${email}</div>
+    </div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Password</div>
+      <div style="font-family:var(--font-mono);color:var(--green);cursor:pointer;padding:8px 12px;background:var(--bg-input);border-radius:6px;border:1px solid var(--border)"
+           onclick="navigator.clipboard.writeText('${password}');this.textContent='Copied!';setTimeout(()=>this.textContent='${password}',1000)">${password}</div>
+    </div>`;
+  document.getElementById('loginOpenBtn').onclick = () => window.open(url, '_blank');
+  document.getElementById('loginModal').classList.add('active');
+}
+
+function filterAccounts() {
+  const q = document.getElementById('accFilter').value.toLowerCase();
+  document.querySelectorAll('#accountsTable tbody tr').forEach(r => {
+    r.style.display = (!q || (r.dataset.search || '').toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+
+function removeAccount(id) {
+  if (confirm('Delete this account?'))
+    fetch(`/api/autoreg/account/${id}`, {method:'DELETE'}).then(() => { _lastAccHash=''; refreshAccounts(); });
+}
+
+function exportAccounts() {
+  fetch('/api/autoreg/accounts').then(r => r.json()).then(d => {
+    const b = new Blob([JSON.stringify(d, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'accounts.json'; a.click();
+  });
+}
+function exportCSV() {
+  fetch('/api/autoreg/accounts').then(r => r.json()).then(d => {
+    const h = ['platform','email','username','password','status','verified','created_at'];
+    const rows = [h.join(','), ...d.map(a => h.map(k => `"${(a[k]||'').toString().replace(/"/g,'""')}"`).join(','))];
+    const b = new Blob([rows.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'accounts.csv'; a.click();
+  });
+}
+
+let _apiKeyRegId = '';
+function openApiKey(regId, platform, email) {
+  _apiKeyRegId = regId;
+  document.getElementById('apiKeyAccInfo').textContent = `${platform} — ${email}`;
+  document.getElementById('apiKeyInput').value = '';
+  fetch(`/api/autoreg/account/${regId}/apikey`).then(r=>r.json()).then(d => {
+    document.getElementById('apiKeyInput').value = d.api_key || '';
+  });
+  document.getElementById('apiKeyModal').classList.add('active');
+  setTimeout(()=>document.getElementById('apiKeyInput').focus(), 100);
+}
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  fetch(`/api/autoreg/account/${_apiKeyRegId}/apikey`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({api_key: key})
+  }).then(r=>r.json()).then(d => {
+    if(d.status==='ok') {
+      closeModal('apiKeyModal');
+      showNotification('API key saved', 'green');
+      _lastAccHash = '';
+      refreshAccounts();
+    } else {
+      showNotification('Error: '+(d.error||'unknown'), 'red');
+    }
+  });
+}
+function copyApiKey() {
+  const val = document.getElementById('apiKeyInput').value;
+  if(val) {
+    navigator.clipboard.writeText(val);
+    showNotification('API key copied', 'accent');
+  }
+}
+
+refreshAccounts();
+pollJobs();
+setInterval(refreshAccounts, 5000);
+</script>
+{% endblock %}

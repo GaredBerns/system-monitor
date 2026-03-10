@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<div>
+  <div class="card">
+    <h2>Listeners</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Protocol</th><th>Bind</th><th>Port</th><th></th></tr></thead>
+      <tbody>
+      {% for l in listeners %}
+      <tr>
+        <td style="font-weight:500">{{ l.name }}</td>
+        <td><span class="badge type">{{ l.protocol }}</span></td>
+        <td style="font-family:var(--font-mono);font-size:12px">{{ l.host }}</td>
+        <td style="font-family:var(--font-mono)">{{ l.port }}</td>
+        <td><button class="btn sm danger" onclick="deleteListener('{{ l.id }}')">Delete</button></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="color:var(--text-dim);text-align:center;padding:20px">No listeners</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
+      <h3 style="font-size:13px;margin-bottom:14px;color:var(--text-bright);font-weight:700">New Listener</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="lName" placeholder="main-http"></div>
+        <div class="form-group"><label>Protocol</label>
+          <select id="lProto"><option>http</option><option>https</option><option>tcp</option><option>dns</option><option>websocket</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Bind Host</label><input type="text" id="lHost" value="0.0.0.0"></div>
+        <div class="form-group"><label>Port</label><input type="number" id="lPort" value="8443"></div>
+      </div>
+      <button class="btn primary" style="width:100%" onclick="createListener()">Create Listener</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Server Info</h2>
+    <table style="font-size:12px">
+      <tr><td style="color:var(--text-dim);padding:8px">Server Time</td><td style="padding:8px;font-family:var(--font-mono)" id="serverTime">&mdash;</td></tr>
+      <tr><td style="color:var(--text-dim);padding:8px">Local URL</td><td style="padding:8px;font-family:var(--font-mono);font-size:11px" id="localUrl">&mdash;</td></tr>
+      <tr><td style="color:var(--text-dim);padding:8px">Public URL</td><td style="padding:8px;font-family:var(--font-mono);font-size:11px;word-break:break-all" id="publicUrl">&mdash;</td></tr>
+      <tr><td style="color:var(--text-dim);padding:8px">DB Path</td><td style="font-family:var(--font-mono);padding:8px;font-size:11px">data/c2.db</td></tr>
+      <tr><td style="color:var(--text-dim);padding:8px">Version</td><td style="font-family:var(--font-mono);padding:8px;font-size:11px">2.0</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="color:var(--accent)">Domain &amp; Tunnel</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">Set a stable public URL so payloads and agents can always reach the panel. Local access works via <code>https://&lt;this-host&gt;:8443</code>.</p>
+    <div class="form-group">
+      <label>Public URL (always used in payloads)</label>
+      <input type="url" id="cfgPublicUrl" placeholder="https://your-c2.example.com or https://xxx.trycloudflare.com">
+    </div>
+    <div class="form-group">
+      <label>Cloudflare Tunnel Token (optional)</label>
+      <input type="password" id="cfgTunnelToken" placeholder="Paste token from Cloudflare Zero Trust → Tunnels" autocomplete="off">
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px">If set, cloudflared named tunnel runs instead of quick tunnel. Set Public URL above to your tunnel hostname (e.g. c2.yourdomain.com).</div>
+    </div>
+    <button class="btn primary" style="width:100%" onclick="saveDomainConfig()">Save Domain &amp; Tunnel</button>
+  </div>
+
+  <div class="card">
+    <h2>Change Password</h2>
+    <div class="form-group"><label>Current Password</label><input type="password" id="curPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
+    <div class="form-group"><label>New Password</label><input type="password" id="newPw" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
+    <div class="form-group"><label>Confirm New Password</label><input type="password" id="confPw" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
+    <button class="btn primary" style="width:100%" onclick="changePassword()">Change Password</button>
+  </div>
+
+  <div class="card">
+    <h2 style="color:var(--purple)">Webhook Notifications</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">Get instant alerts on agent events. Leave blank to disable.</p>
+    <div class="form-group">
+      <label>Discord Webhook URL</label>
+      <input type="text" id="cfgDiscord" placeholder="https://discord.com/api/webhooks/...">
+    </div>
+    <div class="form-group">
+      <label>Telegram Bot URL</label>
+      <input type="text" id="cfgTelegram" placeholder="https://api.telegram.org/bot.../sendMessage?chat_id=...">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" style="flex:1" onclick="saveWebhooks()">Save Webhooks</button>
+      <button class="btn" onclick="testWebhook()">Test</button>
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="card">
+    <h2>User Management</h2>
+    <table>
+      <thead><tr><th>Username</th><th>Role</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td style="font-weight:500">{{ u.username }}</td>
+        <td><span class="badge type">{{ u.role }}</span></td>
+        <td style="font-size:12px;color:var(--text-dim)">{{ u.created_at }}</td>
+        <td><button class="btn sm danger" onclick="deleteUser({{ u.id }}, '{{ u.username }}')">Delete</button></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
+      <h3 style="font-size:13px;margin-bottom:14px;color:var(--text-bright);font-weight:700">Add User</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Username</label><input type="text" id="newUser" placeholder="operator1"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="newPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="newRole"><option value="operator">Operator</option><option value="admin">Admin</option></select>
+      </div>
+      <button class="btn primary" style="width:100%" onclick="createUser()">Create User</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Global Agent Config</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Default Sleep (s)</label><input type="number" id="gSleep" value="5"></div>
+      <div class="form-group"><label>Default Jitter (%)</label><input type="number" id="gJitter" value="10"></div>
+    </div>
+    <button class="btn" onclick="applyGlobalConfig()" style="width:100%;margin-bottom:16px">Apply to All Agents</button>
+    <div class="form-group">
+      <label>Kill Switch</label>
+      <button class="btn danger" onclick="killAll()" style="width:100%">KILL ALL AGENTS</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="color:var(--red)">Security</h2>
+    <div class="form-group">
+      <label>Agent Auth Token (PSK)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="cfgToken" placeholder="Leave empty for open registration" style="font-family:var(--font-mono);font-size:12px">
+        <button class="btn sm" onclick="document.getElementById('cfgToken').value=crypto.randomUUID().replace(/-/g,'').slice(0,32);saveConfig()" title="Generate random">Gen</button>
+      </div>
+      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">Agents must send X-Auth-Token header to register. Empty = open registration.</p>
+    </div>
+    <div class="form-group">
+      <label>Agent Comm Encryption Key</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="cfgEncKey" placeholder="XOR encryption key (leave empty to disable)" style="font-family:var(--font-mono);font-size:12px">
+        <button class="btn sm" onclick="document.getElementById('cfgEncKey').value=crypto.randomUUID().replace(/-/g,'');saveConfig()" title="Generate random">Gen</button>
+      </div>
+      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">XOR+HMAC encryption for agent <-> server traffic. Agents need same key.</p>
+    </div>
+    <button class="btn primary" style="width:100%" onclick="saveConfig()">Save Security Config</button>
+  </div>
+
+  <div class="card">
+    <h2 style="color:var(--green)">Data Export</h2>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a href="/api/export/agents" class="btn sm" style="text-align:center">Export Agents (CSV)</a>
+      <a href="/api/export/logs" class="btn sm" style="text-align:center">Export Logs (CSV)</a>
+      <a href="/api/export/tasks" class="btn sm" style="text-align:center">Export Tasks (CSV)</a>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/server/time').then(r => r.json()).then(d => {
+  document.getElementById('serverTime').textContent = d.time;
+}).catch(() => {
+  document.getElementById('serverTime').textContent = new Date().toISOString();
+});
+fetch('/api/server/public_url').then(r => r.json()).then(d => {
+  const el = document.getElementById('localUrl');
+  const pub = document.getElementById('publicUrl');
+  if (el) el.textContent = d.local || '—';
+  if (pub) pub.textContent = d.url || '—';
+}).catch(() => {});
+fetch('/api/config').then(r => r.json()).then(d => {
+  if (d.public_url) document.getElementById('cfgPublicUrl').value = d.public_url;
+  if (d.cloudflare_tunnel_token) document.getElementById('cfgTunnelToken').value = d.cloudflare_tunnel_token;
+}).catch(() => {});
+
+function saveDomainConfig() {
+  fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      public_url: document.getElementById('cfgPublicUrl').value.trim(),
+      cloudflare_tunnel_token: document.getElementById('cfgTunnelToken').value.trim()
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') showNotification('Domain & tunnel saved. Restart server for token to apply.', 'green');
+    else showNotification('Error: ' + (d.error || 'unknown'), 'red');
+  });
+}
+
+function createListener() {
+  const name = document.getElementById('lName').value.trim();
+  const port = parseInt(document.getElementById('lPort').value);
+  if (!name) return alert('Listener name is required');
+  if (!port || port < 1 || port > 65535) return alert('Port must be 1-65535');
+  fetch('/api/listener/create', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name, protocol: document.getElementById('lProto').value,
+      host: document.getElementById('lHost').value, port })
+  }).then(() => location.reload());
+}
+function deleteListener(id) {
+  if (confirm('Delete listener?'))
+    fetch(`/api/listener/${id}/delete`, {method:'DELETE'}).then(() => location.reload());
+}
+function createUser() {
+  const username = document.getElementById('newUser').value.trim();
+  const password = document.getElementById('newPass').value;
+  if (!username) return alert('Username is required');
+  if (!password || password.length < 4) return alert('Password must be at least 4 characters');
+  fetch('/api/user/create', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password, role: document.getElementById('newRole').value })
+  }).then(r => r.json()).then(d => { if (d.error) alert(d.error); else location.reload(); });
+}
+function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}"?`)) return;
+  fetch(`/api/user/${id}/delete`, {method:'DELETE'}).then(r => r.json()).then(d => {
+    if (d.error) alert(d.error);
+    else location.reload();
+  });
+}
+function applyGlobalConfig() {
+  const sleep = parseInt(document.getElementById('gSleep').value);
+  const jitter = parseInt(document.getElementById('gJitter').value);
+  fetch('/api/agents').then(r => r.json()).then(agents => {
+    Promise.all(agents.map(a =>
+      fetch(`/api/agent/${a.id}/update`, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sleep_interval: sleep, jitter: jitter})})
+    )).then(() => alert(`Applied sleep=${sleep}s jitter=${jitter}% to ${agents.length} agents`));
+  });
+}
+function killAll() {
+  if (confirm('KILL ALL AGENTS? This sends self-destruct to every online agent.'))
+    fetch('/api/task/broadcast', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'kill', payload:'self-destruct', target:'all'})}).then(() => alert('Kill signal sent'));
+}
+
+function changePassword() {
+  const cur = document.getElementById('curPass').value;
+  const nw = document.getElementById('newPw').value;
+  const conf = document.getElementById('confPw').value;
+  if (!cur || !nw) return showNotification('Fill in all fields','red');
+  if (nw !== conf) return showNotification('Passwords do not match','red');
+  if (nw.length < 4) return showNotification('Min 4 characters','red');
+  fetch('/api/user/password', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({current: cur, new: nw})
+  }).then(r=>r.json()).then(d => {
+    if(d.status==='ok') { showNotification('Password changed','green'); document.getElementById('curPass').value=''; document.getElementById('newPw').value=''; document.getElementById('confPw').value=''; }
+    else showNotification(d.error||'Error','red');
+  });
+}
+function saveWebhooks() {
+  fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      webhook_discord: document.getElementById('cfgDiscord').value.trim(),
+      webhook_telegram: document.getElementById('cfgTelegram').value.trim()
+    })
+  }).then(r=>r.json()).then(d => {
+    if(d.status==='ok') showNotification('Webhooks saved','green');
+    else showNotification('Error: '+JSON.stringify(d),'red');
+  });
+}
+function testWebhook() {
+  fetch('/api/webhook/test', {method:'POST'}).then(r=>r.json()).then(()=>showNotification('Test fired','accent'));
+}
+function saveConfig() {
+  fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      agent_token: document.getElementById('cfgToken').value.trim(),
+      encryption_key: document.getElementById('cfgEncKey').value.trim()
+    })
+  }).then(r=>r.json()).then(d => {
+    if(d.status==='ok') showNotification('Security config saved','green');
+    else showNotification('Error','red');
+  });
+}
+(function loadConfig(){
+  fetch('/api/config').then(r=>r.json()).then(cfg=>{
+    document.getElementById('cfgDiscord').value = cfg.webhook_discord||'';
+    document.getElementById('cfgTelegram').value = cfg.webhook_telegram||'';
+    document.getElementById('cfgToken').value = cfg.agent_token||'';
+    document.getElementById('cfgEncKey').value = cfg.encryption_key||'';
+  }).catch(()=>{});
+})();
+</script>
+{% endblock %}

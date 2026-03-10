@@ -1,0 +1,18 @@
+# Runtime data (DB, certs, secret, uploads)
+data/*
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+.env
+.env.*

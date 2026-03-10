@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block page_title %}Activity Logs{% endblock %}
+{% block topbar_actions %}
+<label style="font-size:12px;display:flex;align-items:center;gap:8px;color:var(--text-dim);cursor:pointer">
+  <input type="checkbox" id="autoRefreshLogs" checked style="width:auto"> Live
+</label>
+<button class="btn sm" onclick="refreshLogs()">Refresh</button>
+<a href="/api/export/logs" class="btn sm" style="font-size:11px">Export CSV</a>
+{% endblock %}
+{% block content %}
+<div class="card" style="padding:14px 20px;margin-bottom:16px;display:flex;gap:10px;align-items:center">
+  <input type="text" id="logFilter" placeholder="Filter logs by event, details, timestamp..." oninput="filterLogs()" style="flex:1">
+  <select id="logTypeFilter" onchange="filterLogs()" style="width:160px">
+    <option value="">All events</option>
+    <option value="login">login</option>
+    <option value="agent">agent</option>
+    <option value="task">task</option>
+    <option value="autoreg">autoreg</option>
+    <option value="tempmail">tempmail</option>
+    <option value="tunnel">tunnel</option>
+    <option value="server">server</option>
+  </select>
+  <span id="logCount" style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap"></span>
+</div>
+<div class="card">
+  <h2>Event Log</h2>
+  <div id="logEntries"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let _logHash = '';
+
+function renderLogs(logs) {
+  const el = document.getElementById('logEntries');
+  const hash = logs.length + (logs[0]?.ts || '');
+  if (hash === _logHash) return;
+  _logHash = hash;
+  document.getElementById('logCount').textContent = `${logs.length} entries`;
+  if (!logs.length) {
+    el.innerHTML = '<div class="empty-state">No log entries</div>';
+    return;
+  }
+  el.innerHTML = logs.map(l => `<div class="log-entry" data-search="${l.ts} ${l.event} ${l.details}">
+    <span class="ts">${l.ts}</span>
+    <span class="ev">${l.event}</span>
+    <span class="det">${l.details || ''}</span>
+  </div>`).join('');
+  filterLogs();
+}
+
+function refreshLogs() {
+  fetch('/api/logs').then(r => r.json()).then(renderLogs).catch(() => {});
+}
+
+function filterLogs() {
+  const q = document.getElementById('logFilter').value.toLowerCase();
+  const t = document.getElementById('logTypeFilter').value.toLowerCase();
+  document.querySelectorAll('.log-entry').forEach(el => {
+    const s = (el.dataset.search || '').toLowerCase();
+    el.style.display = (!q || s.includes(q)) && (!t || s.includes(t)) ? '' : 'none';
+  });
+}
+
+let autoTimer = null;
+function startAuto() { autoTimer = setInterval(refreshLogs, 3000); }
+function stopAuto() { clearInterval(autoTimer); }
+
+document.getElementById('autoRefreshLogs').addEventListener('change', function() {
+  this.checked ? startAuto() : stopAuto();
+});
+
+refreshLogs();
+startAuto();
+</script>
+{% endblock %}
