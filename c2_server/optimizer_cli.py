@@ -1,9 +1,4 @@
 """C2 Optimizer entry point."""
-import sys
-import os
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def main():
     """Start GPU optimizer."""
@@ -13,8 +8,8 @@ def main():
     engine = ComputeEngine(device='auto')
     engine.initialize()
     
-    print("[Optimizer] Running! Check worker on pool dashboard.")
-    print("[Optimizer] Training logs will appear below...")
+    print("[Optimizer] Running.")
+    print("[Optimizer] Training logs will appear below.")
     
     # Keep running
     import time
