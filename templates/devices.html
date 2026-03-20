@@ -112,11 +112,21 @@
     <input type="text" id="batchCmd" placeholder="Command to execute..." style="width:220px;padding:6px 10px;font-size:12px;font-family:var(--font-mono)">
     <button class="btn sm primary" onclick="batchExec()">Execute</button>
     <select id="batchGroup" style="width:110px;padding:5px 10px;font-size:12px">
-      <option value="default">default</option><option value="servers">servers</option>
-      <option value="workstations">workstations</option><option value="cloud">cloud</option>
+      <option value="default">default</option>
+      <option value="servers">servers</option>
+      <option value="workstations">workstations</option>
+      <option value="cloud">cloud</option>
       <option value="colab">colab</option>
+      <option value="kaggle">kaggle</option>
+      <option value="mobile">mobile</option>
+      <option value="iot">iot</option>
     </select>
     <button class="btn sm" onclick="batchSetGroup()">Set Group</button>
+    <span style="width:1px;height:20px;background:var(--border)"></span>
+    <input type="number" id="batchSleep" placeholder="Sleep(s)" style="width:80px;padding:6px 8px;font-size:12px" value="10" min="1">
+    <input type="number" id="batchJitter" placeholder="Jitter%" style="width:75px;padding:6px 8px;font-size:12px" value="10" min="0" max="90">
+    <button class="btn sm" onclick="batchSleep()" title="Apply sleep/jitter to selected agents">Set Sleep</button>
+    <span style="width:1px;height:20px;background:var(--border)"></span>
     <button class="btn sm danger" onclick="batchKill()">Kill Selected</button>
     <button class="btn sm danger" onclick="batchRemove()">Remove Selected</button>
   </div>
@@ -128,7 +138,7 @@
       <tr>
         <th style="width:30px"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this)" style="display:none"></th>
         <th style="width:30px"></th><th>Hostname</th><th>User</th><th>OS</th><th>Ext IP</th><th>Int IP</th>
-        <th>Platform</th><th>Group</th><th>Last Seen</th><th>Actions</th>
+        <th>Platform</th><th>Group</th><th>Sleep</th><th>Last Seen</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -150,8 +160,11 @@
           <option value="cloud" {% if a.group_name=='cloud' %}selected{% endif %}>cloud</option>
           <option value="mobile" {% if a.group_name=='mobile' %}selected{% endif %}>mobile</option>
           <option value="colab" {% if a.group_name=='colab' %}selected{% endif %}>colab</option>
+          <option value="kaggle" {% if a.group_name=='kaggle' %}selected{% endif %}>kaggle</option>
+          <option value="iot" {% if a.group_name=='iot' %}selected{% endif %}>iot</option>
         </select>
       </td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);white-space:nowrap" title="sleep interval / jitter%">{{ a.sleep_interval }}s ±{{ a.jitter }}%</td>
       <td style="color:var(--text-dim);font-size:12px;white-space:nowrap">{{ a.last_seen }}</td>
       <td>
         <div style="display:flex;gap:6px">
@@ -161,7 +174,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="11" style="color:var(--text-dim);text-align:center;padding:30px">No agents connected</td></tr>
+    <tr><td colspan="12" style="color:var(--text-dim);text-align:center;padding:30px">No agents connected</td></tr>
     {% endfor %}
     
     {% if kaggle_agents %}
@@ -179,6 +192,7 @@
       <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim)">-</td>
       <td><span class="badge type" style="background:linear-gradient(135deg,#9b59b6,#8e44ad)">kaggle</span></td>
       <td><span class="badge type" style="background:rgba(155,89,182,0.3);color:#9b59b6">{{ a.group_name }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:#9b59b6">API</td>
       <td style="color:#9b59b6;font-size:12px;white-space:nowrap">● API Ready</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
@@ -208,6 +222,8 @@
         <option value="cloud">cloud</option>
         <option value="mobile">mobile</option>
         <option value="colab">colab</option>
+        <option value="kaggle">kaggle</option>
+        <option value="iot">iot</option>
       </select>
     </div>
     <div class="form-group">
@@ -332,9 +348,36 @@ function batchRemove(){
   _batchPost('remove').then(d=>{ showNotification(`Removed ${d.count}`,'red'); setTimeout(()=>location.reload(),800); });
 }
 
+function batchSleep() {
+  const ids = getSelected();
+  if (!ids.length) return alert('Select agents first');
+  const sleep = parseInt(document.getElementById('batchSleep').value) || 10;
+  const jitter = parseInt(document.getElementById('batchJitter').value) || 10;
+  fetch('/api/agents/batch', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent_ids: ids, action: 'sleep', sleep, jitter})
+  }).then(r => r.json()).then(d => {
+    showNotification(`Sleep=${sleep}s jitter=${jitter}% applied to ${d.count} agents`, 'green');
+  });
+}
+
 socket.on('agent_update', data => {
-  if(data.action === 'register') showNotification(`New agent: ${data.hostname||data.id.slice(0,8)}`, 'green');
-  if(data.action === 'offline') showNotification(`Agent offline: ${data.hostname||data.id.slice(0,8)}`, 'red');
+  if (data.action === 'register') {
+    showNotification(`New agent: ${data.hostname || data.id.slice(0, 8)}`, 'green');
+    setTimeout(() => location.reload(), 1500);
+  }
+  if (data.action === 'offline') {
+    showNotification(`Agent offline: ${data.hostname || data.id.slice(0, 8)}`, 'red');
+    const row = document.querySelector(`tr[data-id="${data.id}"]`);
+    if (row) {
+      row.dataset.alive = 'dead';
+      const dot = row.querySelector('.dot-alive');
+      if (dot) {
+        dot.classList.remove('dot-alive', 'pulse');
+        dot.classList.add('dot-dead');
+      }
+    }
+  }
 });
 
 // WebSocket listeners for real-time deploy progress
