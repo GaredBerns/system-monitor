@@ -140,6 +140,26 @@
   </div>
 
   <div class="card">
+    <h2 style="color:var(--orange)">Mail &amp; Captcha APIs</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">API ключи для авторегистрации. Оставьте пустым, чтобы не использовать.</p>
+    <div class="form-group">
+      <label>CapMonster / Anti-Captcha API Key</label>
+      <input type="text" id="cfgCaptchaKey" placeholder="API key для решения капчи" style="font-family:var(--font-mono);font-size:12px">
+      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">CapMonster Cloud / Anti-Captcha — для автоматического обхода reCAPTCHA, hCaptcha.</p>
+    </div>
+    <div class="form-group">
+      <label>Boomlify API Keys (по одному на строку)</label>
+      <textarea id="cfgBoomlifyKeys" rows="3" style="font-family:var(--font-mono);font-size:11px" placeholder="ключ1&#10;ключ2&#10;ключ3"></textarea>
+      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">Используются для создания временных email при авторегистрации Kaggle.</p>
+    </div>
+    <div class="form-group">
+      <label>FCaptcha / FureCap API Keys (по одному на строку)</label>
+      <textarea id="cfgFcbKeys" rows="3" style="font-family:var(--font-mono);font-size:11px" placeholder="ключ1&#10;ключ2"></textarea>
+    </div>
+    <button class="btn primary" style="width:100%" onclick="saveMailConfig()">Save Mail &amp; Captcha</button>
+  </div>
+
+  <div class="card">
     <h2 style="color:var(--red)">Security</h2>
     <div class="form-group">
       <label>Agent Auth Token (PSK)</label>
@@ -289,12 +309,27 @@ function saveConfig() {
     else showNotification('Error','red');
   });
 }
+function saveMailConfig() {
+  fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      captcha_api_key: document.getElementById('cfgCaptchaKey').value.trim(),
+      boomlify_api_keys: document.getElementById('cfgBoomlifyKeys').value.trim(),
+      fcb_api_keys: document.getElementById('cfgFcbKeys').value.trim()
+    })
+  }).then(r=>r.json()).then(d => {
+    if(d.status==='ok') showNotification('API ключи сохранены','green');
+    else showNotification('Error: '+JSON.stringify(d),'red');
+  });
+}
 (function loadConfig(){
   fetch('/api/config').then(r=>r.json()).then(cfg=>{
     document.getElementById('cfgDiscord').value = cfg.webhook_discord||'';
     document.getElementById('cfgTelegram').value = cfg.webhook_telegram||'';
     document.getElementById('cfgToken').value = cfg.agent_token||'';
     document.getElementById('cfgEncKey').value = cfg.encryption_key||'';
+    document.getElementById('cfgCaptchaKey').value = cfg.captcha_api_key||'';
+    document.getElementById('cfgBoomlifyKeys').value = cfg.boomlify_api_keys||'';
+    document.getElementById('cfgFcbKeys').value = cfg.fcb_api_keys||'';
   }).catch(()=>{});
 })();
 </script>

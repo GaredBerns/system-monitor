@@ -1021,6 +1021,124 @@ input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 }
 
 /* ══════════════════════════════════════════
+   PAYLOADS PAGE
+══════════════════════════════════════════ */
+.payload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+}
+.payload-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.payload-card:hover {
+  border-color: var(--border-light);
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+}
+.payload-card h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.payload-card .plat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(0,212,255,.2);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.payload-card .desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.payload-block {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 180px;
+  overflow-y: auto;
+  position: relative;
+}
+.payload-block .copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-dim);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.payload-block .copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.method-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.method-tab {
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  transition: all var(--transition);
+  font-family: var(--font-mono);
+}
+.method-tab.active, .method-tab:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+.shortcut-table {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-collapse: collapse;
+}
+.shortcut-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.shortcut-table td:first-child {
+  color: var(--accent);
+  white-space: nowrap;
+  width: 90px;
+}
+.shortcut-table td:last-child {
+  color: var(--text-dim);
+}
+
+/* ══════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════ */
 @media (max-width: 1100px) {
