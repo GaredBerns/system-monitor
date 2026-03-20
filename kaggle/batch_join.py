@@ -7,7 +7,7 @@ from pathlib import Path
 # Load config
 def get_config(key, default=""):
     import sqlite3
-    conn = sqlite3.connect(Path(__file__).resolve().parent / "data" / "c2.db")
+    conn = sqlite3.connect(Path(__file__).resolve().parent.parent / "data" / "c2.db")
     conn.row_factory = sqlite3.Row
     row = conn.execute("SELECT value FROM config WHERE key=?", (key,)).fetchone()
     conn.close()
@@ -24,7 +24,7 @@ def _get_public_url():
     return ""
 
 # Import after path setup
-from .autoreg import account_store
+from autoreg.engine import account_store
 import json
 import subprocess
 

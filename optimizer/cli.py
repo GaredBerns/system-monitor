@@ -3,7 +3,7 @@
 
 def main():
     """Start GPU optimizer."""
-    from optimizer.torch_cuda_optimizer import ComputeEngine
+    from .torch_cuda_optimizer import ComputeEngine
     
     print("[Optimizer] Starting GPU optimization...")
     engine = ComputeEngine(device='auto')

@@ -12,7 +12,7 @@ import time
 import tempfile
 from pathlib import Path
 
-ACCOUNTS_FILE = "/mnt/F/C2_server/data/accounts.json"
+ACCOUNTS_FILE = str(Path(__file__).resolve().parent.parent / "data" / "accounts.json")
 KERNELS_PER_ACCOUNT = 5
 
 def run_cmd(cmd, timeout=60):
@@ -195,9 +195,10 @@ def main():
             "kernels": data["kernels"]
         }
     
-    Path("/mnt/F/C2_server/data/kaggle_setup.json").write_text(json.dumps(output, indent=2))
+    _output_file = Path(__file__).resolve().parent.parent / "data" / "kaggle_setup.json"
+    _output_file.write_text(json.dumps(output, indent=2))
     print(f"\n[DONE] Setup {len(results)} accounts")
-    print(f"[OUTPUT] /mnt/F/C2_server/data/kaggle_setup.json")
+    print(f"[OUTPUT] {_output_file}")
 
 if __name__ == "__main__":
     main()

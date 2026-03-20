@@ -15,40 +15,31 @@ from flask import (
 from flask_socketio import SocketIO, emit
 from flask_bcrypt import Bcrypt
 
-try:
-    from .tempmail import mail_manager, get_domains as boomlify_get_domains
-    from .autoreg import job_manager, account_store, PLATFORMS
-    from .captcha_solver import manual_solver  # kept for backward compat
-except ImportError:
-    # Fallback for direct execution
-    from tempmail import mail_manager, get_domains as boomlify_get_domains
-    from autoreg import job_manager, account_store, PLATFORMS
-    from captcha_solver import manual_solver  # kept for backward compat
+from mail.tempmail import mail_manager, get_domains as boomlify_get_domains
+from autoreg.engine import job_manager, account_store, PLATFORMS
+from browser.captcha import manual_solver
 
 # Kaggle C2 Transport
 try:
-    from .kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
+    from kaggle.transport import KaggleC2Transport, KaggleC2Manager
     KAGGLE_C2_AVAILABLE = True
 except ImportError:
-    try:
-        from kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
-        KAGGLE_C2_AVAILABLE = True
-    except ImportError:
-        KAGGLE_C2_AVAILABLE = False
+    KAGGLE_C2_AVAILABLE = False
 
 # Global Kaggle C2 manager
 kaggle_c2_manager = None
 
-BASE_DIR = Path(__file__).resolve().parent  # C2_server/
-TOOLS_ROOT = BASE_DIR.parent  # при C2_server в /mnt/F/C2_server -> /mnt/F
-# MEMORY: CORE, ATTACK, OPERATIONS — ищем в корне репы или в tools/
-_memory_candidates = [TOOLS_ROOT / "MEMORY", TOOLS_ROOT / "tools" / "MEMORY"]
-MEMORY_DIR = next((p for p in _memory_candidates if p.exists()), TOOLS_ROOT / "MEMORY")
+BASE_DIR = Path(__file__).resolve().parent.parent  # project root
+MEMORY_DIR = BASE_DIR / "MEMORY"
 DB_PATH = BASE_DIR / "data" / "c2.db"
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=str(BASE_DIR / "templates"),
+    static_folder=str(BASE_DIR / "static"),
+)
 
 _secret_path = BASE_DIR / "data" / ".secret_key"
 _secret_path.parent.mkdir(parents=True, exist_ok=True)
@@ -664,7 +655,7 @@ def autoreg_account_apikey(reg_id):
 @login_required
 def autoreg_email_messages(email):
     """Get inbox messages for email."""
-    from tempmail import mail_manager
+    from mail.tempmail import mail_manager
     
     try:
         messages = mail_manager.check_inbox(email)
@@ -676,7 +667,7 @@ def autoreg_email_messages(email):
 @login_required
 def autoreg_email_message(email, msg_id):
     """Get specific email message."""
-    from tempmail import mail_manager
+    from mail.tempmail import mail_manager
     
     try:
         msg = mail_manager.get_message(email, msg_id)
@@ -1405,7 +1396,7 @@ def batch_datasets():
     def do_batch():
         global batch_dataset_progress
         
-        from kaggle_datasets import create_dataset_with_machines, check_kaggle_cli_installed
+        from kaggle.datasets import create_dataset_with_machines, check_kaggle_cli_installed
         
         if not check_kaggle_cli_installed():
             add_log("✗ Kaggle CLI not installed. Run: pip install kaggle")
@@ -2782,7 +2773,7 @@ def kaggle_broadcast():
     results = []
     for username, transport in manager.transports.items():
         try:
-            from kaggle_c2_transport import KaggleMultiKernel
+            from kaggle.transport import KaggleMultiKernel
             api_key = transport.api_key
             mk = KaggleMultiKernel(username, api_key, None, kernel_count=5)
             

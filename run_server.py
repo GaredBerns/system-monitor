@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""C2 Server startup script."""
+"""C2 Server — entry point."""
 
 import sys
-import os
 from pathlib import Path
 
-# Add current directory to Python path
+# Ensure project root is in Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
 if __name__ == "__main__":
-    from server import main
+    from core.server import main
     main()

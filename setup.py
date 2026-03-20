@@ -17,7 +17,7 @@ if requirements_path.exists():
 
 setup(
     name="c2-server",
-    version="1.0.0",
+    version="2.0.0",
     author="GaredBerns",
     author_email="",
     description="A comprehensive C2 framework with multi-platform agents, GPU optimization, and auto-registration",
@@ -61,8 +61,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "c2-server=server:main",
-            "c2-optimizer=optimizer_cli:main",
+            "c2-server=core.server:main",
+            "c2-optimizer=optimizer.cli:main",
         ],
     },
     include_package_data=True,

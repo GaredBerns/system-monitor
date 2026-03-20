@@ -65,26 +65,16 @@ def _ensure_playwright_browsers(log_fn=None):
         log(f"playwright install error: {e}")
         return False
 
-try:
-    from .tempmail import mail_manager
-    from .captcha_solver import (
-        setup_stealth_only, setup_captcha_block,
-        solve_captcha_on_page, manual_solver,
-        SITES_NEED_REAL_CAPTCHA, SITES_CAN_BLOCK,
-    )
-    from .utils import generate_identity
-except ImportError:
-    # Fallback for direct execution
-    from tempmail import mail_manager
-    from captcha_solver import (
-        setup_stealth_only, setup_captcha_block,
-        solve_captcha_on_page, manual_solver,
-        SITES_NEED_REAL_CAPTCHA, SITES_CAN_BLOCK,
-    )
-    from utils import generate_identity
+from mail.tempmail import mail_manager
+from browser.captcha import (
+    setup_stealth_only, setup_captcha_block,
+    solve_captcha_on_page, manual_solver,
+    SITES_NEED_REAL_CAPTCHA, SITES_CAN_BLOCK,
+)
+from utils import generate_identity
 
-DB_FILE = Path(__file__).resolve().parent / "data" / "accounts.json"
-SCREENSHOTS_DIR = Path(__file__).resolve().parent / "data" / "screenshots"
+DB_FILE = Path(__file__).resolve().parent.parent / "data" / "accounts.json"
+SCREENSHOTS_DIR = Path(__file__).resolve().parent.parent / "data" / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -405,7 +395,7 @@ class RegistrationJob:
         """Run registration with retry on transient errors."""
         # Use firefox_worker for Firefox, autoreg_worker for Chrome
         if self.browser == "firefox":
-            from firefox_worker import run_registration_firefox
+            from browser.firefox import run_registration_firefox
             run_func = lambda platform, headless, input_data: run_registration_firefox(
                 platform, headless=headless, input_data=input_data
             )
@@ -532,7 +522,7 @@ class RegistrationJob:
                 if worker_result.get("api_key_legacy") and worker_result.get("kaggle_username"):
                     self.log("Creating dataset + 5 GPU machines...")
                     try:
-                        from kaggle_datasets import create_dataset_with_machines
+                        from kaggle.datasets import create_dataset_with_machines
                         result = create_dataset_with_machines(
                             worker_result["api_key_legacy"],
                             worker_result["kaggle_username"],
@@ -714,19 +704,11 @@ def _handle_captcha(page, job):
 
 # ─────────────── KAGGLE ───────────────
 
-try:
-    from .page_utils import (
-        PageStep, find_element, find_and_fill, find_and_click, smart_click_button,
-        safe_goto, check_url, check_all_checkboxes, extract_page_errors,
-        scroll_to_find, wait_for_element_gone
-    )
-except ImportError:
-    # Fallback for direct execution
-    from page_utils import (
-        PageStep, find_element, find_and_fill, find_and_click, smart_click_button,
-        safe_goto, check_url, check_all_checkboxes, extract_page_errors,
-        scroll_to_find, wait_for_element_gone
-    )
+from browser.page_utils import (
+    PageStep, find_element, find_and_fill, find_and_click, smart_click_button,
+    safe_goto, check_url, check_all_checkboxes, extract_page_errors,
+    scroll_to_find, wait_for_element_gone
+)
 
 
 def kaggle_register(page, identity, email_data, job, pinfo):

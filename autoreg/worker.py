@@ -14,31 +14,18 @@ from pathlib import Path
 from typing import Optional
 
 # Import centralized utilities
-try:
-    from .utils import generate_identity
-    from .tempmail import mail_manager
-    from .captcha_solver import (
-        setup_stealth_only, setup_captcha_block,
-        solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
-        solve_recaptcha_api, get_captcha_key_for_solve,
-    )
-except ImportError:
-    # Fallback for direct execution
-    from utils import generate_identity
-    from tempmail import mail_manager
-    from captcha_solver import (
-        setup_stealth_only, setup_captcha_block,
-        solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
-        solve_recaptcha_api, get_captcha_key_for_solve,
-    )
+from utils import generate_identity
+from mail.tempmail import mail_manager
+from browser.captcha import (
+    setup_stealth_only, setup_captcha_block,
+    solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
+    solve_recaptcha_api, get_captcha_key_for_solve,
+)
 
 try:
-    from .kaggle_captcha_solver import solve_kaggle_registration_captcha
+    from kaggle.captcha_solver import solve_kaggle_registration_captcha
 except ImportError:
-    try:
-        from kaggle_captcha_solver import solve_kaggle_registration_captcha
-    except ImportError:
-        solve_kaggle_registration_captcha = None
+    solve_kaggle_registration_captcha = None
 
 
 def _wait_visible(page, selectors, timeout=8000):
@@ -656,7 +643,7 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
             log_fn(f"Sitekey: {sitekey}")
             
             # Try to solve via API
-            from captcha_solver import solve_recaptcha_api
+            from browser.captcha import solve_recaptcha_api
             class FakeJob:
                 def log(self, msg): log_fn(f"[CAPTCHA] {msg}")
             
@@ -695,7 +682,7 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
         log_fn(f"[MAIL] Email: {email_data.get('email','?')} provider={email_data.get('provider','?')}")
         
         # Start email checking in background thread (API - no browser switching)
-        from tempmail import mail_manager
+        from mail.tempmail import mail_manager
         import threading
         
         code_found = {"value": None}

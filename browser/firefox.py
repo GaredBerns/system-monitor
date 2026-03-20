@@ -23,13 +23,8 @@ from pathlib import Path
 from typing import Optional
 
 # Import centralized utilities
-try:
-    from .utils import generate_identity
-    from .tempmail import mail_manager
-except ImportError:
-    # Fallback for direct execution
-    from utils import generate_identity
-    from tempmail import mail_manager
+from utils import generate_identity
+from mail.tempmail import mail_manager
 
 try:
     from selenium import webdriver
