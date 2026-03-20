@@ -1,44 +1,64 @@
 # C2 Server — Command & Control Panel
 
-## Overview
-A full-featured Command & Control (C2) framework with a Flask web dashboard for managing multi-platform agents, automated account registrations, and GPU-optimized machine learning tasks.
+## Обзор
+Полнофункциональный C2-фреймворк с веб-дашбордом на Flask для управления агентами, автоматической регистрации аккаунтов и GPU-оптимизации.
 
-## Tech Stack
+## Технологии
 - **Backend**: Python 3.12, Flask, Flask-SocketIO, Flask-Bcrypt
-- **Database**: SQLite (`data/c2.db`)
-- **Templating**: Jinja2 (server-side rendered)
-- **Frontend**: Custom HTML/CSS/JS in `templates/` and `static/`
-- **Real-time**: WebSocket via Flask-SocketIO
+- **База данных**: SQLite (`data/c2.db`)
+- **Шаблоны**: Jinja2 (server-side rendering)
+- **Стили**: кастомный CSS с CSS custom properties
+- **Real-time**: WebSocket через Flask-SocketIO
 
-## Project Structure
-- `server.py` — Main Flask application (4000+ lines), all routes and business logic
-- `run_server.py` — Entry point / startup script
-- `autoreg.py` / `autoreg_worker.py` — Auto-registration engine for platform account creation
-- `tempmail.py` — Temporary email service integration
-- `captcha_solver.py` — CAPTCHA solving utilities
-- `agents/` — Platform-specific agent implementations (Linux, macOS, Windows, Colab, Kaggle)
-- `optimizer/` — PyTorch GPU workload optimizer
-- `kaggle_c2_transport.py` — Kaggle-specific C2 transport layer
-- `templates/` — Jinja2 HTML templates for the dashboard
-- `static/` — CSS, JS, and other static assets
-- `data/` — SQLite database, uploads, and secret key storage
+## Структура файлов
 
-## Running the App
-The app runs via:
 ```
+/
+├── server.py               # Основное Flask-приложение (все роуты и логика)
+├── run_server.py           # Точка входа (запуск сервера)
+├── autoreg.py              # Движок авто-регистрации аккаунтов
+├── autoreg_worker.py       # Воркер авто-регистрации
+├── tempmail.py             # Сервис временной почты
+├── captcha_solver.py       # Решение CAPTCHA
+├── kaggle_c2_transport.py  # C2-транспорт через Kaggle
+├── agents/                 # Агенты для разных платформ
+│   ├── agent_linux.py
+│   ├── agent_macos.py
+│   ├── agent_colab.py
+│   ├── agent_windows.ps1
+│   └── kaggle_agent.py
+├── optimizer/              # PyTorch GPU-оптимизатор
+├── templates/              # Jinja2 HTML-шаблоны
+│   ├── base.html           # Базовый шаблон (сайдбар, топбар)
+│   ├── login.html          # Страница входа
+│   ├── dashboard.html      # Главный дашборд
+│   ├── devices.html        # Управление устройствами
+│   ├── console.html        # Консоль команд
+│   ├── payloads.html       # Генератор пейлоадов
+│   ├── scheduler.html      # Планировщик задач
+│   ├── autoreg.html        # Авто-регистрация
+│   ├── laboratory.html     # Лаборатория
+│   ├── tempmail.html       # Временная почта
+│   ├── logs.html           # Системные логи
+│   └── settings.html       # Настройки
+├── static/
+│   ├── css/
+│   │   └── style.css       # Единый CSS (без дубликатов, переменные + компоненты)
+│   └── js/
+│       ├── socket.js       # SocketIO-соединение и статус подключения
+│       └── ui.js           # Уведомления, command palette, клавиатурные шорткаты
+└── data/                   # БД, загрузки, ключи
+```
+
+## Запуск
+```bash
 python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0
 ```
-
-Default login: **admin / admin**
-
-## Configuration
-- Copy `.env.example` to `.env` and fill in API keys for CAPTCHA services, email services, etc.
-- The secret key is auto-generated and stored in `data/.secret_key`
-- SQLite DB is auto-initialized at `data/c2.db`
+Логин по умолчанию: **admin / admin**
 
 ## Workflow
-- **Start application**: Runs the server on port 5000 (webview)
+- **Start application** → порт 5000, webview
 
-## Deployment
-- Configured as VM deployment (needed for WebSocket/SocketIO support)
-- Run command: `python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0`
+## Деплой
+- Тип: VM (нужен для WebSocket/SocketIO)
+- Команда: `python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0`
