@@ -8,8 +8,22 @@
   <option value="alive">Online</option>
   <option value="dead">Offline</option>
 </select>
+<button class="btn sm primary" onclick="loadKaggleAgents()">🔄 Kaggle</button>
 {% endblock %}
 {% block content %}
+
+<!-- Kaggle Agents Section -->
+<div id="kaggleSection" class="card" style="padding:0;margin-bottom:16px;display:none">
+  <div style="padding:12px 16px;background:var(--card-hover);border-bottom:1px solid var(--border)">
+    <span style="font-weight:600;color:var(--accent)">Kaggle Agents (API Transport)</span>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:8px">No internet required</span>
+  </div>
+  <table id="kaggleTable">
+    <thead><tr><th>Username</th><th>Dataset</th><th>Status</th><th>Quick Command</th><th>Actions</th></tr></thead>
+    <tbody id="kaggleBody"></tbody>
+  </table>
+</div>
+
 <div class="card" style="padding:0;overflow:auto">
   <table id="agentTable">
     <thead><tr><th style="width:30px"></th><th>Hostname</th><th>OS</th><th>IP</th><th>Group</th><th>Action</th></tr></thead>
@@ -41,6 +55,85 @@ function filterAgents(){
     const matchStatus = f==='all' || r.dataset.alive===f;
     r.style.display = matchText && matchStatus ? '' : 'none';
   });
+}
+
+// Kaggle Agents
+async function loadKaggleAgents() {
+  const section = document.getElementById('kaggleSection');
+  const body = document.getElementById('kaggleBody');
+  section.style.display = 'block';
+  body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px">Loading...</td></tr>';
+  
+  try {
+    const r = await fetch('/api/kaggle/agents');
+    const data = await r.json();
+    
+    if (!data.agents || data.agents.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" class="empty-state">No Kaggle accounts configured</td></tr>';
+      return;
+    }
+    
+    body.innerHTML = data.agents.map(u => `
+      <tr>
+        <td style="font-weight:500">${u}</td>
+        <td style="font-family:var(--font-mono);font-size:11px">${u}/gpu-resources</td>
+        <td><span class="badge" style="background:var(--accent);color:#000">API</span></td>
+        <td>
+          <input type="text" id="cmd-${u}" placeholder="whoami" style="width:150px;padding:4px 8px;font-size:11px;font-family:var(--font-mono">
+          <button class="btn sm" onclick="execKaggle('${u}')">▶ Run</button>
+        </td>
+        <td>
+          <button class="btn sm" onclick="statusKaggle('${u}')">Status</button>
+          <button class="btn sm" onclick="resultsKaggle('${u}')">Results</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function execKaggle(username) {
+  const cmd = document.getElementById(`cmd-${username}`).value || 'whoami';
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+  
+  try {
+    const r = await fetch('/api/kaggle/exec', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, type: 'shell', payload: cmd, timeout: 180})
+    });
+    const data = await r.json();
+    
+    if (data.status === 'ok' && data.result) {
+      alert(`[${data.result.status}] ${data.result.output}`);
+    } else {
+      alert(`Error: ${data.error || 'Unknown error'}`);
+    }
+  } catch(e) {
+    alert(`Error: ${e.message}`);
+  }
+  btn.disabled = false;
+  btn.textContent = '▶ Run';
+}
+
+async function statusKaggle(username) {
+  const r = await fetch(`/api/kaggle/status?username=${username}`);
+  const data = await r.json();
+  alert(`Status: ${data.status}`);
+}
+
+async function resultsKaggle(username) {
+  const r = await fetch(`/api/kaggle/results?username=${username}`);
+  const data = await r.json();
+  if (data.results) {
+    console.log(data.results);
+    alert(JSON.stringify(data.results, null, 2));
+  } else {
+    alert('No results');
+  }
 }
 </script>
 {% endblock %}

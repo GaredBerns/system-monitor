@@ -11,8 +11,29 @@ from pathlib import Path
 
 SCREENSHOTS_DIR = Path(__file__).parent / "data" / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-CAPTCHA_API_KEY = os.environ.get("CAPTCHA_API_KEY", "")
-CAPTCHA_SERVICE = os.environ.get("CAPTCHA_SERVICE", "2captcha")
+
+# Load keys: CAPTCHA_API_KEY (single) or CAPTCHA_API_KEYS (comma-sep, rotation)
+_captcha_keys_raw = os.environ.get("CAPTCHA_API_KEYS", "").strip() or os.environ.get("CAPTCHA_API_KEY", "")
+CAPTCHA_API_KEYS_LIST = [k.strip() for k in _captcha_keys_raw.split(",") if k.strip()] if _captcha_keys_raw else []
+CAPTCHA_API_KEY = CAPTCHA_API_KEYS_LIST[0] if CAPTCHA_API_KEYS_LIST else os.environ.get("CAPTCHA_API_KEY", "")
+_captcha_key_index = 0
+
+# FCB keys: env FCB_API_KEYS (comma-sep) или data/fcb_keys.txt (по одному на строку)
+_data_dir = Path(__file__).parent / "data"
+_fcb_keys_env = os.environ.get("FCB_API_KEYS", "").strip()
+if _fcb_keys_env:
+    FCB_API_KEYS = [k.strip() for k in _fcb_keys_env.split(",") if k.strip()]
+else:
+    _fcb_file = _data_dir / "fcb_keys.txt"
+    if _fcb_file.exists():
+        FCB_API_KEYS = [ln.strip() for ln in _fcb_file.read_text().splitlines() if ln.strip() and not ln.startswith("#")]
+    else:
+        FCB_API_KEYS = []  # Нет ключей по умолчанию — добавьте в data/fcb_keys.txt
+_fcb_key_index = 0
+
+# Если есть FCB ключи и нет 2captcha — используем FCB
+_has_2captcha = bool(CAPTCHA_API_KEYS_LIST or CAPTCHA_API_KEY)
+CAPTCHA_SERVICE = os.environ.get("CAPTCHA_SERVICE", "fcb" if FCB_API_KEYS and not _has_2captcha else "2captcha")
 
 SITES_NEED_REAL_CAPTCHA = {"kaggle", "github", "google_colab", "paperspace"}
 SITES_CAN_BLOCK = {"huggingface", "replit", "lightning_ai", "custom"}
@@ -91,14 +112,53 @@ def _api_request(url, data=None):
     return json.loads(urlopen(req, timeout=30).read())
 
 
-def solve_recaptcha_api(sitekey, page_url, job) -> str:
+def _get_next_fcb_key() -> str:
+    """Get next FCB key in rotation."""
+    global _fcb_key_index
+    key = FCB_API_KEYS[_fcb_key_index % len(FCB_API_KEYS)]
+    _fcb_key_index += 1
+    return key
+
+
+def _get_next_2captcha_key() -> str:
+    """Rotate through 2captcha keys."""
+    global _captcha_key_index
+    if not CAPTCHA_API_KEYS_LIST:
+        return CAPTCHA_API_KEY
+    key = CAPTCHA_API_KEYS_LIST[_captcha_key_index % len(CAPTCHA_API_KEYS_LIST)]
+    _captcha_key_index += 1
+    return key
+
+
+def get_captcha_key_for_solve() -> str:
+    """Get next key for external solvers (kaggle_captcha_solver)."""
+    return _get_next_2captcha_key() if CAPTCHA_SERVICE == "2captcha" else CAPTCHA_API_KEY
+
+
+def solve_recaptcha_api(sitekey, page_url, job, is_enterprise=False, enterprise_payload=None) -> str:
     """Solve reCAPTCHA v2 via paid service. Returns token or empty string."""
-    key = CAPTCHA_API_KEY
+    key = _get_next_2captcha_key() if CAPTCHA_SERVICE == "2captcha" else CAPTCHA_API_KEY
     svc = CAPTCHA_SERVICE
+    
+    # Auto-detect FCB if no key set but FCB keys available
+    if not key and FCB_API_KEYS:
+        key = _get_next_fcb_key()
+        svc = "fcb"
+        job.log(f"Using FCB key rotation (key #{_fcb_key_index})")
+    
+    # 2captcha without key — try FCB as fallback
+    if not key and svc == "2captcha" and FCB_API_KEYS:
+        key = _get_next_fcb_key()
+        svc = "fcb"
+        job.log("No 2captcha key — using FCB fallback")
+    
     if not key:
+        job.log("No CAPTCHA API key. Add keys to data/captcha_keys.txt or set CAPTCHA_API_KEYS env")
         return ""
 
     job.log(f"Sending captcha to {svc} API...")
+    if is_enterprise:
+        job.log("Using Enterprise reCAPTCHA type")
 
     try:
         if svc == "2captcha":
@@ -106,7 +166,7 @@ def solve_recaptcha_api(sitekey, page_url, job) -> str:
             if r.get("status") != 1:
                 return ""
             tid = r["request"]
-            for i in range(40):
+            for i in range(60):
                 time.sleep(5)
                 r2 = _api_request(f"https://2captcha.com/res.php?key={key}&action=get&id={tid}&json=1")
                 if r2.get("status") == 1:
@@ -114,6 +174,50 @@ def solve_recaptcha_api(sitekey, page_url, job) -> str:
                     return r2["request"]
                 if "UNSOLVABLE" in str(r2.get("request", "")):
                     return ""
+        elif svc == "fcb":
+            # FCB API (Free CAPTCHA Bypass) - capsolver-compatible format
+            # Detect captcha type by sitekey format or explicit enterprise flag
+            if is_enterprise:
+                task_type = "ReCaptchaV2EnterpriseTaskProxyLess"
+            elif sitekey.startswith("0x"):  # Cloudflare Turnstile
+                task_type = "TurnstileTaskProxyLess"
+            else:
+                task_type = "ReCaptchaV2TaskProxyLess"
+            
+            task = {
+                "type": task_type,
+                "websiteURL": page_url,
+                "websiteKey": sitekey
+            }
+            
+            # Add enterprise payload if provided
+            if is_enterprise and enterprise_payload:
+                task["enterprisePayload"] = enterprise_payload
+            
+            r = _api_request("https://freecaptchabypass.com/createTask", {
+                "clientKey": key,
+                "task": task
+            })
+            tid = r.get("taskId")
+            if not tid:
+                job.log(f"FCB createTask error: {r}")
+                return ""
+            job.log(f"FCB taskId: {tid}")
+            for i in range(60):
+                time.sleep(5)
+                r2 = _api_request("https://freecaptchabypass.com/getTaskResult", {
+                    "clientKey": key,
+                    "taskId": tid
+                })
+                if r2.get("status") == "ready":
+                    job.log("Captcha solved by FCB API!")
+                    sol = r2.get("solution", {}) or {}
+                    return sol.get("gRecaptchaResponse") or sol.get("token") or sol.get("response") or ""
+                if r2.get("errorId", 0) > 0:
+                    job.log(f"FCB error: {r2}")
+                    return ""
+                if (i + 1) % 6 == 0:
+                    job.log(f"FCB still processing... ({i+1}*5s)")
         elif svc in ("capsolver", "anticaptcha"):
             base = {"capsolver": "https://api.capsolver.com", "anticaptcha": "https://api.anti-captcha.com"}[svc]
             r = _api_request(f"{base}/createTask", {"clientKey": key, "task": {
@@ -121,7 +225,7 @@ def solve_recaptcha_api(sitekey, page_url, job) -> str:
             tid = r.get("taskId")
             if not tid:
                 return ""
-            for i in range(40):
+            for i in range(60):
                 time.sleep(5)
                 r2 = _api_request(f"{base}/getTaskResult", {"clientKey": key, "taskId": tid})
                 if r2.get("status") == "ready":
@@ -193,10 +297,28 @@ def inject_token(page, token, job) -> bool:
 
 def solve_captcha_on_page(page, job) -> bool:
     """Full solve pipeline for sites with server-side validation.
-    1) Try API if key set
-    2) Try checkbox click (might pass without challenge)
-    3) Fall back to manual live view
+    1) Check if already solved (invisible captcha may auto-solve)
+    2) Try API if key set
+    3) Try checkbox click (might pass without challenge)
+    4) Fall back to manual live view
     """
+
+    # Сначала проверяем - может капча уже решена (invisible v3)
+    try:
+        already_solved = page.evaluate("""() => {
+        const token = document.querySelector('textarea[name="g-recaptcha-response"]');
+        if (token && token.value && token.value.length > 10) return true;
+        // Проверяем grecaptcha объект
+        if (typeof grecaptcha !== 'undefined' && grecaptcha.getResponse) {
+            try { return grecaptcha.getResponse() && grecaptcha.getResponse().length > 10; } catch(e) {}
+        }
+        return false;
+    }""")
+        if already_solved:
+            job.log("Captcha already solved (invisible/v3)")
+            return True
+    except:
+        pass
 
     has_captcha = False
     try:
@@ -223,12 +345,19 @@ def solve_captcha_on_page(page, job) -> bool:
             return True
 
     # Method 2: checkbox click (sometimes passes without challenge)
+    # ВАЖНО: кликаем только один раз, повторный клик сбросит токен!
     try:
         anchor = page.frame_locator("iframe[src*='recaptcha'][src*='anchor']")
         cb = anchor.locator("#recaptcha-anchor")
         if cb.is_visible(timeout=3000):
+            # Проверяем состояние чекбокса - если уже checked, не кликаем
+            cb_class = cb.get_attribute("class") or ""
+            if "recaptcha-checkbox-checked" in cb_class:
+                job.log("Captcha checkbox already checked")
+                return True
+            
             cb.click()
-            job.log("Clicked captcha checkbox")
+            job.log("Clicked captcha checkbox (once)")
             time.sleep(4)
 
             try:
@@ -242,7 +371,7 @@ def solve_captcha_on_page(page, job) -> bool:
                 job.log("Checkbox click passed — no challenge!")
                 return True
             else:
-                job.log("Image/audio challenge appeared")
+                job.log("Image/audio challenge appeared — needs manual solve")
     except Exception as e:
         job.log(f"Checkbox click: {e}")
 

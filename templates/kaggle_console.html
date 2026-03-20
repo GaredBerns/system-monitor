@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Kaggle Console - {{ kernel_slug }}{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:20px">
+  <div style="display:flex;align-items:center;gap:15px;margin-bottom:20px">
+    <div style="font-size:32px">🟣</div>
+    <div style="flex:1">
+      <h2 style="margin:0;color:#9b59b6">{{ kernel_slug }}</h2>
+      <div style="font-size:12px;color:var(--text-dim)">Kaggle Kernel #{{ kernel_num }} • Account: {{ username }}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn sm" onclick="checkStatus()" style="background:#9b59b6">⟳ Status</button>
+      <button class="btn sm" onclick="getResults()" style="background:#9b59b6">📄 Results</button>
+      <a href="/devices" class="btn sm">← Back</a>
+    </div>
+  </div>
+
+  <div id="statusBar" style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:4px;padding:10px;margin-bottom:15px">
+    <span style="color:#9b59b6">Status:</span> <span id="kernelStatus">checking...</span>
+  </div>
+
+  <!-- Command Input -->
+  <div style="display:flex;gap:10px;margin-bottom:15px">
+    <input type="text" id="cmdInput" placeholder="Enter command (e.g., whoami && hostname)" style="flex:1;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')execCmd()">
+    <button class="btn" style="background:#9b59b6" onclick="execCmd()">▶ Execute</button>
+  </div>
+
+  <!-- Output Terminal -->
+  <div style="background:#0d0d0d;border:1px solid #333;border-radius:6px;overflow:hidden">
+    <div style="background:#1a1a1a;padding:8px 12px;border-bottom:1px solid #333;display:flex;align-items:center;gap:8px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#e74c3c"></div>
+      <div style="width:10px;height:10px;border-radius:50%;background:#f1c40f"></div>
+      <div style="width:10px;height:10px;border-radius:50%;background:#2ecc71"></div>
+      <span style="margin-left:10px;font-size:12px;color:var(--text-dim)">Kaggle Kernel Terminal</span>
+    </div>
+    <div id="terminal" style="padding:15px;font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;min-height:400px;max-height:600px;overflow:auto;color:#eee">
+Waiting for commands...
+</div>
+  </div>
+
+  <!-- Quick Commands -->
+  <div style="margin-top:15px">
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Quick Commands:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn sm" onclick="quickCmd('whoami && hostname')">Info</button>
+      <button class="btn sm" onclick="quickCmd('cat /etc/os-release')">OS</button>
+      <button class="btn sm" onclick="quickCmd('free -h')">Memory</button>
+      <button class="btn sm" onclick="quickCmd('df -h')">Disk</button>
+      <button class="btn sm" onclick="quickCmd('nvidia-smi')">GPU</button>
+      <button class="btn sm" onclick="quickCmd('pip list | head -20')">Packages</button>
+      <button class="btn sm" onclick="quickCmd('ls -la /kaggle/working')">Working Dir</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const agentId = '{{ agent_id }}';
+const kernelSlug = '{{ kernel_slug }}';
+let cmdHistory = [];
+let historyIdx = -1;
+
+function log(msg, color='#eee') {
+  const term = document.getElementById('terminal');
+  const time = new Date().toLocaleTimeString();
+  term.innerHTML += `<span style="color:#666">[${time}]</span> <span style="color:${color}">${msg}</span>\n`;
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearTerm() {
+  document.getElementById('terminal').innerHTML = '';
+}
+
+function checkStatus() {
+  log('Checking status...', '#9b59b6');
+  fetch('/api/kaggle/kernel/status', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: agentId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('kernelStatus').textContent = d.status;
+    const color = d.status === 'complete' ? '#27ae60' : d.status === 'running' ? '#f1c40f' : '#e74c3c';
+    document.getElementById('kernelStatus').style.color = color;
+    log(`Status: ${d.status}`, color);
+  })
+  .catch(e => log('Error: ' + e, '#e74c3c'));
+}
+
+function execCmd() {
+  const cmd = document.getElementById('cmdInput').value.trim();
+  if (!cmd) return;
+  
+  cmdHistory.push(cmd);
+  historyIdx = cmdHistory.length;
+  
+  log(`$ ${cmd}`, '#00ff88');
+  document.getElementById('cmdInput').value = '';
+  
+  fetch('/api/kaggle/kernel/exec', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: agentId, command: cmd})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'started') {
+      log(`✓ Kernel pushed. Status: ${d.message}`, '#27ae60');
+      log('Waiting for execution (1-2 min)...', '#f1c40f');
+    } else {
+      log('Error: ' + (d.error || 'unknown'), '#e74c3c');
+    }
+  })
+  .catch(e => log('Request failed: ' + e, '#e74c3c'));
+}
+
+function quickCmd(cmd) {
+  document.getElementById('cmdInput').value = cmd;
+  execCmd();
+}
+
+function getResults() {
+  log('Fetching results...', '#9b59b6');
+  fetch('/api/kaggle/kernel/results', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: agentId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.outputs && Object.keys(d.outputs).length > 0) {
+      log('=== OUTPUT FILES ===', '#9b59b6');
+      for (const [name, content] of Object.entries(d.outputs)) {
+        log(`\n--- ${name} ---`, '#f1c40f');
+        log(content.slice(0, 2000));
+      }
+    } else {
+      log('No outputs available yet. Kernel may still be running.', '#f1c40f');
+    }
+  })
+  .catch(e => log('Error: ' + e, '#e74c3c'));
+}
+
+// Keyboard shortcuts
+document.getElementById('cmdInput').addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (historyIdx > 0) {
+      historyIdx--;
+      this.value = cmdHistory[historyIdx];
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (historyIdx < cmdHistory.length - 1) {
+      historyIdx++;
+      this.value = cmdHistory[historyIdx];
+    } else {
+      historyIdx = cmdHistory.length;
+      this.value = '';
+    }
+  }
+});
+
+// Initial status check
+checkStatus();
+</script>
+{% endblock %}

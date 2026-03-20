@@ -1,18 +1,14 @@
-# Runtime data (DB, certs, secret, uploads)
-data/*
-!data/.gitkeep
-
-# Python
+# Large files
+browsers/
+*.pyc
 __pycache__/
-*.py[cod]
 .venv/
-venv/
-*.egg-info/
-
-# IDE / OS
-.idea/
-.vscode/
-.DS_Store
 *.log
-.env
-.env.*
+*.pem
+*.crt
+*.key
+data/screenshots/
+data/server.log
+
+# IDE
+.idea/

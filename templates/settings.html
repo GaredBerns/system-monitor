@@ -58,6 +58,11 @@
       <input type="url" id="cfgPublicUrl" placeholder="https://your-c2.example.com or https://xxx.trycloudflare.com">
     </div>
     <div class="form-group">
+      <label>Kaggle C2 URL (override for Kaggle deploy)</label>
+      <input type="url" id="cfgPublicUrlKaggle" placeholder="Leave empty = use Public URL. If Kaggle blocks Cloudflare, set http://kaggle2.ddns.net:18443">
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Kaggle may block trycloudflare.com. Use direct URL (DDNS/VPN) if agents don't connect.</div>
+    </div>
+    <div class="form-group">
       <label>Cloudflare Tunnel Token (optional)</label>
       <input type="password" id="cfgTunnelToken" placeholder="Paste token from Cloudflare Zero Trust → Tunnels" autocomplete="off">
       <div style="font-size:10px;color:var(--text-dim);margin-top:4px">If set, cloudflared named tunnel runs instead of quick tunnel. Set Public URL above to your tunnel hostname (e.g. c2.yourdomain.com).</div>
@@ -182,6 +187,7 @@ fetch('/api/server/public_url').then(r => r.json()).then(d => {
 }).catch(() => {});
 fetch('/api/config').then(r => r.json()).then(d => {
   if (d.public_url) document.getElementById('cfgPublicUrl').value = d.public_url;
+  if (d.public_url_kaggle) document.getElementById('cfgPublicUrlKaggle').value = d.public_url_kaggle;
   if (d.cloudflare_tunnel_token) document.getElementById('cfgTunnelToken').value = d.cloudflare_tunnel_token;
 }).catch(() => {});
 
@@ -189,6 +195,7 @@ function saveDomainConfig() {
   fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       public_url: document.getElementById('cfgPublicUrl').value.trim(),
+      public_url_kaggle: document.getElementById('cfgPublicUrlKaggle').value.trim(),
       cloudflare_tunnel_token: document.getElementById('cfgTunnelToken').value.trim()
     })
   }).then(r => r.json()).then(d => {

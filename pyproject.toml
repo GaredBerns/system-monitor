@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "c2-server"
+version = "1.0.0"
+description = "C2 Server with GPU Optimizer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=3.0.0",
+    "flask-login>=0.6.0",
+    "flask-socketio>=5.3.0",
+    "selenium>=4.15.0",
+    "requests>=2.31.0",
+    "numpy>=1.20.0",
+]
+
+[project.scripts]
+c2-server = "c2_server.server:main"
+c2-optimizer = "c2_server.optimizer:main"
+
+[tool.setuptools]
+packages = ["c2_server", "c2_server.optimizer", "c2_server.optimizer.torch_cuda_optimizer"]

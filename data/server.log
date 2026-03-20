@@ -1,0 +1,91 @@
+[*] Public URL: https://skirts-understand-remote-categories.trycloudflare.com:8443
+
+╔══════════════════════════════════════════╗
+║           C2 COMMAND & CONTROL           ║
+║──────────────────────────────────────────║
+║  Host:  0.0.0.0                          ║
+║  Port:  8443                             ║
+║  SSL:   ON                               ║
+║  Login: admin / admin                    ║
+╚══════════════════════════════════════════╝
+
+Werkzeug appears to be used in a production deployment. Consider switching to a production web server instead.
+ * Serving Flask app 'server'
+ * Debug mode: off
+Address already in use
+Port 8443 is in use by another program. Either identify and stop that program, or start the server with a different port.
+s (0.0.0.0)
+ * Running on https://127.0.0.1:8443
+ * Running on https://10.118.41.120:8443
+Press CTRL+C to quit
+[*] PUBLIC TUNNEL (cloudflared): https://separated-dns-auto-lately.trycloudflare.com
+127.0.0.1 - - [19/Mar/2026 05:46:49] "GET /health HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:46:49] "GET /health HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:03] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-05-07-11-22-02.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /css?family=Inter:400,400i,500,500i,600,600i,700,700i&display=swap HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /css2?family=Google+Symbols:FILL@0..1&display=block HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700 HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /css2?family=Google+Symbols:wght,FILL@400..700,0..1 HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:04] "GET /g/chains/202402/remote-settings.content-signature.mozilla.org-2026-04-17-11-20-45.chain HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:05] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:08] "POST /g/collect?v=2&tid=G-T7QHS60L4Q&gtm=45je63h0v9104087209za200zd9104087209&_p=1773899346595&gcd=13l3l3l2l1l1&npa=1&dma_cps=a&dma=1&cid=1254506293.1773899348&ul=en-us&sr=1920x1080&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=2&tag_exp=103116026~103200004~115938465~115938469~116024733~117484252~118054927&sid=1773899347&sct=1&seg=1&dl=https://www.kaggle.com/account/login&dt=Login%20or%20Register%20|%20Kaggle&dp=/account/login&en=page_view&_ee=1&ep.optimize_id=GTM-52LNT9S&ep.displayFeaturesTask=&ep.content_group1=Account&_et=3&tfd=4701 HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:08] "POST /g/collect?v=2&tid=G-T7QHS60L4Q&gtm=45je63h0v9104087209za200zd9104087209&_p=1773899346595&gcd=13l3l3l2l1l1&npa=1&dma_cps=a&dma=1&cid=1254506293.1773899348&ul=en-us&sr=1920x1080&frm=0&pscdl=noapi&_s=1&tag_exp=103116026~103200004~115938465~115938469~116024733~117484252~118054927&sid=1773899347&sct=1&seg=0&dl=https://www.kaggle.com/account/login&dt=Login%20or%20Register%20|%20Kaggle&dp=/account/login&en=page_view&_fv=1&_nsi=1&_ss=1&_ee=1&ep.optimize_id=GTM-52LNT9S&ep.displayFeaturesTask=&ep.content_group1=Account&up.logged_in=false&tfd=4692 HTTP/1.1" 302 -
+127.0.0.1 - - [19/Mar/2026 05:49:08] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:49:08] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [19/Mar/2026 05:50:09] "GET /api/agents HTTP/1.1" 401 -
+127.0.0.1 - - [19/Mar/2026 06:27:29] "GET /api/agents HTTP/1.1" 401 -
+127.0.0.1 - - [19/Mar/2026 06:27:37] "GET /api/agents HTTP/1.1" 401 -
+127.0.0.1 - - [19/Mar/2026 06:27:49] "POST /api/agent/register HTTP/1.1" 200 -

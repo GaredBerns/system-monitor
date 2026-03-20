@@ -2,65 +2,90 @@
 Entire browser session streamed as live screenshots.
 Click interaction from UI forwarded to real page."""
 
-import os, json, time, random, string, re, threading, traceback, uuid
+import os, json, subprocess, sys, time, random, string, re, threading, traceback, uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from faker import Faker
+# Браузеры Playwright — из папки проекта; если ФС не даёт выполнение (noexec, fuseblk) — в ~/.cache
+_C2_ROOT = Path(__file__).resolve().parent
+_BROWSERS_DIR_PROJECT = _C2_ROOT / "browsers"
+_CACHE_BROWSERS = Path(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))) / "c2_server" / "playwright-browsers"
+
+
+def _get_playwright_browsers_path():
+    """Путь, откуда можно запускать браузер (должен быть на исполняемой ФС)."""
+    if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+        return Path(os.environ["PLAYWRIGHT_BROWSERS_PATH"])
+    # Проверяем, можно ли выполнять из папки проекта (не noexec)
+    chrome_candidates = list(_BROWSERS_DIR_PROJECT.glob("chromium-*/chrome-linux/chrome"))
+    if chrome_candidates:
+        exe = chrome_candidates[0]
+        try:
+            r = subprocess.run(
+                [str(exe), "--version"],
+                capture_output=True,
+                timeout=5,
+                cwd=str(exe.parent),
+            )
+            if r.returncode == 0 or b"Chromium" in (r.stdout or b"") + (r.stderr or b""):
+                os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_BROWSERS_DIR_PROJECT)
+                return _BROWSERS_DIR_PROJECT
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    # Fallback: кэш в домашней директории (обычно ext4, выполнение есть)
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_CACHE_BROWSERS)
+    return _CACHE_BROWSERS
+
+
+def _ensure_playwright_browsers(log_fn=None):
+    """Установить Chromium в рабочий каталог (проект или ~/.cache/c2_server)."""
+    log = log_fn or (lambda s: None)
+    browsers_dir = _get_playwright_browsers_path()
+    if any(browsers_dir.glob("chromium-*")):
+        return True
+    log("Chromium not found. Installing to " + str(browsers_dir))
+    browsers_dir.mkdir(parents=True, exist_ok=True)
+    env = os.environ.copy()
+    env["PLAYWRIGHT_BROWSERS_PATH"] = str(browsers_dir)
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            cwd=str(_C2_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if r.returncode != 0:
+            log(f"playwright install failed: {r.stderr or r.stdout}")
+            return False
+        return True
+    except Exception as e:
+        log(f"playwright install error: {e}")
+        return False
+
 from tempmail import mail_manager
 from captcha_solver import (
     setup_stealth_only, setup_captcha_block,
     solve_captcha_on_page, manual_solver,
     SITES_NEED_REAL_CAPTCHA, SITES_CAN_BLOCK,
 )
-
-fake = Faker("en_US")
+from utils import generate_identity
 
 DB_FILE = Path(__file__).parent / "data" / "accounts.json"
 SCREENSHOTS_DIR = Path(__file__).parent / "data" / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _clean_name(s):
-    return re.sub(r'[^a-z]', '', s.lower())
-
-def generate_identity() -> dict:
-    for _ in range(10):
-        first = fake.first_name()
-        last = fake.last_name()
-        clean_first = _clean_name(first)
-        clean_last = _clean_name(last)
-        if len(clean_first) >= 2 and len(clean_last) >= 2:
-            break
-
-    sep = random.choice(["", "_"])
-    base = f"{clean_first}{sep}{clean_last}"
-    digits = ''.join(random.choices(string.digits, k=random.randint(4, 6)))
-    username = re.sub(r'[^a-z0-9_]', '', (base + digits))[:20]
-    if not any(c in username for c in string.digits):
-        username = base + ''.join(random.choices(string.digits, k=4))
-
-    pwd = (
-        random.choices(string.ascii_lowercase, k=4) +
-        random.choices(string.ascii_uppercase, k=3) +
-        random.choices(string.digits, k=3) +
-        random.choices("!@#$%&", k=2)
-    )
-    random.shuffle(pwd)
-    return {
-        "first_name": first, "last_name": last,
-        "username": username, "display_name": username.replace("_", " "),
-        "password": ''.join(pwd),
-        "birth_year": str(random.randint(1985, 2002)),
-        "birth_month": str(random.randint(1, 12)).zfill(2),
-        "birth_day": str(random.randint(1, 28)).zfill(2),
-    }
+# generate_identity moved to utils.py
 
 
 class AccountStore:
     def __init__(self):
         self.lock = threading.Lock()
+        self._dirty = False
+        self._last_save = 0
         self._load()
 
     def _load(self):
@@ -75,11 +100,19 @@ class AccountStore:
     def _save(self):
         DB_FILE.parent.mkdir(parents=True, exist_ok=True)
         DB_FILE.write_text(json.dumps(self.accounts, indent=2, default=str))
+        self._dirty = False
+        self._last_save = time.time()
+    
+    def _maybe_save(self, force=False):
+        """Save only if dirty and at least 2s passed since last save."""
+        if self._dirty and (force or time.time() - self._last_save > 2):
+            self._save()
 
     def add(self, account):
         with self.lock:
             self.accounts.append(account)
-            self._save()
+            self._dirty = True
+            self._maybe_save()
 
     def get_all(self):
         with self.lock:
@@ -88,6 +121,17 @@ class AccountStore:
     def find(self, reg_id):
         with self.lock:
             return next((a for a in self.accounts if a.get("reg_id") == reg_id), None)
+    
+    def update(self, reg_id, updates):
+        """Update account fields by reg_id."""
+        with self.lock:
+            acc = next((a for a in self.accounts if a.get("reg_id") == reg_id), None)
+            if acc:
+                acc.update(updates)
+                self._dirty = True
+                self._maybe_save()
+                return True
+            return False
 
     def save(self):
         with self.lock:
@@ -96,6 +140,7 @@ class AccountStore:
     def remove(self, reg_id):
         with self.lock:
             self.accounts = [a for a in self.accounts if a.get("reg_id") != reg_id]
+            self._dirty = True
             self._save()
 
 
@@ -120,17 +165,19 @@ PLATFORMS = {
 
 class RegistrationJob:
     def __init__(self, platform, mail_provider="boomlify", custom_url="",
-                 count=1, headless=True, proxy=""):
+                 count=1, headless=True, proxy="", browser="chrome"):
         self.platform = platform
         self.mail_provider = mail_provider
         self.custom_url = custom_url
         self.count = count
         self.headless = headless
         self.proxy = proxy
+        self.browser = browser  # 'chrome' or 'firefox'
         self.reg_id = str(uuid.uuid4())[:8]
         self.status = "pending"
         self.log_lines = []
         self.current_step = ""
+        self.current_email = ""  # Current temp email for this job
         self.accounts_created = []
         self._page = None
         self._page_lock = threading.Lock()
@@ -226,6 +273,7 @@ class RegistrationJob:
             "reg_id": self.reg_id, "platform": self.platform,
             "platform_name": PLATFORMS.get(self.platform, {}).get("name", self.platform),
             "status": self.status, "current_step": self.current_step,
+            "current_email": self.current_email,
             "count": self.count, "created": len(self.accounts_created),
             "log": self.log_lines[-60:], "accounts": self.accounts_created,
             "has_live_view": self._page is not None,
@@ -243,9 +291,24 @@ class RegistrationJob:
         """Check if cancel was requested. Returns True if should abort current registration."""
         return getattr(self, '_cancel_requested', False)
 
+    def _check_verify(self):
+        """Check if manual verify was requested."""
+        return getattr(self, '_manual_verify', False)
+
     def run(self):
         self.status = "running"
         self._cancel_requested = False
+        self._manual_verify = False
+        
+        # Use parallel registration if count > 1 and parallel enabled
+        parallel_count = getattr(self, 'parallel_count', 1)
+        if parallel_count > 1 and self.count > 1:
+            self._run_parallel(parallel_count)
+        else:
+            self._run_sequential()
+    
+    def _run_sequential(self):
+        """Run registrations sequentially (original behavior)."""
         for i in range(self.count):
             if getattr(self, "status", None) == "cancelled":
                 self.log("Permanent stop — exiting.")
@@ -253,6 +316,7 @@ class RegistrationJob:
             try:
                 self.log(f"━━ Registration {i+1}/{self.count} ━━")
                 self._cancel_requested = False
+                self._manual_verify = False
                 account = self._register_one(i)
                 if getattr(self, "status", None) == "cancelled":
                     break
@@ -263,7 +327,7 @@ class RegistrationJob:
                     threading.Thread(target=account_store.add, args=(account,), daemon=True).start()
                     self.log(f"✓ Saved: {account.get('email','?')} [{account.get('status')}]")
                 if i < self.count - 1:
-                    d = random.uniform(3, 8)
+                    d = random.uniform(2, 5)  # Reduced wait time
                     self.log(f"Waiting {d:.0f}s...")
                     deadline = time.time() + d
                     while time.time() < deadline:
@@ -277,82 +341,225 @@ class RegistrationJob:
         if getattr(self, "status", None) != "cancelled":
             self.status = "completed"
         self.log(f"Done. {len(self.accounts_created)}/{self.count} accounts.")
-
-    def _register_one(self, index) -> Optional[dict]:
-        from playwright.sync_api import sync_playwright
-
-        identity = generate_identity()
-        self.log(f"Identity: {identity['display_name']} / {identity['username']}")
-
-        self.log("Creating temp email...")
-        email_data = mail_manager.create_email()
-        identity["email"] = email_data["email"]
-        self.log(f"Email: {identity['email']}")
-
-        pinfo = PLATFORMS.get(self.platform, PLATFORMS["custom"])
-        account = {
-            "reg_id": f"{self.reg_id}-{index}",
-            "platform": self.platform, "platform_name": pinfo["name"],
-            **identity, "email_data": email_data,
-            "status": "registering", "created_at": datetime.now().isoformat(),
-            "verified": False,
-        }
-
-        with sync_playwright() as p:
-            args = ["--no-sandbox", "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage"]
-            opts = dict(headless=self.headless, args=args)
-            if self.proxy:
-                opts["proxy"] = {"server": self.proxy}
-
-            browser = p.chromium.launch(**opts)
-            context = browser.new_context(
-                viewport={"width": 1280, "height": 720},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-                locale="en-US",
-            )
-
-            if self.platform in SITES_NEED_REAL_CAPTCHA:
-                setup_stealth_only(context)
-                self.log("Mode: stealth (captcha visible)")
-            else:
-                tmp = context.new_page()
-                setup_captcha_block(context, tmp, self)
-                tmp.close()
-                self.log("Mode: block (captcha blocked)")
-
-            page = context.new_page()
-            self._set_page(page)
-
+    
+    def _run_parallel(self, max_workers=2):
+        """Run registrations in parallel using thread pool."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        self.log(f"Starting parallel registration with {max_workers} workers...")
+        
+        def register_task(idx):
+            """Single registration task for thread pool."""
             try:
-                handler = PLATFORM_HANDLERS.get(self.platform, generic_register)
-                result = handler(page, identity, email_data, self, pinfo)
-                if self._check_cancel():
-                    self.log("Cancelled — saving account as created")
-                    account["status"] = "created"
-                elif result:
-                    account.update(result)
-                    if result.get("verified"):
-                        account["status"] = "verified"
-                    elif result.get("error"):
-                        account["status"] = "failed"
-                        account["error"] = result.get("error", "")
-                    elif account["status"] == "registering":
-                        account["status"] = "created"
-                else:
-                    account["status"] = "created"
+                self.log(f"[Worker] Starting registration {idx+1}")
+                account = self._register_one(idx)
+                return (idx, account, None)
             except Exception as e:
-                self.log(f"Browser error: {e}")
-                account["error"] = str(e)
-                account["status"] = "created"
-            finally:
-                self._clear_page()
-                try:
-                    browser.close()
-                except Exception:
-                    pass
+                return (idx, None, str(e))
+        
+        # Create thread pool
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            for i in range(self.count):
+                if self.is_cancelled:
+                    self.log("Cancelled - stopping new registrations")
+                    break
+                future = executor.submit(register_task, i)
+                futures[future] = i
+                # Small delay between starting workers
+                time.sleep(0.5)
+            
+            # Collect results
+            for future in as_completed(futures):
+                if self.is_cancelled:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    break
+                
+                idx, account, error = future.result()
+                if error:
+                    self.log(f"Registration {idx+1} error: {error}")
+                elif account:
+                    self.accounts_created.append(account)
+                    if account.get("status") == "registering":
+                        account["status"] = "created"
+                    threading.Thread(target=account_store.add, args=(account,), daemon=True).start()
+                    self.log(f"✓ Saved: {account.get('email','?')} [{account.get('status')}]")
+        
+        
+        self._clear_page()
+        if getattr(self, "status", None) != "cancelled":
+            self.status = "completed"
+        self.log(f"Done. {len(self.accounts_created)}/{self.count} accounts.")
 
-        return account
+    def _register_one(self, index, retry_count=2) -> Optional[dict]:
+        """Run registration with retry on transient errors."""
+        # Use firefox_worker for Firefox, autoreg_worker for Chrome
+        if self.browser == "firefox":
+            from firefox_worker import run_registration_firefox
+            run_func = lambda platform, headless, input_data: run_registration_firefox(
+                platform, headless=headless, input_data=input_data
+            )
+        else:
+            from autoreg_worker import run_registration
+            run_func = run_registration
+        
+        for attempt in range(retry_count + 1):
+            if self.is_cancelled:
+                return None
+            
+            identity = generate_identity()
+            self.log(f"Identity: {identity['display_name']}")
+
+            # Create temp email for registration (via API - fast)
+            self.log("Creating temp email...")
+            try:
+                # Don't specify provider - let mail_manager choose best available
+                email_data = mail_manager.create_email(edu_only=True, retry_count=1)
+            except Exception as e:
+                self.log(f"Email creation failed: {e}")
+                if attempt < retry_count:
+                    self.log(f"Retrying in 2s... (attempt {attempt+2}/{retry_count+1})")
+                    time.sleep(2)
+                    continue
+                return None
+            
+            identity["email"] = email_data["email"]
+            self.current_email = email_data["email"]
+            self.log(f"✓ Email: {identity['email']}")
+            
+            # Mark email as created for this registration job
+            email_data["registration_job"] = {
+                "reg_id": self.reg_id,
+                "platform": self.platform,
+                "platform_name": PLATFORMS.get(self.platform, {}).get("name", self.platform),
+                "job_index": index,
+            }
+            mail_manager.accounts[email_data["email"]] = email_data
+
+            pinfo = PLATFORMS.get(self.platform, PLATFORMS["custom"])
+            account = {
+                "reg_id": f"{self.reg_id}-{index}",
+                "platform": self.platform, "platform_name": pinfo["name"],
+                **identity, "email_data": email_data,
+                "status": "registering", "created_at": datetime.now().isoformat(),
+                "verified": False,
+            }
+
+            # Run registration directly (faster than subprocess)
+            self.log(">>> Starting browser...")
+            
+            input_data = {
+                "identity": identity,
+                "email": identity["email"],
+                "email_data": email_data,
+            }
+            
+            # Run in thread with cancellation support
+            result_holder = {"result": None, "done": False}
+            
+            def run_in_thread():
+                try:
+                    result_holder["result"] = run_func(
+                        self.platform, headless=self.headless, input_data=input_data
+                    )
+                except Exception as e:
+                    result_holder["result"] = {"success": False, "error": str(e)}
+                finally:
+                    result_holder["done"] = True
+            
+            
+            t = threading.Thread(target=run_in_thread, daemon=True)
+            t.start()
+            
+            # Wait with cancellation check
+            WORKER_TIMEOUT = 240  # 4 minutes max
+            start_time = time.time()
+            
+            while time.time() - start_time < WORKER_TIMEOUT and not result_holder["done"]:
+                if self.is_cancelled:
+                    self.log("Cancelled")
+                    account["status"] = "cancelled"
+                    return account
+                time.sleep(0.5)
+            
+            # Get result
+            worker_result = result_holder.get("result")
+            
+            if not worker_result:
+                self.log("Worker timeout")
+                account["status"] = "failed"
+                account["error"] = "timeout"
+                # Timeout is retryable
+                if attempt < retry_count:
+                    self.log(f"Retrying in 5s... (attempt {attempt+2}/{retry_count+1})")
+                    time.sleep(5)
+                    continue
+                return account
+            
+            
+            # Copy logs from worker
+            for line in worker_result.get("logs", [])[-15:]:
+                self.log(line)
+            
+            # Parse result
+            if worker_result.get("success"):
+                account["status"] = "verified"
+                account["verified"] = True
+                if worker_result.get("api_key"):
+                    account["api_key"] = worker_result["api_key"]
+                    self.log(f"✓ API Key: {worker_result['api_key'][:20]}...")
+                if worker_result.get("api_key_legacy"):
+                    account["api_key_legacy"] = worker_result["api_key_legacy"]
+                    self.log(f"✓ Legacy API Key: {worker_result['api_key_legacy'][:20]}...")
+                if worker_result.get("api_key_new"):
+                    account["api_key_new"] = worker_result["api_key_new"]
+                    self.log(f"✓ New API Token: {worker_result['api_key_new'][:20]}...")
+                if worker_result.get("kaggle_username"):
+                    account["kaggle_username"] = worker_result["kaggle_username"]
+                    self.log(f"✓ Kaggle Username: {worker_result['kaggle_username']}")
+                
+                # Create dataset + 5 GPU machines for new account
+                if worker_result.get("api_key_legacy") and worker_result.get("kaggle_username"):
+                    self.log("Creating dataset + 5 GPU machines...")
+                    try:
+                        from kaggle_datasets import create_dataset_with_machines
+                        result = create_dataset_with_machines(
+                            worker_result["api_key_legacy"],
+                            worker_result["kaggle_username"],
+                            num_machines=5,
+                            log_fn=self.log
+                        )
+                        if result.get("dataset"):
+                            account["dataset"] = result["dataset"]
+                            account["machines"] = result.get("machines", [])
+                            account["machines_created"] = result.get("machines_created", 0)
+                            self.log(f"✓ Dataset + {result.get('machines_created', 0)} machines created")
+                        else:
+                            self.log(f"⚠ Dataset creation failed: {result.get('error', 'unknown')}")
+                    except Exception as e:
+                        self.log(f"⚠ Dataset creation error: {e}")
+                
+                return account
+            
+            
+            # Check if error is retryable
+            error = worker_result.get("error") or "registration failed"
+            retryable_errors = ["timeout", "network", "connection", "cloudflare", "rate limit", "429", "503", "502"]
+            is_retryable = any(e in str(error).lower() for e in retryable_errors)
+            
+            if is_retryable and attempt < retry_count:
+                self.log(f"Retryable error: {error}")
+                self.log(f"Retrying in 5s... (attempt {attempt+2}/{retry_count+1})")
+                time.sleep(5)
+                continue
+            
+            
+            account["status"] = "failed"
+            account["error"] = error
+            return account
+        
+        # All retries exhausted
+        return None
 
 
 # ─────────────── HELPERS ───────────────
@@ -430,6 +637,14 @@ def _wait_email(email, job, timeout=60, subject_filter=None):
     job.log(f"Waiting for email ({timeout}s)...")
     start = time.time()
     seen = set()
+    
+    # Debug: log email data
+    email_data = mail_manager.accounts.get(email)
+    if email_data:
+        job.log(f"Email provider: {email_data.get('provider', 'unknown')}")
+    else:
+        job.log(f"WARNING: Email {email} not in mail_manager.accounts!")
+    
     initial = mail_manager.check_inbox(email)
     for m in initial:
         seen.add(m.get("id", ""))
@@ -438,7 +653,7 @@ def _wait_email(email, job, timeout=60, subject_filter=None):
         if job._check_cancel():
             job.log("Cancelled — skipping email wait")
             return None, None, None
-        time.sleep(1)
+        time.sleep(0.5)  # Faster polling (was 1s)
         messages = mail_manager.check_inbox(email)
         for m in messages:
             mid = m.get("id", "")
@@ -460,317 +675,613 @@ def _handle_captcha(page, job):
         job.log("Captcha: auto-solved")
         return True
     job.log("Captcha needs manual solve — use Live View to click on it")
-    for i in range(120):
+    for i in range(180):  # 90 seconds max (was 180s)
         if job._check_cancel():
             return False
-        time.sleep(1.5)
+        time.sleep(0.5)  # Faster polling (was 1.5s)
         try:
-            still_visible = page.evaluate("""() => {
-                return document.querySelectorAll(
-                    'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], .g-recaptcha, [data-sitekey]'
-                ).length > 0;
+            # Проверяем реальное состояние капчи
+            captcha_state = page.evaluate("""() => {
+                const token = document.querySelector('textarea[name="g-recaptcha-response"]');
+                if (token && token.value && token.value.length > 10) return { solved: true };
+                const htoken = document.querySelector('textarea[name="h-captcha-response"]');
+                if (htoken && htoken.value && htoken.value.length > 10) return { solved: true };
+                const challenge = document.querySelector('iframe[src*="bframe"]');
+                if (!challenge) {
+                    const anchor = document.querySelector('iframe[src*="anchor"]');
+                    if (anchor) return { solved: true };
+                }
+                return { solved: false };
             }""")
-            if not still_visible:
-                job.log("Captcha disappeared — solved via live view!")
+            if captcha_state and captcha_state.get("solved"):
+                job.log("Captcha solved!")
                 return True
-        except:
-            pass
+        except Exception as e:
+            job.log(f"Captcha check error: {e}")
     job.log("Captcha timeout — proceeding anyway")
     return False
 
 
 # ─────────────── KAGGLE ───────────────
 
+from page_utils import (
+    PageStep, find_element, find_and_fill, find_and_click, smart_click_button,
+    safe_goto, check_url, check_all_checkboxes, extract_page_errors,
+    scroll_to_find, wait_for_element_gone
+)
+
+
 def kaggle_register(page, identity, email_data, job, pinfo):
-    job.log("Opening Kaggle (email register)...")
-    page.goto("https://www.kaggle.com/account/login?phase=emailRegister&returnUrl=%2F", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """Kaggle registration flow with retry on each step.
+    
+    Flow: email → password → display name → captcha → next → agree → verify
+    """
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    screenshot_dir.mkdir(exist_ok=True)
+    
+    # === STEP 0: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, 
+            "https://www.kaggle.com/account/login?phase=emailRegister&returnUrl=%2F",
+            timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
 
-    # Step 1: only when email field is visible — fill email
-    if not _fill_step(page, job,
-                      ['input[name="email"]', 'input[type="email"]'],
-                      identity["email"], "Email filled", timeout=10000):
-        job.log("Abort: email field not found")
-        return {"verified": False, "error": "email field not found"}
-    time.sleep(0.6)
+    # === STEP 1: Email ===
+    email_selectors = [
+        'input[name="email"]',
+        'input[type="email"]',
+        'input[placeholder*="email" i]',
+        '#email',
+        'input[autocomplete="email"]',
+        'input[id*="email"]'
+    ]
+    
+    for attempt in range(3):
+        with PageStep(page, f"email (attempt {attempt+1})", job.log, screenshot_dir):
+            if find_and_fill(page, email_selectors, identity["email"], 
+                           timeout=5000, human_typing=True, log_fn=job.log):
+                job.log(f"✓ Email: {identity['email']}")
+                break
+        time.sleep(1)
+    else:
+        job.log("✗ Email field not found after 3 attempts")
+        page.screenshot(path=str(screenshot_dir / f"kaggle_no_email_{int(time.time())}.png"))
+        return {"verified": False, "error": "email field not found", "step": "email"}
+    time.sleep(0.5)
 
-    # Step 2: wait for password field then fill (do not fill until it's there)
-    if not _fill_step(page, job,
-                      ['input[name="password"]', 'input[type="password"]'],
-                      identity["password"], "Password filled", timeout=8000):
-        job.log("Abort: password field not found")
-        return {"verified": False, "error": "password field not found"}
-    time.sleep(0.6)
+    # === STEP 2: Password ===
+    pwd_selectors = [
+        'input[name="password"]',
+        'input[type="password"]',
+        'input[placeholder*="password" i]',
+        '#password',
+        'input[autocomplete="new-password"]'
+    ]
+    
+    for attempt in range(3):
+        with PageStep(page, f"password (attempt {attempt+1})", job.log, screenshot_dir):
+            if find_and_fill(page, pwd_selectors, identity["password"],
+                           timeout=5000, log_fn=job.log):
+                job.log(f"✓ Password: {'*' * 8}")
+                break
+        time.sleep(1)
+    else:
+        job.log("✗ Password field not found after 3 attempts")
+        return {"verified": False, "error": "password field not found", "step": "password"}
+    time.sleep(0.5)
 
-    # Step 3: if there is a Next/Continue for step 1, click it and wait for step 2
-    next_sel = ['button:has-text("Next")', 'button:has-text("Continue")', 'button[type="submit"]']
-    if _wait_visible(page, next_sel, timeout=3000):
-        _click_step(page, job, next_sel, "Next (to step 2)", timeout=2000)
-        time.sleep(2)
-        # wait for step 2 fields (name input or any text input)
-        _wait_visible(page, [
-            'input[placeholder*="name" i]', 'input[placeholder*="full" i]',
-            'input[name="displayName"]', 'input[name="fullName"]',
-        ], timeout=10000)
-        time.sleep(0.3)
-
-    # Step 4: fill visible name/full-name field — use username (with digits) as display name
-    uname = identity["username"]
-    name_for_field = uname.replace("_", " ")
-    name_filled = _fill_step(page, job,
-               ['input[placeholder*="full name" i]', 'input[placeholder*="name" i]',
-                'input[name="displayName"]', 'input[name="fullName"]',
-                'input[id*="displayName"]', 'input[id*="fullName"]'],
-               name_for_field, f"Name: {name_for_field}", timeout=8000)
-    if not name_filled:
-        job.log("Warning: name field not found")
+    # === STEP 3: Display Name ===
+    display_name = identity["username"].replace("_", " ")
+    name_selectors = [
+        'input[name="displayName"]',
+        'input[name="fullName"]',
+        'input[placeholder*="display" i]',
+        'input[placeholder*="name" i]',
+        'input[id*="displayName"]',
+        'input[id*="fullName"]',
+        'input[name="username"]'
+    ]
+    
+    # Try to fill display name (optional step)
+    if find_and_fill(page, name_selectors, display_name, timeout=3000, log_fn=job.log):
+        job.log(f"✓ Display name: {display_name}")
+    else:
+        job.log("ℹ Display name field not found (may appear later)")
     time.sleep(0.3)
 
-    # Step 5: fill username — try visible field first, then set hidden input via JS
-    uname = identity["username"]
-    uname_filled = _fill_step(page, job,
-               ['input[name="userName"]:not([type="hidden"])', 'input[name="username"]:not([type="hidden"])',
-                'input[id*="userName"]', 'input[id*="username"]',
-                'input[placeholder*="user" i]', 'input[autocomplete="username"]'],
-               uname, f"Username: {uname}", timeout=4000)
-    if not uname_filled:
-        try:
-            page.evaluate(f'document.querySelector("input[name=\\"userName\\"]") && (document.querySelector("input[name=\\"userName\\"]").value = "{uname}")')
-            job.log(f"Username set (hidden): {uname}")
-        except Exception:
-            job.log(f"Warning: username field not available")
-    time.sleep(0.3)
+    # === STEP 4: Captcha ===
+    with PageStep(page, "captcha", job.log, screenshot_dir):
+        _handle_captcha(page, job)
+    time.sleep(0.5)
 
-    # Step 6: checkboxes (privacy/terms/consent or plain checkbox)
-    for sel in ['input[name*="privacy"]', 'input[name*="terms"]', 'input[name*="consent"]', 'input[type="checkbox"]']:
-        try:
-            cb = page.locator(sel).first
-            if cb.is_visible(timeout=600) and not cb.is_checked():
-                cb.click()
-                time.sleep(0.2)
-                job.log("Checkbox checked")
-        except Exception:
-            pass
+    # === STEP 5: Click Next/Submit ===
+    next_texts = ["Next", "Continue", "Register", "Sign up"]
+    
+    for attempt in range(3):
+        with PageStep(page, f"click_next (attempt {attempt+1})", job.log, screenshot_dir):
+            if smart_click_button(page, next_texts, timeout=5000, log_fn=job.log):
+                job.log("✓ Next clicked")
+                break
+            # Fallback: Enter key
+            job.log("Trying Enter key...")
+            page.keyboard.press("Enter")
+            time.sleep(1)
+    time.sleep(3)
 
-    _handle_captcha(page, job)
+    # === STEP 6: Check errors and agree checkboxes ===
+    with PageStep(page, "check_errors", job.log, screenshot_dir):
+        # Check for page errors
+        errors = extract_page_errors(page)
+        for err in errors:
+            job.log(f"  ⚠ Error: {err[:80]}")
+            if "captcha" in err.lower():
+                job.log("  → Retrying captcha...")
+                _handle_captcha(page, job)
+                smart_click_button(page, next_texts, timeout=3000, log_fn=job.log)
+        
+        # Check all agree checkboxes
+        agree_selectors = [
+            'input[name*="privacy"]',
+            'input[name*="terms"]', 
+            'input[name*="consent"]',
+            'input[name*="agree"]',
+            'input[type="checkbox"]:not([name*="remember"])'
+        ]
+        checked = check_all_checkboxes(page, agree_selectors, log_fn=job.log)
+        if checked:
+            job.log(f"✓ Checked {checked} agree boxes")
+    
+    time.sleep(0.5)
 
-    # Step 7: submit only when submit/Next button is visible (final step)
-    job.log("Submitting...")
-    submit_sel = ['button:has-text("Next")', 'button[type="submit"]', 'button:has-text("Register")',
-                  'button:has-text("Sign up")', 'button:has-text("Create Account")', 'button:has-text("Create account")']
-    if not _click_step(page, job, submit_sel, "Submit clicked", timeout=8000):
-        page.keyboard.press("Enter")
-    time.sleep(4)
+    # Click Next again after agree
+    smart_click_button(page, next_texts, timeout=3000, log_fn=job.log)
+    time.sleep(2)
 
-    try:
-        err = page.locator('.form-error, .error-message, [role="alert"]').first.text_content(timeout=2000)
-        if err and len(err.strip()) > 0:
-            job.log(f"Error: {err.strip()[:100]}")
-    except Exception:
-        pass
-
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="kaggle")
+    # === STEP 7: Wait for verification email ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="kaggle")
+    
     if link:
-        job.log("Verification link found")
-        page.goto(link, timeout=30000)
+        job.log(f"✓ Verification link found")
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         time.sleep(3)
         return {"verified": True, "verify_link": link}
+    
     if code:
-        job.log(f"Code: {code}")
-        if _wait_visible(page, ['input[name="code"]', 'input[name*="verif"]', 'input[placeholder*="code" i]'], timeout=5000):
-            _fill(page, 'input[name="code"], input[name*="verif"], input[placeholder*="code" i]', code, 2000)
-            _click_step(page, job, 'button[type="submit"]', "Verify submitted", 3000)
-        time.sleep(3)
+        job.log(f"✓ Verification code: {code}")
+        
+        # Enter code with retry
+        code_selectors = [
+            'input[name="code"]',
+            'input[name*="verif"]',
+            'input[placeholder*="code" i]',
+            'input[maxlength="6"]',
+            'input[maxlength="8"]',
+            'input[type="text"]:visible'
+        ]
+        
+        for attempt in range(3):
+            with PageStep(page, f"enter_code (attempt {attempt+1})", job.log, screenshot_dir):
+                if find_and_fill(page, code_selectors, code, timeout=5000, log_fn=job.log):
+                    job.log(f"✓ Code entered: {code}")
+                    break
+            time.sleep(1)
+        else:
+            job.log("✗ Code field not found")
+            page.screenshot(path=str(screenshot_dir / f"kaggle_no_code_{int(time.time())}.png"))
+        
+        time.sleep(0.5)
+        smart_click_button(page, next_texts, timeout=3000, log_fn=job.log)
+        time.sleep(2)
         return {"verified": True, "verify_code": code}
-    return {"verified": False}
+    
+    job.log("✗ No verification email received")
+    page.screenshot(path=str(screenshot_dir / f"kaggle_no_email_{int(time.time())}.png"))
+    return {"verified": False, "error": "no verification email", "step": "verify"}
 
 
 # ─────────────── GITHUB ───────────────
 
 def github_register(page, identity, email_data, job, pinfo):
-    job.log("Opening GitHub...")
-    page.goto("https://github.com/signup", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """GitHub registration with retry on each step."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, "https://github.com/signup", timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
 
-    if not _fill_step(page, job, '#email', identity["email"], "Email", timeout=10000):
-        return {"verified": False, "error": "email field not found"}
-    if not _click_step(page, job, 'button:has-text("Continue")', "Continue (email)", timeout=6000):
-        page.keyboard.press("Enter")
-    time.sleep(2)
-    _wait_visible(page, '#password', timeout=8000)
-    time.sleep(0.4)
-
-    if not _fill_step(page, job, '#password', identity["password"], "Password", timeout=8000):
-        return {"verified": False, "error": "password field not found"}
-    if not _click_step(page, job, 'button:has-text("Continue")', "Continue (password)", timeout=6000):
-        page.keyboard.press("Enter")
-    time.sleep(2)
-    _wait_visible(page, '#login', timeout=8000)
-    time.sleep(0.4)
-
-    if not _fill_step(page, job, '#login', identity["username"], f"Username: {identity['username']}", timeout=8000):
-        return {"verified": False, "error": "username field not found"}
-    if not _click_step(page, job, 'button:has-text("Continue")', "Continue (username)", timeout=6000):
-        page.keyboard.press("Enter")
-    time.sleep(2)
-    try:
-        o = page.locator('#opt_in')
-        if o.is_visible(timeout=2000):
-            o.fill("n")
-    except Exception:
-        pass
-    _click_step(page, job, 'button:has-text("Continue")', "Continue (opt-in)", 4000)
+    # === STEP 2: Email ===
+    for attempt in range(3):
+        with PageStep(page, f"email (attempt {attempt+1})", job.log, screenshot_dir):
+            if find_and_fill(page, ['#email', 'input[name="email"]'], 
+                           identity["email"], timeout=8000, human_typing=True, log_fn=job.log):
+                job.log(f"✓ Email: {identity['email']}")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "email field not found", "step": "email"}
+    
+    smart_click_button(page, ["Continue"], timeout=5000, log_fn=job.log) or page.keyboard.press("Enter")
     time.sleep(2)
 
-    _handle_captcha(page, job)
+    # === STEP 3: Password ===
+    for attempt in range(3):
+        with PageStep(page, f"password (attempt {attempt+1})", job.log, screenshot_dir):
+            if find_and_fill(page, ['#password', 'input[name="password"]'],
+                           identity["password"], timeout=8000, log_fn=job.log):
+                job.log("✓ Password filled")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "password field not found", "step": "password"}
+    
+    smart_click_button(page, ["Continue"], timeout=5000, log_fn=job.log) or page.keyboard.press("Enter")
+    time.sleep(2)
 
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="github")
-    if code:
-        job.log(f"Code: {code}")
+    # === STEP 4: Username ===
+    for attempt in range(3):
+        with PageStep(page, f"username (attempt {attempt+1})", job.log, screenshot_dir):
+            if find_and_fill(page, ['#login', 'input[name="user[login]"]', 'input[name="username"]'],
+                           identity["username"], timeout=8000, log_fn=job.log):
+                job.log(f"✓ Username: {identity['username']}")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "username field not found", "step": "username"}
+    
+    smart_click_button(page, ["Continue"], timeout=5000, log_fn=job.log) or page.keyboard.press("Enter")
+    time.sleep(2)
+
+    # === STEP 5: Opt-in (optional) ===
+    with PageStep(page, "opt_in", job.log, screenshot_dir):
         try:
-            inp = page.locator('input[type="text"], input[name*="code"], input[name*="otp"]')
-            if inp.count() >= 1:
-                inp.first.fill(code)
-                time.sleep(2)
+            opt = page.locator('#opt_in')
+            if opt.is_visible(timeout=2000):
+                opt.fill("n")
+                job.log("✓ Opt-out set")
         except:
             pass
+    smart_click_button(page, ["Continue"], timeout=3000, log_fn=job.log)
+    time.sleep(2)
+
+    # === STEP 6: Captcha ===
+    with PageStep(page, "captcha", job.log, screenshot_dir):
+        _handle_captcha(page, job)
+
+    # === STEP 7: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="github")
+    
+    if code:
+        job.log(f"✓ Code: {code}")
+        with PageStep(page, "enter_code", job.log, screenshot_dir):
+            code_selectors = [
+                'input[type="text"]',
+                'input[name*="code"]',
+                'input[name*="otp"]',
+                'input[placeholder*="code" i]'
+            ]
+            for attempt in range(3):
+                if find_and_fill(page, code_selectors, code, timeout=5000, log_fn=job.log):
+                    job.log(f"✓ Code entered")
+                    break
+                time.sleep(1)
+        time.sleep(2)
         return {"verified": True, "verify_code": code}
-    return {"verified": False}
+    
+    job.log("✗ No verification email")
+    page.screenshot(path=str(screenshot_dir / f"github_no_email_{int(time.time())}.png"))
+    return {"verified": False, "error": "no verification email", "step": "verify"}
 
 
 # ─────────────── HUGGINGFACE ───────────────
 
 def huggingface_register(page, identity, email_data, job, pinfo):
-    job.log("Opening HuggingFace...")
-    page.goto("https://huggingface.co/join", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """HuggingFace registration with retry on each step."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, "https://huggingface.co/join", timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
-    if not _wait_visible(page, ['input[name="email"]', 'input[type="email"]'], timeout=8000):
-        return {"verified": False}
-    _fill_step(page, job, ['input[name="email"]', 'input[type="email"]'], identity["email"], "Email", 4000)
-    _fill_step(page, job, 'input[name="password"], input[type="password"]', identity["password"], "Password", 4000)
-    _fill_step(page, job, 'input[name="username"]', identity["username"], "Username", 4000)
+
+    # === STEP 2: Fill form ===
+    email_selectors = ['input[name="email"]', 'input[type="email"]', '#email']
+    pwd_selectors = ['input[name="password"]', 'input[type="password"]', '#password']
+    user_selectors = ['input[name="username"]', '#username']
+    
+    for attempt in range(3):
+        with PageStep(page, f"fill_form (attempt {attempt+1})", job.log, screenshot_dir):
+            success = True
+            if not find_and_fill(page, email_selectors, identity["email"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, pwd_selectors, identity["password"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, user_selectors, identity["username"], timeout=5000, log_fn=job.log):
+                success = False
+            if success:
+                job.log(f"✓ Form filled: {identity['email']}")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "form fields not found", "step": "fill"}
+    
     time.sleep(0.5)
-    _click_step(page, job, 'button[type="submit"]', "Submit", 4000) or page.keyboard.press("Enter")
+    
+    # === STEP 3: Submit ===
+    with PageStep(page, "submit", job.log, screenshot_dir):
+        if not smart_click_button(page, ["Sign Up", "Create Account", "Join"], timeout=5000, log_fn=job.log):
+            page.keyboard.press("Enter")
     time.sleep(3)
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="hugging")
+
+    # === STEP 4: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="hugging")
+    
     if link:
-        page.goto(link, timeout=30000)
+        job.log(f"✓ Verification link found")
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         time.sleep(3)
         return {"verified": True, "verify_link": link}
-    return {"verified": False}
+    
+    job.log("✗ No verification email")
+    page.screenshot(path=str(screenshot_dir / f"hf_no_email_{int(time.time())}.png"))
+    return {"verified": False, "error": "no verification email", "step": "verify"}
 
 
 # ─────────────── REPLIT ───────────────
 
 def replit_register(page, identity, email_data, job, pinfo):
-    job.log("Opening Replit...")
-    page.goto("https://replit.com/signup", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """Replit registration with retry on each step."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, "https://replit.com/signup", timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
-    _click_step(page, job, 'text=Continue with email', "Continue with email", 8000)
+
+    # === STEP 2: Click Continue with email ===
+    with PageStep(page, "click_email_option", job.log, screenshot_dir):
+        smart_click_button(page, ["Continue with email", "Sign up with email"], timeout=8000, log_fn=job.log)
     time.sleep(1.5)
-    if not _wait_visible(page, ['input[name="email"]', 'input[type="email"]'], timeout=8000):
-        return {"verified": False}
-    _fill_step(page, job, ['input[name="email"]', 'input[type="email"]'], identity["email"], "Email", 4000)
-    _fill_step(page, job, 'input[name="password"], input[type="password"]', identity["password"], "Password", 4000)
-    _fill_step(page, job, 'input[name="username"]', identity["username"], "Username", 4000)
+
+    # === STEP 3: Fill form ===
+    email_selectors = ['input[name="email"]', 'input[type="email"]', '#email']
+    pwd_selectors = ['input[name="password"]', 'input[type="password"]', '#password']
+    user_selectors = ['input[name="username"]', '#username']
+    
+    for attempt in range(3):
+        with PageStep(page, f"fill_form (attempt {attempt+1})", job.log, screenshot_dir):
+            success = True
+            if not find_and_fill(page, email_selectors, identity["email"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, pwd_selectors, identity["password"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, user_selectors, identity["username"], timeout=5000, log_fn=job.log):
+                success = False
+            if success:
+                job.log(f"✓ Form filled")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "form fields not found", "step": "fill"}
+    
     time.sleep(0.5)
-    _click_step(page, job, 'button[type="submit"]', "Submit", 4000) or page.keyboard.press("Enter")
+    
+    # === STEP 4: Submit ===
+    with PageStep(page, "submit", job.log, screenshot_dir):
+        if not smart_click_button(page, ["Sign Up", "Create Account", "Submit"], timeout=5000, log_fn=job.log):
+            page.keyboard.press("Enter")
     time.sleep(3)
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="replit")
+
+    # === STEP 5: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="replit")
+    
     if link:
-        page.goto(link, timeout=30000)
+        job.log(f"✓ Verification link found")
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         return {"verified": True, "verify_link": link}
-    return {"verified": False}
+    
+    job.log("✗ No verification email")
+    page.screenshot(path=str(screenshot_dir / f"replit_no_email_{int(time.time())}.png"))
+    return {"verified": False, "error": "no verification email", "step": "verify"}
 
 
 # ─────────────── GENERIC ───────────────
 
 def generic_register(page, identity, email_data, job, pinfo):
+    """Generic registration for custom platforms."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
     url = pinfo.get("url") or job.custom_url
     if not url:
         job.log("No URL")
-        return {"verified": False}
-    job.log(f"Opening {url}...")
-    page.goto(url, timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+        return {"verified": False, "error": "no url"}
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, url, timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
-    if not _wait_visible(page, ['input[name*="email"]', 'input[type="email"]'], timeout=8000):
-        return {"verified": False}
-    _fill_step(page, job, ['input[name*="email"]', 'input[type="email"]'], identity.get("email", ""), "Email", 5000)
-    _fill_step(page, job, ['input[name*="password"]', 'input[type="password"]'], identity.get("password", ""), "Password", 5000)
-    _fill_step(page, job, ['input[name*="user"]', 'input[name*="login"]'], identity.get("username", ""), "Username", 5000)
+
+    # === STEP 2: Fill form with generic selectors ===
+    email_selectors = ['input[name*="email"]', 'input[type="email"]', '#email']
+    pwd_selectors = ['input[name*="password"]', 'input[type="password"]', '#password']
+    user_selectors = ['input[name*="user"]', 'input[name*="login"]', '#username']
+    
+    for attempt in range(3):
+        with PageStep(page, f"fill_form (attempt {attempt+1})", job.log, screenshot_dir):
+            find_and_fill(page, email_selectors, identity.get("email", ""), timeout=5000, log_fn=job.log)
+            find_and_fill(page, pwd_selectors, identity.get("password", ""), timeout=5000, log_fn=job.log)
+            find_and_fill(page, user_selectors, identity.get("username", ""), timeout=5000, log_fn=job.log)
+            job.log("✓ Form filled")
+            break
+        time.sleep(1)
+    
     time.sleep(0.5)
-    _click_step(page, job, ['button[type="submit"]', 'button:has-text("Sign Up")', 'button:has-text("Register")', 'button:has-text("Create")'], "Submit", 5000)
+    
+    # === STEP 3: Submit ===
+    with PageStep(page, "submit", job.log, screenshot_dir):
+        smart_click_button(page, ["Sign Up", "Register", "Create", "Submit"], timeout=5000, log_fn=job.log) or \
+            page.keyboard.press("Enter")
     time.sleep(5)
-    msg, code, link = _wait_email(identity["email"], job, timeout=120)
+
+    # === STEP 4: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120)
+    
     if link:
-        page.goto(link, timeout=30000)
+        job.log(f"✓ Verification link found")
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         return {"verified": True, "verify_link": link}
+    
     if code:
-        for s in ['input[name*="code"]', 'input[name*="verify"]']:
-            if _fill(page, s, code, 2000):
-                _click(page, 'button[type="submit"]')
-                break
+        job.log(f"✓ Code: {code}")
+        with PageStep(page, "enter_code", job.log, screenshot_dir):
+            find_and_fill(page, ['input[name*="code"]', 'input[name*="verify"]'], code, timeout=5000, log_fn=job.log)
+            smart_click_button(page, ["Submit", "Verify", "Confirm"], timeout=3000, log_fn=job.log)
         return {"verified": True, "verify_code": code}
-    return {"verified": False}
+    
+    job.log("✗ No verification")
+    page.screenshot(path=str(screenshot_dir / f"generic_no_verify_{int(time.time())}.png"))
+    return {"verified": False, "error": "no verification"}
 
 
 def paperspace_register(page, identity, email_data, job, pinfo):
-    job.log("Opening Paperspace...")
-    page.goto("https://console.paperspace.com/signup", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """Paperspace registration with retry."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, "https://console.paperspace.com/signup", timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
-    if not _wait_visible(page, ['input[name="email"]', 'input[type="email"]', 'input[name="firstName"]'], timeout=8000):
-        return {"verified": False}
-    _fill_step(page, job, ['input[name="firstName"]', 'input[placeholder*="First" i]'], identity["first_name"], "First name", 4000)
-    _fill_step(page, job, ['input[name="lastName"]', 'input[placeholder*="Last" i]'], identity["last_name"], "Last name", 4000)
-    _fill_step(page, job, ['input[name="email"]', 'input[type="email"]'], identity["email"], "Email", 4000)
-    _fill_step(page, job, 'input[name="password"], input[type="password"]', identity["password"], "Password", 4000)
-    time.sleep(0.5)
-    for sel in ['input[type="checkbox"]']:
-        try:
-            cb = page.locator(sel).first
-            if cb.is_visible(timeout=1000) and not cb.is_checked():
-                cb.click()
-        except:
-            pass
-    _handle_captcha(page, job)
-    _click(page, 'button[type="submit"]') or _click(page, 'button:has-text("Sign Up")') or page.keyboard.press("Enter")
+
+    # === STEP 2: Fill form ===
+    first_selectors = ['input[name="firstName"]', 'input[placeholder*="First" i]']
+    last_selectors = ['input[name="lastName"]', 'input[placeholder*="Last" i]']
+    email_selectors = ['input[name="email"]', 'input[type="email"]']
+    pwd_selectors = ['input[name="password"]', 'input[type="password"]']
+    
+    for attempt in range(3):
+        with PageStep(page, f"fill_form (attempt {attempt+1})", job.log, screenshot_dir):
+            success = True
+            if not find_and_fill(page, first_selectors, identity["first_name"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, last_selectors, identity["last_name"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, email_selectors, identity["email"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, pwd_selectors, identity["password"], timeout=5000, log_fn=job.log):
+                success = False
+            if success:
+                job.log("✓ Form filled")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "form fields not found", "step": "fill"}
+    
+    # === STEP 3: Checkboxes and captcha ===
+    with PageStep(page, "checkboxes", job.log, screenshot_dir):
+        check_all_checkboxes(page, ['input[type="checkbox"]'], log_fn=job.log)
+    
+    with PageStep(page, "captcha", job.log, screenshot_dir):
+        _handle_captcha(page, job)
+    
+    # === STEP 4: Submit ===
+    with PageStep(page, "submit", job.log, screenshot_dir):
+        smart_click_button(page, ["Sign Up", "Create Account", "Submit"], timeout=5000, log_fn=job.log) or \
+            page.keyboard.press("Enter")
     time.sleep(4)
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="paperspace")
+
+    # === STEP 5: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="paperspace")
+    
     if link:
-        page.goto(link, timeout=30000)
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         return {"verified": True, "verify_link": link}
+    
     if code:
-        _fill(page, 'input[name*="code"], input[name*="verif"]', code)
-        _click(page, 'button[type="submit"]')
+        with PageStep(page, "enter_code", job.log, screenshot_dir):
+            find_and_fill(page, ['input[name*="code"]', 'input[name*="verif"]'], code, timeout=5000, log_fn=job.log)
+            smart_click_button(page, ["Submit"], timeout=3000, log_fn=job.log)
         return {"verified": True, "verify_code": code}
-    return {"verified": False}
+    
+    return {"verified": False, "error": "no verification", "step": "verify"}
 
 
 def lightning_register(page, identity, email_data, job, pinfo):
-    job.log("Opening Lightning AI...")
-    page.goto("https://lightning.ai/sign-up", timeout=30000)
-    page.wait_for_load_state("domcontentloaded")
+    """Lightning AI registration with retry."""
+    from pathlib import Path
+    screenshot_dir = Path(__file__).parent / "data" / "screenshots"
+    
+    # === STEP 1: Navigate ===
+    with PageStep(page, "navigate", job.log, screenshot_dir):
+        if not safe_goto(page, "https://lightning.ai/sign-up", timeout=30000, retry=2, log_fn=job.log):
+            return {"verified": False, "error": "navigation failed"}
     time.sleep(2)
-    if not _wait_visible(page, ['input[name="email"]', 'input[type="email"]'], timeout=8000):
-        return {"verified": False}
-    _fill_step(page, job, ['input[name="email"]', 'input[type="email"]'], identity["email"], "Email", 4000)
-    _fill_step(page, job, 'input[name="password"], input[type="password"]', identity["password"], "Password", 4000)
-    _fill_step(page, job, ['input[name*="name"]', 'input[placeholder*="name" i]'], identity["username"].replace("_", " "), "Name", 4000)
+
+    # === STEP 2: Fill form ===
+    email_selectors = ['input[name="email"]', 'input[type="email"]']
+    pwd_selectors = ['input[name="password"]', 'input[type="password"]']
+    name_selectors = ['input[name*="name"]', 'input[placeholder*="name" i]']
+    
+    for attempt in range(3):
+        with PageStep(page, f"fill_form (attempt {attempt+1})", job.log, screenshot_dir):
+            success = True
+            if not find_and_fill(page, email_selectors, identity["email"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, pwd_selectors, identity["password"], timeout=5000, log_fn=job.log):
+                success = False
+            if not find_and_fill(page, name_selectors, identity["username"].replace("_", " "), timeout=5000, log_fn=job.log):
+                success = False
+            if success:
+                job.log("✓ Form filled")
+                break
+        time.sleep(1)
+    else:
+        return {"verified": False, "error": "form fields not found", "step": "fill"}
+    
     time.sleep(0.5)
-    _handle_captcha(page, job)
-    _click_step(page, job, ['button[type="submit"]', 'button:has-text("Sign up")'], "Submit", 4000) or page.keyboard.press("Enter")
+    
+    # === STEP 3: Captcha ===
+    with PageStep(page, "captcha", job.log, screenshot_dir):
+        _handle_captcha(page, job)
+    
+    # === STEP 4: Submit ===
+    with PageStep(page, "submit", job.log, screenshot_dir):
+        smart_click_button(page, ["Sign up", "Create Account", "Submit"], timeout=5000, log_fn=job.log) or \
+            page.keyboard.press("Enter")
     time.sleep(4)
-    msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="lightning")
+
+    # === STEP 5: Wait for verification ===
+    with PageStep(page, "wait_email", job.log, screenshot_dir):
+        msg, code, link = _wait_email(identity["email"], job, timeout=120, subject_filter="lightning")
+    
     if link:
-        page.goto(link, timeout=30000)
+        with PageStep(page, "verify_link", job.log, screenshot_dir):
+            safe_goto(page, link, timeout=30000, log_fn=job.log)
         return {"verified": True, "verify_link": link}
-    return {"verified": False}
+    
+    return {"verified": False, "error": "no verification", "step": "verify"}
 
 
 PLATFORM_HANDLERS = {
@@ -784,13 +1295,25 @@ class JobManager:
     def __init__(self):
         self.jobs = {}
         self.lock = threading.Lock()
+        self._running = False  # только одна регистрация одновременно
 
     def create_job(self, platform, mail_provider="boomlify", custom_url="",
-                   count=1, headless=True, proxy=""):
-        job = RegistrationJob(platform, mail_provider, custom_url, count, headless, proxy)
+                   count=1, headless=True, proxy="", parallel=1, browser="chrome"):
+        with self.lock:
+            if self._running:
+                raise ValueError("Registration already running — wait for it to finish")
+        job = RegistrationJob(platform, mail_provider, custom_url, count, headless, proxy, browser)
+        job.parallel_count = max(1, min(parallel, 3))  # Limit to 3 parallel workers
         with self.lock:
             self.jobs[job.reg_id] = job
-        threading.Thread(target=job.run, daemon=True).start()
+            self._running = True
+        def _run():
+            try:
+                job.run()
+            finally:
+                with self.lock:
+                    self._running = False
+        threading.Thread(target=_run, daemon=True).start()
         return job
 
     def get_job(self, reg_id):

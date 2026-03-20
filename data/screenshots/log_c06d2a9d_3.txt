@@ -1,0 +1,45 @@
+[16:32:32] Using passed identity: amandacollins9198
+[16:32:32] Using passed email: kqlg3a1zju@bscse.okcx.edu.rs
+[16:32:32] Starting Anti-Detect Chrome...
+[16:32:32] Chrome version: 144
+[16:33:40] ✓ Anti-detect Chrome started
+[16:33:40] Loading Kaggle...
+[16:33:57] ✓ Page loaded
+[16:33:58] ✓ Form filled: kqlg3a1zju@bscse.okcx.edu.rs
+[16:33:58] Clicking reCAPTCHA checkbox...
+[16:33:58] ✓ reCAPTCHA clicked - solve the challenge
+[16:33:58] >>> Solve captcha manually - rest is automatic <<<
+[16:33:58] [MAIL] Email: kqlg3a1zju@bscse.okcx.edu.rs provider=boomlify
+[16:33:58] [MAIL] Polling kqlg3a1zju@bscse.okcx.edu.rs (provider=boomlify)
+[16:33:58] >>> Solve ALL captchas manually - rest is automatic <<<
+[16:33:58] [CAPTCHA] Poll #0s: recaptcha=, hcaptcha=None, form_ready=True
+[16:34:01] [MAIL] Poll #1: inbox=0 msgs
+[16:34:05] [MAIL] Poll #2: inbox=0 msgs
+[16:34:08] [MAIL] Poll #3: inbox=0 msgs
+[16:34:08] [CAPTCHA] Poll #10s: recaptcha=, hcaptcha=None, form_ready=True
+[16:34:12] [MAIL] Poll #4: inbox=0 msgs
+[16:34:15] [MAIL] Poll #5: inbox=0 msgs
+[16:34:18] [MAIL] Poll #6: inbox=0 msgs
+[16:34:19] [CAPTCHA] Poll #20s: recaptcha=, hcaptcha=None, form_ready=True
+[16:34:22] [MAIL] Poll #7: inbox=0 msgs
+[16:34:25] [MAIL] Poll #8: inbox=0 msgs
+[16:34:28] [MAIL] Poll #9: inbox=0 msgs
+[16:34:29] [CAPTCHA] Poll #30s: recaptcha=, hcaptcha=None, form_ready=True
+[16:34:32] [MAIL] Poll #10: inbox=0 msgs
+[16:34:35] [MAIL] Poll #11: inbox=0 msgs
+[16:34:39] [MAIL] Poll #12: inbox=0 msgs
+[16:34:39] [CAPTCHA] Poll #40s: recaptcha=, hcaptcha=None, form_ready=True
+[16:34:42] [MAIL] Poll #13: inbox=0 msgs
+[16:34:45] [MAIL] Poll #14: inbox=0 msgs
+[16:34:47] [CAPTCHA] ✓ All captchas solved at 48s
+[16:34:47] [FORM] Submitting...
+[16:34:49] [MAIL] Poll #15: inbox=0 msgs
+[16:34:52] [MAIL] Poll #16: inbox=0 msgs
+[16:34:55] [MAIL] Poll #17: inbox=1 msgs
+[16:34:55] [MAIL]   msg[0]: subj='Kaggle Signup Confirmation' from='3qzy0aQ4KCkowmssxq-z03q1xAs00sxq.o0yw2xs'
+[16:34:55] [MAIL]     body_preview: 'kaggle\n\n\n\n\nVerify your email address\n\nHi amandacollins9198,\n\nHere is your 6-char..'
+[16:34:55] [MAIL] Match! subj='Kaggle Signup Confirmation' body_len=7138 code='ngdnaz' link='https://www.kaggle.com/account/verify?code=ngdnaz&userId=329'...
+[16:34:55] ✓ Code: ngdnaz
+[16:34:56] ✓ Code inserted: ngdnaz
+[16:34:56] ✓ Next clicked
+[16:35:04] ERROR: HTTPConnectionPool(host='localhost', port=38699): Max retries exceeded with url: /session/81291658e3723364b50d29b15376d338/execute/sync (Caused by NewConnectionError("HTTPConnection(host='localhost', port=38699): Failed to establish a new connection: [Errno 111] Connection refused"))

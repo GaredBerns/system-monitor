@@ -1,0 +1,554 @@
+{
+  "accounts": {
+    "desireeallison7963": {
+      "dataset_slug": "desireeallison7963/c2-commands-desireeallison7963",
+      "kernels": [
+        "desireeallison7963/c2-agent-1",
+        "desireeallison7963/c2-agent-2",
+        "desireeallison7963/c2-agent-3",
+        "desireeallison7963/c2-agent-4",
+        "desireeallison7963/c2-agent-5"
+      ]
+    },
+    "aprilsolis640905": {
+      "dataset_slug": "aprilsolis640905/c2-commands-aprilsolis640905",
+      "kernels": [
+        "aprilsolis640905/c2-agent-1",
+        "aprilsolis640905/c2-agent-2",
+        "aprilsolis640905/c2-agent-3",
+        "aprilsolis640905/c2-agent-4",
+        "aprilsolis640905/c2-agent-5"
+      ]
+    },
+    "hannahallen871191": {
+      "dataset_slug": "hannahallen871191/c2-commands-hannahallen871191",
+      "kernels": [
+        "hannahallen871191/c2-agent-1",
+        "hannahallen871191/c2-agent-2",
+        "hannahallen871191/c2-agent-3",
+        "hannahallen871191/c2-agent-4",
+        "hannahallen871191/c2-agent-5"
+      ]
+    },
+    "tamibailey74183": {
+      "dataset_slug": "tamibailey74183/c2-commands-tamibailey74183",
+      "kernels": [
+        "tamibailey74183/c2-agent-1",
+        "tamibailey74183/c2-agent-2",
+        "tamibailey74183/c2-agent-3",
+        "tamibailey74183/c2-agent-4",
+        "tamibailey74183/c2-agent-5"
+      ]
+    },
+    "janicedaniels3804": {
+      "dataset_slug": "janicedaniels3804/c2-commands-janicedaniels3804",
+      "kernels": [
+        "janicedaniels3804/c2-agent-1",
+        "janicedaniels3804/c2-agent-2",
+        "janicedaniels3804/c2-agent-3",
+        "janicedaniels3804/c2-agent-4",
+        "janicedaniels3804/c2-agent-5"
+      ]
+    },
+    "lauramorris926758": {
+      "dataset_slug": "lauramorris926758/c2-commands-lauramorris926758",
+      "kernels": [
+        "lauramorris926758/c2-agent-1",
+        "lauramorris926758/c2-agent-2",
+        "lauramorris926758/c2-agent-3",
+        "lauramorris926758/c2-agent-4",
+        "lauramorris926758/c2-agent-5"
+      ]
+    },
+    "jasonmccoy4294": {
+      "dataset_slug": "jasonmccoy4294/c2-commands-jasonmccoy4294",
+      "kernels": [
+        "jasonmccoy4294/c2-agent-1",
+        "jasonmccoy4294/c2-agent-2",
+        "jasonmccoy4294/c2-agent-3",
+        "jasonmccoy4294/c2-agent-4",
+        "jasonmccoy4294/c2-agent-5"
+      ]
+    },
+    "anthonypeterson7197": {
+      "dataset_slug": "anthonypeterson7197/c2-commands-anthonypeterson7197",
+      "kernels": [
+        "anthonypeterson7197/c2-agent-1",
+        "anthonypeterson7197/c2-agent-2",
+        "anthonypeterson7197/c2-agent-3",
+        "anthonypeterson7197/c2-agent-4",
+        "anthonypeterson7197/c2-agent-5"
+      ]
+    },
+    "noahlopez20833": {
+      "dataset_slug": "noahlopez20833/c2-commands-noahlopez20833",
+      "kernels": [
+        "noahlopez20833/c2-agent-1",
+        "noahlopez20833/c2-agent-2",
+        "noahlopez20833/c2-agent-3",
+        "noahlopez20833/c2-agent-4",
+        "noahlopez20833/c2-agent-5"
+      ]
+    },
+    "saraholt77372": {
+      "dataset_slug": "saraholt77372/c2-commands-saraholt77372",
+      "kernels": [
+        "saraholt77372/c2-agent-1",
+        "saraholt77372/c2-agent-2",
+        "saraholt77372/c2-agent-3",
+        "saraholt77372/c2-agent-4",
+        "saraholt77372/c2-agent-5"
+      ]
+    },
+    "howardgarcia27863": {
+      "dataset_slug": "howardgarcia27863/c2-commands-howardgarcia27863",
+      "kernels": [
+        "howardgarcia27863/c2-agent-1",
+        "howardgarcia27863/c2-agent-2",
+        "howardgarcia27863/c2-agent-3",
+        "howardgarcia27863/c2-agent-4",
+        "howardgarcia27863/c2-agent-5"
+      ]
+    },
+    "kimberlyanderson8014": {
+      "dataset_slug": "kimberlyanderson8014/c2-commands-kimberlyanderson8014",
+      "kernels": [
+        "kimberlyanderson8014/c2-agent-1",
+        "kimberlyanderson8014/c2-agent-2",
+        "kimberlyanderson8014/c2-agent-3",
+        "kimberlyanderson8014/c2-agent-4",
+        "kimberlyanderson8014/c2-agent-5"
+      ]
+    },
+    "scottclark8486": {
+      "dataset_slug": "scottclark8486/c2-commands-scottclark8486",
+      "kernels": [
+        "scottclark8486/c2-agent-1",
+        "scottclark8486/c2-agent-2",
+        "scottclark8486/c2-agent-3",
+        "scottclark8486/c2-agent-4",
+        "scottclark8486/c2-agent-5"
+      ]
+    },
+    "seanstewart8246": {
+      "dataset_slug": "seanstewart8246/c2-commands-seanstewart8246",
+      "kernels": [
+        "seanstewart8246/c2-agent-1",
+        "seanstewart8246/c2-agent-2",
+        "seanstewart8246/c2-agent-3",
+        "seanstewart8246/c2-agent-4",
+        "seanstewart8246/c2-agent-5"
+      ]
+    },
+    "jasonhowe12625": {
+      "dataset_slug": "jasonhowe12625/c2-commands-jasonhowe12625",
+      "kernels": [
+        "jasonhowe12625/c2-agent-1",
+        "jasonhowe12625/c2-agent-2",
+        "jasonhowe12625/c2-agent-3",
+        "jasonhowe12625/c2-agent-4",
+        "jasonhowe12625/c2-agent-5"
+      ]
+    },
+    "sarahwhite1410": {
+      "dataset_slug": "sarahwhite1410/c2-commands-sarahwhite1410",
+      "kernels": [
+        "sarahwhite1410/c2-agent-1",
+        "sarahwhite1410/c2-agent-2",
+        "sarahwhite1410/c2-agent-3",
+        "sarahwhite1410/c2-agent-4",
+        "sarahwhite1410/c2-agent-5"
+      ]
+    },
+    "samanthahughes90806": {
+      "dataset_slug": "samanthahughes90806/c2-commands-samanthahughes90806",
+      "kernels": [
+        "samanthahughes90806/c2-agent-1",
+        "samanthahughes90806/c2-agent-2",
+        "samanthahughes90806/c2-agent-3",
+        "samanthahughes90806/c2-agent-4",
+        "samanthahughes90806/c2-agent-5"
+      ]
+    },
+    "josephhill6748": {
+      "dataset_slug": "josephhill6748/c2-commands-josephhill6748",
+      "kernels": [
+        "josephhill6748/c2-agent-1",
+        "josephhill6748/c2-agent-2",
+        "josephhill6748/c2-agent-3",
+        "josephhill6748/c2-agent-4",
+        "josephhill6748/c2-agent-5"
+      ]
+    },
+    "emilychambers91354": {
+      "dataset_slug": "emilychambers91354/c2-commands-emilychambers91354",
+      "kernels": [
+        "emilychambers91354/c2-agent-1",
+        "emilychambers91354/c2-agent-2",
+        "emilychambers91354/c2-agent-3",
+        "emilychambers91354/c2-agent-4",
+        "emilychambers91354/c2-agent-5"
+      ]
+    },
+    "jeffreyclark00449": {
+      "dataset_slug": "jeffreyclark00449/c2-commands-jeffreyclark00449",
+      "kernels": [
+        "jeffreyclark00449/c2-agent-1",
+        "jeffreyclark00449/c2-agent-2",
+        "jeffreyclark00449/c2-agent-3",
+        "jeffreyclark00449/c2-agent-4",
+        "jeffreyclark00449/c2-agent-5"
+      ]
+    },
+    "jameswilliams91900": {
+      "dataset_slug": "jameswilliams91900/c2-commands-jameswilliams91900",
+      "kernels": [
+        "jameswilliams91900/c2-agent-1",
+        "jameswilliams91900/c2-agent-2",
+        "jameswilliams91900/c2-agent-3",
+        "jameswilliams91900/c2-agent-4",
+        "jameswilliams91900/c2-agent-5"
+      ]
+    },
+    "melissanelson43272": {
+      "dataset_slug": "melissanelson43272/c2-commands-melissanelson43272",
+      "kernels": [
+        "melissanelson43272/c2-agent-1",
+        "melissanelson43272/c2-agent-2",
+        "melissanelson43272/c2-agent-3",
+        "melissanelson43272/c2-agent-4",
+        "melissanelson43272/c2-agent-5"
+      ]
+    },
+    "stevenmay4470": {
+      "dataset_slug": "stevenmay4470/c2-commands-stevenmay4470",
+      "kernels": [
+        "stevenmay4470/c2-agent-1",
+        "stevenmay4470/c2-agent-2",
+        "stevenmay4470/c2-agent-3",
+        "stevenmay4470/c2-agent-4",
+        "stevenmay4470/c2-agent-5"
+      ]
+    },
+    "meredithmason75280": {
+      "dataset_slug": "meredithmason75280/c2-commands-meredithmason75280",
+      "kernels": [
+        "meredithmason75280/c2-agent-1",
+        "meredithmason75280/c2-agent-2",
+        "meredithmason75280/c2-agent-3",
+        "meredithmason75280/c2-agent-4",
+        "meredithmason75280/c2-agent-5"
+      ]
+    },
+    "oliviacastaneda54426": {
+      "dataset_slug": "oliviacastaneda54426/c2-commands-oliviacastaneda54426",
+      "kernels": [
+        "oliviacastaneda54426/c2-agent-1",
+        "oliviacastaneda54426/c2-agent-2",
+        "oliviacastaneda54426/c2-agent-3",
+        "oliviacastaneda54426/c2-agent-4",
+        "oliviacastaneda54426/c2-agent-5"
+      ]
+    },
+    "roygonzales72341": {
+      "dataset_slug": "roygonzales72341/c2-commands-roygonzales72341",
+      "kernels": [
+        "roygonzales72341/c2-agent-1",
+        "roygonzales72341/c2-agent-2",
+        "roygonzales72341/c2-agent-3",
+        "roygonzales72341/c2-agent-4",
+        "roygonzales72341/c2-agent-5"
+      ]
+    },
+    "michelledavis2475": {
+      "dataset_slug": "michelledavis2475/c2-commands-michelledavis2475",
+      "kernels": [
+        "michelledavis2475/c2-agent-1",
+        "michelledavis2475/c2-agent-2",
+        "michelledavis2475/c2-agent-3",
+        "michelledavis2475/c2-agent-4",
+        "michelledavis2475/c2-agent-5"
+      ]
+    },
+    "rachelleonard320894": {
+      "dataset_slug": "rachelleonard320894/c2-commands-rachelleonard320894",
+      "kernels": [
+        "rachelleonard320894/c2-agent-1",
+        "rachelleonard320894/c2-agent-2",
+        "rachelleonard320894/c2-agent-3",
+        "rachelleonard320894/c2-agent-4",
+        "rachelleonard320894/c2-agent-5"
+      ]
+    },
+    "nicholasgrant3145": {
+      "dataset_slug": "nicholasgrant3145/c2-commands-nicholasgrant3145",
+      "kernels": [
+        "nicholasgrant3145/c2-agent-1",
+        "nicholasgrant3145/c2-agent-2",
+        "nicholasgrant3145/c2-agent-3",
+        "nicholasgrant3145/c2-agent-4",
+        "nicholasgrant3145/c2-agent-5"
+      ]
+    },
+    "sarahschneider909460": {
+      "dataset_slug": "sarahschneider909460/c2-commands-sarahschneider909460",
+      "kernels": [
+        "sarahschneider909460/c2-agent-1",
+        "sarahschneider909460/c2-agent-2",
+        "sarahschneider909460/c2-agent-3",
+        "sarahschneider909460/c2-agent-4",
+        "sarahschneider909460/c2-agent-5"
+      ]
+    },
+    "alanwagner8575": {
+      "dataset_slug": "alanwagner8575/c2-commands-alanwagner8575",
+      "kernels": [
+        "alanwagner8575/c2-agent-1",
+        "alanwagner8575/c2-agent-2",
+        "alanwagner8575/c2-agent-3",
+        "alanwagner8575/c2-agent-4",
+        "alanwagner8575/c2-agent-5"
+      ]
+    },
+    "williamcobb1824": {
+      "dataset_slug": "williamcobb1824/c2-commands-williamcobb1824",
+      "kernels": [
+        "williamcobb1824/c2-agent-1",
+        "williamcobb1824/c2-agent-2",
+        "williamcobb1824/c2-agent-3",
+        "williamcobb1824/c2-agent-4",
+        "williamcobb1824/c2-agent-5"
+      ]
+    },
+    "mikepatterson5481": {
+      "dataset_slug": "mikepatterson5481/c2-commands-mikepatterson5481",
+      "kernels": [
+        "mikepatterson5481/c2-agent-1",
+        "mikepatterson5481/c2-agent-2",
+        "mikepatterson5481/c2-agent-3",
+        "mikepatterson5481/c2-agent-4",
+        "mikepatterson5481/c2-agent-5"
+      ]
+    },
+    "tinajones5931": {
+      "dataset_slug": "tinajones5931/c2-commands-tinajones5931",
+      "kernels": [
+        "tinajones5931/c2-agent-1",
+        "tinajones5931/c2-agent-2",
+        "tinajones5931/c2-agent-3",
+        "tinajones5931/c2-agent-4",
+        "tinajones5931/c2-agent-5"
+      ]
+    },
+    "danielbrown022285": {
+      "dataset_slug": "danielbrown022285/c2-commands-danielbrown022285",
+      "kernels": [
+        "danielbrown022285/c2-agent-1",
+        "danielbrown022285/c2-agent-2",
+        "danielbrown022285/c2-agent-3",
+        "danielbrown022285/c2-agent-4",
+        "danielbrown022285/c2-agent-5"
+      ]
+    },
+    "bettysmith682347": {
+      "dataset_slug": "bettysmith682347/c2-commands-bettysmith682347",
+      "kernels": [
+        "bettysmith682347/c2-agent-1",
+        "bettysmith682347/c2-agent-2",
+        "bettysmith682347/c2-agent-3",
+        "bettysmith682347/c2-agent-4",
+        "bettysmith682347/c2-agent-5"
+      ]
+    },
+    "jacobfaulkner7130": {
+      "dataset_slug": "jacobfaulkner7130/c2-commands-jacobfaulkner7130",
+      "kernels": [
+        "jacobfaulkner7130/c2-agent-1",
+        "jacobfaulkner7130/c2-agent-2",
+        "jacobfaulkner7130/c2-agent-3",
+        "jacobfaulkner7130/c2-agent-4",
+        "jacobfaulkner7130/c2-agent-5"
+      ]
+    },
+    "alanmiller7330": {
+      "dataset_slug": "alanmiller7330/c2-commands-alanmiller7330",
+      "kernels": [
+        "alanmiller7330/c2-agent-1",
+        "alanmiller7330/c2-agent-2",
+        "alanmiller7330/c2-agent-3",
+        "alanmiller7330/c2-agent-4",
+        "alanmiller7330/c2-agent-5"
+      ]
+    },
+    "josephadams5548": {
+      "dataset_slug": "josephadams5548/c2-commands-josephadams5548",
+      "kernels": [
+        "josephadams5548/c2-agent-1",
+        "josephadams5548/c2-agent-2",
+        "josephadams5548/c2-agent-3",
+        "josephadams5548/c2-agent-4",
+        "josephadams5548/c2-agent-5"
+      ]
+    },
+    "justinkennedy668903": {
+      "dataset_slug": "justinkennedy668903/c2-commands-justinkennedy668903",
+      "kernels": [
+        "justinkennedy668903/c2-agent-1",
+        "justinkennedy668903/c2-agent-2",
+        "justinkennedy668903/c2-agent-3",
+        "justinkennedy668903/c2-agent-4",
+        "justinkennedy668903/c2-agent-5"
+      ]
+    },
+    "vickikramer76785": {
+      "dataset_slug": "vickikramer76785/c2-commands-vickikramer76785",
+      "kernels": [
+        "vickikramer76785/c2-agent-1",
+        "vickikramer76785/c2-agent-2",
+        "vickikramer76785/c2-agent-3",
+        "vickikramer76785/c2-agent-4",
+        "vickikramer76785/c2-agent-5"
+      ]
+    },
+    "edwardscott06037": {
+      "dataset_slug": "edwardscott06037/c2-commands-edwardscott06037",
+      "kernels": [
+        "edwardscott06037/c2-agent-1",
+        "edwardscott06037/c2-agent-2",
+        "edwardscott06037/c2-agent-3",
+        "edwardscott06037/c2-agent-4",
+        "edwardscott06037/c2-agent-5"
+      ]
+    },
+    "juliekelly184253": {
+      "dataset_slug": "juliekelly184253/c2-commands-juliekelly184253",
+      "kernels": [
+        "juliekelly184253/c2-agent-1",
+        "juliekelly184253/c2-agent-2",
+        "juliekelly184253/c2-agent-3",
+        "juliekelly184253/c2-agent-4",
+        "juliekelly184253/c2-agent-5"
+      ]
+    },
+    "miguelwhite4626": {
+      "dataset_slug": "miguelwhite4626/c2-commands-miguelwhite4626",
+      "kernels": [
+        "miguelwhite4626/c2-agent-1",
+        "miguelwhite4626/c2-agent-2",
+        "miguelwhite4626/c2-agent-3",
+        "miguelwhite4626/c2-agent-4",
+        "miguelwhite4626/c2-agent-5"
+      ]
+    },
+    "matthewjohnson8351": {
+      "dataset_slug": "matthewjohnson8351/c2-commands-matthewjohnson8351",
+      "kernels": [
+        "matthewjohnson8351/c2-agent-1",
+        "matthewjohnson8351/c2-agent-2",
+        "matthewjohnson8351/c2-agent-3",
+        "matthewjohnson8351/c2-agent-4",
+        "matthewjohnson8351/c2-agent-5"
+      ]
+    },
+    "josephscott2590": {
+      "dataset_slug": "josephscott2590/c2-commands-josephscott2590",
+      "kernels": [
+        "josephscott2590/c2-agent-1",
+        "josephscott2590/c2-agent-2",
+        "josephscott2590/c2-agent-3",
+        "josephscott2590/c2-agent-4",
+        "josephscott2590/c2-agent-5"
+      ]
+    },
+    "rodneyboyd7539": {
+      "dataset_slug": "rodneyboyd7539/c2-commands-rodneyboyd7539",
+      "kernels": [
+        "rodneyboyd7539/c2-agent-1",
+        "rodneyboyd7539/c2-agent-2",
+        "rodneyboyd7539/c2-agent-3",
+        "rodneyboyd7539/c2-agent-4",
+        "rodneyboyd7539/c2-agent-5"
+      ]
+    },
+    "briancastillo757854": {
+      "dataset_slug": "briancastillo757854/c2-commands-briancastillo757854",
+      "kernels": [
+        "briancastillo757854/c2-agent-1",
+        "briancastillo757854/c2-agent-2",
+        "briancastillo757854/c2-agent-3",
+        "briancastillo757854/c2-agent-4",
+        "briancastillo757854/c2-agent-5"
+      ]
+    },
+    "stevenmorton715485": {
+      "dataset_slug": "stevenmorton715485/c2-commands-stevenmorton715485",
+      "kernels": [
+        "stevenmorton715485/c2-agent-1",
+        "stevenmorton715485/c2-agent-2",
+        "stevenmorton715485/c2-agent-3",
+        "stevenmorton715485/c2-agent-4",
+        "stevenmorton715485/c2-agent-5"
+      ]
+    },
+    "jeremyphillips0624": {
+      "dataset_slug": "jeremyphillips0624/c2-commands-jeremyphillips0624",
+      "kernels": [
+        "jeremyphillips0624/c2-agent-1",
+        "jeremyphillips0624/c2-agent-2",
+        "jeremyphillips0624/c2-agent-3",
+        "jeremyphillips0624/c2-agent-4",
+        "jeremyphillips0624/c2-agent-5"
+      ]
+    },
+    "rebeccaclark27099": {
+      "dataset_slug": "rebeccaclark27099/c2-commands-rebeccaclark27099",
+      "kernels": [
+        "rebeccaclark27099/c2-agent-1",
+        "rebeccaclark27099/c2-agent-2",
+        "rebeccaclark27099/c2-agent-3",
+        "rebeccaclark27099/c2-agent-4",
+        "rebeccaclark27099/c2-agent-5"
+      ]
+    },
+    "amandasullivan3807": {
+      "dataset_slug": "amandasullivan3807/c2-commands-amandasullivan3807",
+      "kernels": [
+        "amandasullivan3807/c2-agent-1",
+        "amandasullivan3807/c2-agent-2",
+        "amandasullivan3807/c2-agent-3",
+        "amandasullivan3807/c2-agent-4",
+        "amandasullivan3807/c2-agent-5"
+      ]
+    },
+    "jefferyolson928801": {
+      "dataset_slug": "jefferyolson928801/c2-commands-jefferyolson928801",
+      "kernels": [
+        "jefferyolson928801/c2-agent-1",
+        "jefferyolson928801/c2-agent-2",
+        "jefferyolson928801/c2-agent-3",
+        "jefferyolson928801/c2-agent-4",
+        "jefferyolson928801/c2-agent-5"
+      ]
+    },
+    "stevenhale5446": {
+      "dataset_slug": "stevenhale5446/c2-commands-stevenhale5446",
+      "kernels": [
+        "stevenhale5446/c2-agent-1",
+        "stevenhale5446/c2-agent-2",
+        "stevenhale5446/c2-agent-3",
+        "stevenhale5446/c2-agent-4",
+        "stevenhale5446/c2-agent-5"
+      ]
+    },
+    "dylanhayden802927": {
+      "dataset_slug": "dylanhayden802927/c2-commands-dylanhayden802927",
+      "kernels": [
+        "dylanhayden802927/c2-agent-1",
+        "dylanhayden802927/c2-agent-2",
+        "dylanhayden802927/c2-agent-3",
+        "dylanhayden802927/c2-agent-4",
+        "dylanhayden802927/c2-agent-5"
+      ]
+    }
+  }
+}

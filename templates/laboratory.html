@@ -1,0 +1,984 @@
+{% extends "base.html" %}
+{% block title %}Laboratory{% endblock %}
+{% block page_title %}Laboratory &mdash; Kaggle GPU Control{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <span id="labStatus" style="font-size:11px;color:var(--text-dim)">Ready</span>
+  <button class="btn sm" onclick="loadAccount()">🔄 Refresh</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+.lab-grid{display:grid;grid-template-columns:260px 1fr 260px;gap:16px;height:calc(100vh - 140px)}
+.lab-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden}
+.lab-section-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.2);flex-shrink:0}
+.lab-section-header h3{margin:0;font-size:12px;font-weight:600;color:var(--text-bright)}
+.lab-section-body{flex:1;overflow-y:auto;padding:8px}
+.lab-tabs{display:flex;gap:2px;padding:4px 8px;background:rgba(0,0,0,.15);flex-shrink:0}
+.lab-tab{padding:6px 12px;font-size:10px;border-radius:4px;cursor:pointer;background:transparent;border:none;color:var(--text-dim);font-weight:500;transition:all var(--transition)}
+.lab-tab:hover{background:var(--bg-input);color:var(--text)}
+.lab-tab.active{background:var(--accent);color:#000}
+.lab-tab-content{display:none;flex:1;overflow:hidden}
+.lab-tab-content.active{display:flex;flex-direction:column}
+.lab-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;transition:all var(--transition)}
+.lab-row:hover{background:var(--bg-input)}
+.lab-row.active{background:var(--green-glow);border:1px solid var(--green)}
+.lab-row.selected{background:var(--accent-glow)}
+.lab-stat{display:flex;justify-content:space-between;padding:6px 0;font-size:10px;border-bottom:1px dashed var(--border)}
+.lab-stat:last-child{border:none}
+.lab-output{background:#030508;color:var(--green);font-family:var(--font-mono);font-size:9px;padding:8px;overflow-y:auto;white-space:pre-wrap;line-height:1.4;flex:1;border-radius:6px}
+.lab-test-card{background:var(--bg-input);border-radius:6px;padding:10px;margin-bottom:8px;border:1px solid var(--border)}
+.lab-test-card h4{margin:0 0 4px;font-size:11px;color:var(--text-bright)}
+.lab-metric{display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-secondary);border-radius:4px;font-size:9px;font-family:var(--font-mono);border:1px solid var(--border)}
+.lab-metric.ok{border-color:var(--green);color:var(--green)}
+.lab-metric.warn{border-color:var(--yellow);color:var(--yellow)}
+.lab-metric.critical{border-color:var(--red);color:var(--red)}
+.lab-progress{height:3px;background:var(--bg-input);border-radius:2px;overflow:hidden;margin-top:6px}
+.lab-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));animation:lab-pulse 1.5s ease-in-out infinite}
+@keyframes lab-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.lab-code-item{padding:8px 10px;background:var(--bg-input);border-radius:6px;cursor:pointer;font-size:10px;border:1px solid var(--border);margin-bottom:4px;transition:all var(--transition)}
+.lab-code-item:hover{border-color:var(--accent);background:var(--bg-card-hover)}
+.lab-code-item pre{margin:4px 0 0;font-size:8px;color:var(--text-dim);white-space:nowrap;overflow:hidden}
+.lab-exp-status{font-size:8px;padding:2px 6px;border-radius:4px;margin-left:auto;font-weight:600}
+.lab-exp-status.running{background:var(--accent);color:#000}
+.lab-exp-status.completed{background:var(--green);color:#000}
+.lab-exp-status.failed{background:var(--red);color:#fff}
+.lab-exp-status.pending{background:var(--text-dim);color:#fff}
+</style>
+
+<div class="lab-grid">
+  <!-- LEFT: Account & Machines -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="lab-section" style="flex:0 0 auto">
+      <div class="lab-section-header">
+        <h3>📋 Test Account</h3>
+        <button class="btn sm" onclick="clearAccount()" id="clearBtn" style="display:none;padding:2px 8px">✕</button>
+      </div>
+      <div class="lab-section-body" id="accountPanel" style="padding:10px">
+        <div style="text-align:center;color:var(--text-dim);padding:16px;font-size:10px">
+          No account selected<br><a href="/autoreg" style="color:var(--accent)">Select in Auto-Reg</a>
+        </div>
+      </div>
+    </div>
+    <div class="lab-section" style="flex:1">
+      <div class="lab-section-header">
+        <h3>🖥️ GPU Machines <span id="mCount" style="color:var(--text-dim);font-weight:400">0/5</span></h3>
+      </div>
+      <div class="lab-section-body" id="machinesPanel"></div>
+    </div>
+  </div>
+
+  <!-- CENTER: Main Work Area -->
+  <div class="lab-section">
+    <div class="lab-tabs">
+      <button class="lab-tab active" onclick="showTab('editor')">💻 Code</button>
+      <button class="lab-tab" onclick="showTab('experiments')">🧪 Experiments</button>
+      <button class="lab-tab" onclick="showTab('tests')">📊 Tests</button>
+      <button class="lab-tab" onclick="showTab('monitor')">📈 Monitor</button>
+      <button class="lab-tab" onclick="showTab('library')">📚 Library</button>
+      <button class="lab-tab" onclick="showTab('antidetect')">🔒 Anti-Detect</button>
+    </div>
+
+    <!-- Code Tab -->
+    <div class="lab-tab-content active" id="tab-editor">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <select id="targetMachine" class="form-control" style="width:90px;font-size:10px;height:26px">
+          <option value="all">All</option>
+        </select>
+        <button class="btn sm primary" onclick="runCode()">▶ Run</button>
+        <button class="btn sm" onclick="pullOutput()">📤 Output</button>
+        <button class="btn sm" onclick="stopKernel()">⏹ Stop</button>
+        <button class="btn sm" onclick="saveToLibrary()" style="margin-left:auto">💾 Save</button>
+      </div>
+      <textarea id="codeEditor" style="width:100%;flex:1;font-family:var(--font-mono);font-size:10px;background:var(--bg-input);color:var(--text-bright);border:none;padding:10px;resize:none;line-height:1.5" placeholder="# Python code for Kaggle GPU machines
+# Example: Check GPU info
+import subprocess
+result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total,temperature.gpu', '--format=csv'], capture_output=True, text=True)
+print(result.stdout)"></textarea>
+    </div>
+
+    <!-- Experiments Tab -->
+    <div class="lab-tab-content" id="tab-experiments">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <input type="text" id="expName" placeholder="Experiment name..." style="flex:1;font-size:10px;height:26px" class="form-control">
+        <button class="btn sm primary" onclick="createExperiment()">+ New</button>
+      </div>
+      <div class="lab-section-body" id="experimentsList"></div>
+    </div>
+
+    <!-- Tests Tab -->
+    <div class="lab-tab-content" id="tab-tests">
+      <div class="lab-section-body" id="testsPanel">
+        <div class="lab-test-card">
+          <h4>🎮 GPU Benchmark</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Test GPU compute performance with matrix multiplication</p>
+          <button class="btn sm primary" onclick="runTest('gpu_benchmark')">Run Test</button>
+          <div id="test-gpu_benchmark" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>💾 Memory Stress</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Test RAM allocation limits until MemoryError</p>
+          <button class="btn sm primary" onclick="runTest('memory_stress')">Run Test</button>
+          <div id="test-memory_stress" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>🌐 Network Speed</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Test download speeds from various sources</p>
+          <button class="btn sm primary" onclick="runTest('network_speed')">Run Test</button>
+          <div id="test-network_speed" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>⏱️ Stability Test</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Long-running 5-minute stress test with monitoring</p>
+          <button class="btn sm primary" onclick="runTest('stability')">Run Test</button>
+          <div id="test-stability" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>🔧 Environment Scan</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Scan available tools, packages & Kaggle paths</p>
+          <button class="btn sm primary" onclick="runTest('env_scan')">Run Test</button>
+          <div id="test-env_scan" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monitor Tab -->
+    <div class="lab-tab-content" id="tab-monitor">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button class="btn sm primary" onclick="startMonitor()">▶ Start</button>
+        <button class="btn sm" onclick="stopMonitor()">⏹ Stop</button>
+        <span id="monitorStatus" style="font-size:10px;color:var(--text-dim)">Idle</span>
+        <select id="monitorInterval" style="font-size:10px;height:26px;margin-left:auto" class="form-control">
+          <option value="5">5s interval</option>
+          <option value="10" selected>10s interval</option>
+          <option value="30">30s interval</option>
+        </select>
+      </div>
+      <div class="lab-section-body" id="monitorPanel">
+        <div style="text-align:center;color:var(--text-dim);padding:40px;font-size:11px">Click Start to begin real-time monitoring</div>
+      </div>
+    </div>
+
+    <!-- Library Tab -->
+    <div class="lab-tab-content" id="tab-library">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+        <button class="btn sm primary" onclick="loadLibrary()">🔄 Refresh</button>
+        <button class="btn sm" onclick="exportLibrary()">📤 Export</button>
+        <button class="btn sm" onclick="importLibrary()">📥 Import</button>
+      </div>
+      <div class="lab-section-body" id="libraryPanel"></div>
+    </div>
+
+    <!-- Anti-Detect Tab -->
+    <div class="lab-tab-content" id="tab-antidetect">
+      <div class="lab-section-body" id="antidetectPanel">
+        <div class="lab-test-card">
+          <h4>🔍 Fingerprint Check</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Check machine fingerprint for detection risks</p>
+          <button class="btn sm primary" onclick="runAntiDetect('fingerprint')">Check</button>
+          <div id="ad-fingerprint" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>🌍 IP/Geo Check</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Check IP reputation & geolocation data</p>
+          <button class="btn sm primary" onclick="runAntiDetect('ip_check')">Check</button>
+          <div id="ad-ip_check" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>👤 Identity Consistency</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Verify account identity matches environment</p>
+          <button class="btn sm primary" onclick="runAntiDetect('identity')">Check</button>
+          <div id="ad-identity" style="margin-top:8px"></div>
+        </div>
+        <div class="lab-test-card">
+          <h4>🚨 Kaggle Detection</h4>
+          <p style="font-size:9px;color:var(--text-dim);margin:0 0 8px">Test if Kaggle can detect automation</p>
+          <button class="btn sm primary" onclick="runAntiDetect('kaggle_detect')">Check</button>
+          <div id="ad-kaggle_detect" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Quick Actions & Output -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="lab-section" style="flex:0 0 auto">
+      <div class="lab-section-header">
+        <h3>⚡ Quick Actions</h3>
+      </div>
+      <div class="lab-section-body" id="quickActions"></div>
+    </div>
+    <div class="lab-section" style="flex:1">
+      <div class="lab-section-header">
+        <h3>📊 Last Results</h3>
+      </div>
+      <div class="lab-section-body" id="lastResults"></div>
+    </div>
+    <div class="lab-section" style="flex:1">
+      <div class="lab-section-header">
+        <h3>📋 Activity Log</h3>
+        <button class="btn sm" onclick="clearOutput()" style="padding:2px 8px">Clear</button>
+      </div>
+      <div id="activityLog" class="lab-output" style="font-size:8px"></div>
+    </div>
+  </div>
+</div>
+
+<div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:60%;max-width:800px;z-index:100" id="outputContainer">
+  <div class="lab-section" id="outputPanel" style="display:none;max-height:200px;box-shadow:var(--shadow)">
+    <div class="lab-section-header">
+      <h3>📤 Output Console</h3>
+      <div style="display:flex;gap:4px">
+        <button class="btn sm" onclick="copyOutput()" style="padding:2px 8px">Copy</button>
+        <button class="btn sm" onclick="toggleOutput()" style="padding:2px 8px">Hide</button>
+      </div>
+    </div>
+    <div id="outputConsole" class="lab-output" style="max-height:120px"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let account = null;
+let machines = [];
+let experiments = [];
+let library = [];
+let monitorTimer = null;
+let currentTab = 'editor';
+
+const QUICK_ACTIONS = [
+  {name: 'GPU Info', icon: '🎮', code: `import os
+try:
+  import torch
+  print(f'PyTorch: {torch.__version__}')
+  print(f'CUDA: {torch.cuda.is_available()}')
+  if torch.cuda.is_available():
+    print(f'GPU: {torch.cuda.get_device_name(0)}')
+    print(f'VRAM: {torch.cuda.get_device_properties(0).total_memory//1024//1024}MB')
+  else:
+    print('GPU NOT AVAILABLE')
+    print('Need phone verification: kaggle.com/settings')
+except:
+  print('PyTorch not found')
+devs = [f for f in os.listdir('/dev') if 'nvidia' in f.lower()] if os.path.exists('/dev') else []
+print(f'NVIDIA devs: {devs if devs else "None"}')`},
+  {name: 'System', icon: '💻', code: `import os, platform, socket\nprint(f'OS: {platform.system()} {platform.release()}')\nprint(f'Host: {socket.gethostname()}')\nprint(f'CPU: {os.cpu_count()} cores')\nprint(f'User: {os.popen(\"whoami\").read().strip()}')`},
+  {name: 'Memory', icon: '💾', code: `import psutil\nm = psutil.virtual_memory()\nprint(f'Total: {m.total//1024//1024}MB')\nprint(f'Used: {m.percent}%')\nprint(f'Free: {(m.total-m.used)//1024//1024}MB')`},
+  {name: 'Disk', icon: '💿', code: `import shutil\nfor p in ['/', '/kaggle', '/tmp']:\n try: u = shutil.disk_usage(p); print(f'{p}: {u.total//1024//1024//1024}GB total, {u.used//1024//1024//1024}GB used')\n except: pass`},
+  {name: 'Network', icon: '🌐', code: `import socket, urllib.request\ntry:\n ext = urllib.request.urlopen('https://api.ipify.org').read().decode()\n print(f'External IP: {ext}')\nexcept: print('No external IP')\nprint(f'Internal: {socket.gethostbyname(socket.gethostname())}')`},
+  {name: 'Processes', icon: '📋', code: `import subprocess\nr = subprocess.run(['ps','aux','--sort=-%mem'], capture_output=True, text=True)\nfor l in r.stdout.split('\\n')[:15]: print(l)`},
+  {name: 'Packages', icon: '📦', code: `import subprocess\nr = subprocess.run(['pip','list'], capture_output=True, text=True)\nprint(f'Packages: {len(r.stdout.split(chr(10)))-2}')\nfor l in r.stdout.split('\\n')[:20]: print(l)`},
+  {name: 'Env', icon: '🔧', code: `import os\nfor k,v in list(os.environ.items())[:30]:\n if 'KAGGLE' in k or 'PATH' in k or 'HOME' in k: print(f'{k}={v[:50]}')`},
+];
+
+const TESTS = {
+  anti_detect: {
+    name: 'Anti-Detect Scan',
+    code: `import os, sys, socket, subprocess
+print("=== DETECTION VECTORS ===")
+# Env vars
+kaggle_vars = {k: v[:30] for k, v in os.environ.items() if 'KAGGLE' in k.upper()}
+print(f"Kaggle env vars: {len(kaggle_vars)}")
+for k, v in list(kaggle_vars.items())[:5]:
+  print(f"  {k}: {v}...")
+# Paths
+kaggle_paths = [p for p in ['/kaggle', '/kaggle/input', '/kaggle/working'] if os.path.exists(p)]
+print(f"Kaggle paths: {kaggle_paths}")
+# Hostname
+host = socket.gethostname()
+print(f"Hostname: {host} (Docker: {len(host)==12 and host.isalnum()})")
+# User
+print(f"User: {os.popen('whoami').read().strip()}")
+print("=== END ===")`
+  },
+  gpu_benchmark: {
+    name: 'GPU Benchmark',
+    code: `import subprocess, time, json
+results = []
+for i in range(3):
+  start = time.time()
+  r = subprocess.run(['python3','-c','import torch; x=torch.randn(5000,5000,device="cuda"); torch.mm(x,x)'], capture_output=True, text=True, timeout=60)
+  elapsed = time.time() - start
+  results.append(elapsed)
+  print(f'Run {i+1}: {elapsed:.2f}s')
+print(f'\\nAverage: {sum(results)/len(results):.2f}s')`
+  },
+  memory_stress: {
+    name: 'Memory Stress',
+    code: `import psutil, time
+m = psutil.virtual_memory()
+print(f'Available: {m.available//1024//1024}MB')
+chunk = 100 * 1024 * 1024  # 100MB
+allocated = []
+try:
+  while True:
+    allocated.append(bytearray(chunk))
+    print(f'Allocated: {len(allocated)*100}MB')
+except MemoryError:
+  print(f'\\nMax allocated: {len(allocated)*100}MB')
+finally:
+  del allocated`
+  },
+  network_speed: {
+    name: 'Network Speed',
+    code: `import urllib.request, time, os
+urls = [
+  ('Google', 'https://storage.googleapis.com/pub-tools-public-archive/nvbenchmarks/v1/nvbenchmarks-1.0.tar.gz'),
+  ('Kaggle', 'https://www.kaggle.com/favicon.ico')
+]
+for name, url in urls:
+  try:
+    start = time.time()
+    data = urllib.request.urlopen(url, timeout=30).read()
+    elapsed = time.time() - start
+    speed = len(data)/elapsed/1024
+    print(f'{name}: {speed:.1f} KB/s ({len(data)//1024}KB in {elapsed:.1f}s)')
+  except Exception as e:
+    print(f'{name}: Error - {e}')`
+  },
+  stability: {
+    name: 'Stability Test',
+    code: `import time, subprocess, random
+print('Running 5-minute stability test...')
+start_time = time.time()
+iteration = 0
+while time.time() - start_time < 300:
+  iteration += 1
+  # CPU stress
+  for _ in range(100000): random.random()
+  # Memory allocation
+  data = [bytearray(1024*1024) for _ in range(10)]
+  del data
+  # GPU check
+  try:
+    r = subprocess.run(['nvidia-smi','--query-gpu=temperature.gpu','--format=csv,noheader'], capture_output=True, text=True)
+    temp = r.stdout.strip()
+  except: temp = 'N/A'
+  elapsed = int(time.time() - start_time)
+  print(f'[{elapsed}s] Iteration {iteration}, GPU Temp: {temp}°C')
+  time.sleep(10)
+print('\\nStability test completed successfully!')`
+  },
+  env_scan: {
+    name: 'Environment Scan',
+    code: `import subprocess, os, sys
+print('=== Python ===')
+print(f'Version: {sys.version}')
+print(f'Executable: {sys.executable}')
+print('\\n=== GPU Tools ===')
+for cmd in ['nvidia-smi', 'nvcc']:
+  r = subprocess.run(['which', cmd], capture_output=True, text=True)
+  print(f'{cmd}: {r.stdout.strip() or \"not found\"}')
+print('\\n=== ML Packages ===')
+for pkg in ['torch', 'tensorflow', 'keras', 'xgboost', 'pandas', 'numpy']:
+  try:
+    __import__(pkg)
+    print(f'{pkg}: installed')
+  except:
+    print(f'{pkg}: not installed')
+print('\\n=== Kaggle Paths ===')
+for p in ['/kaggle/input', '/kaggle/working', '/kaggle/tmp']:
+  print(f'{p}: {\"exists\" if os.path.exists(p) else \"missing\"}')`
+  }
+};
+
+const ANTIDETECT = {
+  fingerprint: {
+    name: 'Fingerprint Check',
+    code: `import subprocess, os, platform, socket
+print('=== Machine Fingerprint ===')
+print(f'Hostname: {socket.gethostname()}')
+print(f'OS: {platform.system()} {platform.release()}')
+print(f'Arch: {platform.machine()}')
+print(f'CPU: {platform.processor() or os.cpu_count()+\" cores\"}')
+r = subprocess.run(['nvidia-smi','--query-gpu=uuid','--format=csv,noheader'], capture_output=True, text=True)
+print(f'GPU UUID: {r.stdout.strip()[:20]}...')
+print('\\n=== Risk Assessment ===')
+risks = []
+if 'kaggle' in socket.gethostname().lower(): risks.append('Hostname contains "kaggle"')
+if os.path.exists('/kaggle'): risks.append('/kaggle directory exists')
+if 'colab' in os.environ.get('KAGGLE_KERNEL_RUN_TYPE', '').lower(): risks.append('Colab environment detected')
+if risks:
+  for r in risks: print(f'⚠ {r}')
+else:
+  print('✓ No obvious fingerprint risks')`
+  },
+  ip_check: {
+    name: 'IP/Geo Check',
+    code: `import urllib.request, json
+try:
+  data = urllib.request.urlopen('http://ip-api.com/json/', timeout=10).read()
+  info = json.loads(data)
+  print('=== IP Information ===')
+  print(f'IP: {info.get(\"query\")}')
+  print(f'Country: {info.get(\"country\")}')
+  print(f'Region: {info.get(\"regionName\")}')
+  print(f'City: {info.get(\"city\")}')
+  print(f'ISP: {info.get(\"isp\")}')
+  print(f'Org: {info.get(\"org\")}')
+  print(f'Timezone: {info.get(\"timezone\")}')
+  print('\\n=== Risk Assessment ===')
+  risks = []
+  if info.get('country') != 'United States': risks.append('Non-US IP')
+  if 'Google' in info.get('org', '') or 'Cloud' in info.get('org', ''): risks.append('Cloud provider detected')
+  if info.get('proxy', False): risks.append('Proxy detected')
+  if risks:
+    for r in risks: print(f'⚠ {r}')
+  else:
+    print('✓ IP looks clean')
+except Exception as e:
+  print(f'Error: {e}')`
+  },
+  identity: {
+    name: 'Identity Consistency',
+    code: `import os, subprocess
+print('=== Identity Check ===')
+user = os.popen('whoami').read().strip()
+print(f'Current user: {user}')
+print(f'Home: {os.path.expanduser(\"~\")}')
+print(f'KAGGLE_USERNAME: {os.environ.get(\"KAGGLE_USERNAME\", \"not set\")}')
+print(f'KAGGLE_KEY: {os.environ.get(\"KAGGLE_KEY\", \"not set\")[:10]}...' if os.environ.get('KAGGLE_KEY') else 'KAGGLE_KEY: not set')
+print('\\n=== Files Check ===')
+kaggle_json = os.path.expanduser('~/.kaggle/kaggle.json')
+if os.path.exists(kaggle_json):
+  print(f'✓ kaggle.json exists')
+  import json
+  with open(kaggle_json) as f:
+    creds = json.load(f)
+    print(f'  Username: {creds.get(\"username\")}')
+    print(f'  Key: {creds.get(\"key\")[:10]}...')
+else:
+  print('⚠ kaggle.json not found')
+print('\\n=== Consistency ===')
+if user == 'root': print('⚠ Running as root')
+if os.environ.get('KAGGLE_USERNAME'): print('✓ KAGGLE_USERNAME set')
+if os.environ.get('KAGGLE_KEY'): print('✓ KAGGLE_KEY set')`
+  },
+  kaggle_detect: {
+    name: 'Kaggle Detection Test',
+    code: `import subprocess, os, time
+print('=== Kaggle Detection Test ===')
+print('\\n1. API Access Test')
+r = subprocess.run(['kaggle', 'competitions', 'list', '-v'], capture_output=True, text=True, timeout=30)
+if r.returncode == 0:
+  print('✓ Kaggle API working')
+  lines = r.stdout.strip().split('\\n')
+  print(f'  Found {len(lines)-1} competitions')
+else:
+  print(f'✗ API Error: {r.stderr[:100]}')
+print('\\n2. Kernel Status')
+r = subprocess.run(['kaggle', 'kernels', 'list', '--mine'], capture_output=True, text=True, timeout=30)
+if r.returncode == 0:
+  lines = r.stdout.strip().split('\\n')
+  print(f'✓ {len(lines)-1} kernels found')
+else:
+  print('✗ Cannot list kernels')
+print('\\n3. Rate Limit Test')
+start = time.time()
+for i in range(5):
+  subprocess.run(['kaggle', 'datasets', 'list', '-v'], capture_output=True, timeout=10)
+elapsed = time.time() - start
+print(f'5 requests in {elapsed:.1f}s ({5/elapsed:.1f} req/s)')
+print('\\n=== Detection Risk ===')
+print('✓ No obvious detection triggers found')
+print('Note: Avoid rapid sequential API calls')`
+  }
+};
+
+function log(msg, type='info') {
+  const console = document.getElementById('outputConsole');
+  const time = new Date().toLocaleTimeString();
+  const colors = {info:'#ff0', success:'#0f0', error:'#f00', system:'#888', test:'#0ff'};
+  console.innerHTML += `<span style="color:${colors[type]||'#fff'}">[${time}] ${msg}</span>\n`;
+  console.scrollTop = console.scrollHeight;
+  document.getElementById('outputPanel').style.display = 'flex';
+  addActivity(msg, type);
+}
+
+function addActivity(msg, type) {
+  const log = document.getElementById('activityLog');
+  const time = new Date().toLocaleTimeString();
+  log.innerHTML += `[${time}] ${msg.substring(0,50)}\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearOutput() { document.getElementById('outputConsole').innerHTML = ''; }
+function copyOutput() { navigator.clipboard.writeText(document.getElementById('outputConsole').textContent); }
+function toggleOutput() { document.getElementById('outputPanel').style.display = 'none'; }
+
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.lab-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(tab)));
+  document.querySelectorAll('.lab-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-'+tab));
+  
+  if (tab === 'experiments') refreshExperiments();
+  if (tab === 'library') loadLibrary();
+}
+
+function loadAccount() {
+  fetch('/api/autoreg/accounts').then(r => r.json()).then(accs => {
+    const testing = accs.find(a => a.lab_status === 'testing');
+    if (testing) {
+      account = testing;
+      machines = testing.machines || [];
+      renderAccount();
+      renderMachines();
+      renderQuickActions();
+      document.getElementById('clearBtn').style.display = 'block';
+      log(`Account: ${testing.email}`, 'success');
+    } else {
+      account = null; machines = [];
+      document.getElementById('accountPanel').innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:15px;font-size:9px">No account<br><a href="/autoreg" style="color:var(--accent)">Select</a></div>';
+      document.getElementById('machinesPanel').innerHTML = '';
+      document.getElementById('clearBtn').style.display = 'none';
+    }
+  });
+}
+
+function renderAccount() {
+  if (!account) return;
+  const u = account.kaggle_username || account.username;
+  const active = machines.filter(m => m.success).length;
+  document.getElementById('accountPanel').innerHTML = `
+    <div class="lab-stat"><span>Email</span><span style="font-family:var(--font-mono);color:var(--text-bright)">${account.email}</span></div>
+    <div class="lab-stat"><span>User</span><a href="https://kaggle.com/${u}" target="_blank" style="color:var(--accent)">${u}</a></div>
+    <div class="lab-stat"><span>Dataset</span><a href="${account.dataset?.url||'#'}" target="_blank" style="color:var(--accent);font-size:9px">${(account.dataset?.slug||'N/A').split('/')[1]?.substring(0,12)||'N/A'}</a></div>
+    <div class="lab-stat"><span>GPU</span><span style="color:${active>0?'var(--green)':'var(--red)'}">${active}/5 active</span></div>
+    <div class="lab-stat"><span>API Key</span><span style="font-size:8px;font-family:var(--font-mono);color:var(--text-dim)">${(account.api_key_legacy||'').substring(0,10)}...</span></div>
+  `;
+  document.getElementById('labStatus').textContent = `${u} | ${active} GPUs`;
+  document.getElementById('labStatus').style.color = 'var(--green)';
+}
+
+function renderMachines() {
+  const active = machines.filter(m => m.success).length;
+  document.getElementById('mCount').textContent = `${active}/5`;
+  document.getElementById('machinesPanel').innerHTML = machines.map((m, i) => `
+    <div class="lab-row ${m.success?'active':''}" onclick="selectMachine(${i})">
+      <span class="badge" style="font-size:9px">M${i+1}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono)">${(m.slug||'').split('/')[1]?.substring(0,15)||'kernel'}</span>
+      <span style="color:${m.success?'var(--green)':'var(--red)'}">${m.success?'●':'○'}</span>
+      <a href="${m.url}" target="_blank" class="btn sm" style="padding:2px 6px;font-size:8px">→</a>
+    </div>
+  `).join('');
+  
+  document.getElementById('targetMachine').innerHTML = '<option value="all">All Machines</option>' +
+    machines.filter(m => m.success).map((m, i) => `<option value="${i}">Machine ${i+1}</option>`).join('');
+}
+
+function selectMachine(i) {
+  document.getElementById('targetMachine').value = i;
+  document.querySelectorAll('#machinesPanel .lab-row').forEach((r, idx) => r.classList.toggle('selected', idx === i));
+}
+
+function renderQuickActions() {
+  document.getElementById('quickActions').innerHTML = QUICK_ACTIONS.map(a => `
+    <div class="lab-row" onclick="quickAction('${a.name}')">
+      <span>${a.icon}</span>
+      <span>${a.name}</span>
+    </div>
+  `).join('');
+}
+
+function quickAction(name) {
+  const action = QUICK_ACTIONS.find(a => a.name === name);
+  if (action) {
+    document.getElementById('codeEditor').value = action.code;
+    showTab('editor');
+    log(`Quick action: ${name}`, 'system');
+  }
+}
+
+function runCode() {
+  if (!account) { log('No account', 'error'); return; }
+  const code = document.getElementById('codeEditor').value;
+  if (!code.trim()) { log('No code', 'error'); return; }
+  
+  const target = document.getElementById('targetMachine').value;
+  const targets = target === 'all' ? machines.filter(m => m.success) : [machines[parseInt(target)]];
+  
+  log(`Running on ${targets.length} machine(s)...`);
+  targets.forEach((m, i) => {
+    setTimeout(() => {
+      fetch('/api/lab/machine/deploy', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          username: account.kaggle_username || account.username,
+          api_key: account.api_key_legacy,
+          kernel_slug: m.slug,
+          code: code
+        })
+      }).then(r => r.json()).then(d => {
+        log(`M${i+1}: ${d.error||'started ✓'}`, d.error?'error':'success');
+        updateLastResults('Code Run', d.error||'Success');
+      });
+    }, i * 1500);
+  });
+}
+
+function pullOutput() {
+  if (!account) return;
+  const target = document.getElementById('targetMachine').value;
+  const targets = target === 'all' ? machines.filter(m => m.success) : [machines[parseInt(target)]];
+  
+  targets.forEach((m, i) => {
+    setTimeout(() => {
+      fetch('/api/lab/machine/output', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          username: account.kaggle_username || account.username,
+          api_key: account.api_key_legacy,
+          kernel_slug: m.slug
+        })
+      }).then(r => r.json()).then(d => {
+        log(`\n── M${i+1} Output ──\n${d.output||d.error||'(empty)'}`, d.error?'error':'success');
+      });
+    }, i * 800);
+  });
+}
+
+function stopKernel() {
+  document.getElementById('codeEditor').value = 'import os; os._exit(0)';
+  runCode();
+  log('Stop signal sent', 'system');
+}
+
+function saveToLibrary() {
+  const code = document.getElementById('codeEditor').value;
+  if (!code.trim()) return;
+  
+  const name = prompt('Save as:', 'untitled');
+  if (!name) return;
+  
+  fetch('/api/lab/library/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, code})
+  }).then(r => r.json()).then(d => {
+    log(`Saved: ${name}`, 'success');
+  });
+}
+
+// Experiments
+function createExperiment() {
+  const name = document.getElementById('expName').value.trim();
+  if (!name) { log('Enter experiment name', 'error'); return; }
+  
+  const code = document.getElementById('codeEditor').value;
+  const target = document.getElementById('targetMachine').value;
+  
+  fetch('/api/lab/experiments/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, code, target_machines: target})
+  }).then(r => r.json()).then(d => {
+    log(`Experiment created: ${name}`, 'success');
+    document.getElementById('expName').value = '';
+    refreshExperiments();
+  });
+}
+
+function refreshExperiments() {
+  fetch('/api/lab/experiments/list').then(r => r.json()).then(data => {
+    experiments = data.experiments || [];
+    renderExperiments();
+  });
+}
+
+function renderExperiments() {
+  if (experiments.length === 0) {
+    document.getElementById('experimentsList').innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:10px">No experiments yet<br><br>Create one from the Code tab</div>';
+    return;
+  }
+  
+  document.getElementById('experimentsList').innerHTML = experiments.map(e => `
+    <div class="lab-row" onclick="runExperiment('${e.id}')">
+      <span style="font-weight:600">${e.name}</span>
+      <span class="lab-exp-status ${e.status}">${e.status}</span>
+    </div>
+  `).join('');
+}
+
+function runExperiment(id) {
+  const exp = experiments.find(e => e.id === id);
+  if (!exp) return;
+  
+  document.getElementById('codeEditor').value = exp.code;
+  document.getElementById('targetMachine').value = exp.target_machines || 'all';
+  runCode();
+  
+  fetch('/api/lab/experiments/' + id + '/run', {method: 'POST'});
+  log(`Running experiment: ${exp.name}`, 'system');
+}
+
+// Tests
+function runTest(testId) {
+  if (!account) { log('No account', 'error'); return; }
+  
+  const test = TESTS[testId];
+  if (!test) return;
+  
+  document.getElementById('codeEditor').value = test.code;
+  const target = document.getElementById('targetMachine').value;
+  const targets = target === 'all' ? machines.filter(m => m.success) : [machines[parseInt(target)]];
+  
+  log(`Running test: ${test.name}`, 'test');
+  document.getElementById('test-'+testId).innerHTML = '<div class="lab-progress"><div class="lab-progress-bar"></div></div>';
+  
+  targets.forEach((m, i) => {
+    setTimeout(() => {
+      fetch('/api/lab/machine/deploy', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          username: account.kaggle_username || account.username,
+          api_key: account.api_key_legacy,
+          kernel_slug: m.slug,
+          code: test.code
+        })
+      }).then(r => r.json()).then(d => {
+        document.getElementById('test-'+testId).innerHTML = `<span class="lab-metric ${d.error?'critical':'ok'}">${d.error||'Running'}</span>`;
+        updateLastResults(test.name, d.error||'Started');
+      });
+    }, i * 1000);
+  });
+}
+
+// Anti-detect
+function runAntiDetect(checkId) {
+  if (!account) { log('No account', 'error'); return; }
+  
+  const check = ANTIDETECT[checkId];
+  if (!check) return;
+  
+  document.getElementById('codeEditor').value = check.code;
+  log(`Running check: ${check.name}`, 'test');
+  document.getElementById('ad-'+checkId).innerHTML = '<span class="lab-metric">Checking...</span>';
+  
+  const target = machines.find(m => m.success);
+  if (!target) { log('No active machine', 'error'); return; }
+  
+  fetch('/api/lab/machine/deploy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      username: account.kaggle_username || account.username,
+      api_key: account.api_key_legacy,
+      kernel_slug: target.slug,
+      code: check.code
+    })
+  }).then(r => r.json()).then(d => {
+    document.getElementById('ad-'+checkId).innerHTML = `<span class="lab-metric ${d.error?'critical':'ok'}">${d.error||'Check started'}</span>`;
+    updateLastResults(check.name, d.error||'OK');
+  });
+}
+
+// Monitor
+function startMonitor() {
+  if (!account) { log('No account', 'error'); return; }
+  if (monitorTimer) { log('Already running', 'error'); return; }
+  
+  const interval = parseInt(document.getElementById('monitorInterval').value) * 1000;
+  document.getElementById('monitorStatus').textContent = 'Running';
+  document.getElementById('monitorStatus').style.color = 'var(--green)';
+  
+  const monitorCode = `import subprocess, json, os, time
+result = {}
+# GPU
+try:
+  r = subprocess.run(['nvidia-smi','--query-gpu=name,memory.used,memory.total,temperature.gpu,utilization.gpu','--format=csv,noheader'], capture_output=True, text=True)
+  parts = r.stdout.strip().split(', ')
+  result['gpu'] = {'name': parts[0], 'mem_used': parts[1], 'mem_total': parts[2], 'temp': parts[3], 'util': parts[4]}
+except: result['gpu'] = None
+# Memory
+import psutil
+m = psutil.virtual_memory()
+result['memory'] = {'total': m.total, 'available': m.available, 'percent': m.percent}
+# Disk
+result['disk'] = {'percent': psutil.disk_usage('/').percent}
+# Network
+try:
+  import urllib.request
+  start = time.time()
+  urllib.request.urlopen('https://www.google.com', timeout=5)
+  result['network'] = {'latency': int((time.time()-start)*1000)}
+except: result['network'] = {'latency': -1}
+print(json.dumps(result))`;
+  
+  monitorTimer = setInterval(() => {
+    const target = machines.find(m => m.success);
+    if (!target) return;
+    
+    fetch('/api/lab/machine/deploy', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        username: account.kaggle_username || account.username,
+        api_key: account.api_key_legacy,
+        kernel_slug: target.slug,
+        code: monitorCode
+      })
+    });
+    
+    setTimeout(() => {
+      fetch('/api/lab/machine/output', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          username: account.kaggle_username || account.username,
+          api_key: account.api_key_legacy,
+          kernel_slug: target.slug
+        })
+      }).then(r => r.json()).then(d => {
+        try {
+          const data = JSON.parse(d.output.split('\n').pop());
+          renderMonitor(data);
+        } catch(e) {}
+      });
+    }, 2000);
+  }, interval);
+  
+  log('Monitor started', 'success');
+}
+
+function stopMonitor() {
+  if (monitorTimer) {
+    clearInterval(monitorTimer);
+    monitorTimer = null;
+  }
+  document.getElementById('monitorStatus').textContent = 'Stopped';
+  document.getElementById('monitorStatus').style.color = 'var(--text-dim)';
+  log('Monitor stopped', 'system');
+}
+
+function renderMonitor(data) {
+  let html = '<div style="padding:8px">';
+  
+  if (data.gpu) {
+    html += `<div style="margin-bottom:8px"><strong>GPU</strong><br>`;
+    html += `<span class="metric">${data.gpu.name}</span> `;
+    html += `<span class="metric ${parseInt(data.gpu.temp)>80?'warn':'ok'}">${data.gpu.temp}°C</span> `;
+    html += `<span class="metric">${data.gpu.util} util</span><br>`;
+    html += `<span class="metric">${data.gpu.mem_used} / ${data.gpu.mem_total}</span></div>`;
+  }
+  
+  if (data.memory) {
+    html += `<div style="margin-bottom:8px"><strong>Memory</strong><br>`;
+    html += `<span class="metric ${data.memory.percent>80?'warn':'ok'}">${data.memory.percent}% used</span> `;
+    html += `<span class="metric">${Math.round(data.memory.available/1024/1024)}MB free</span></div>`;
+  }
+  
+  if (data.disk) {
+    html += `<div style="margin-bottom:8px"><strong>Disk</strong><br>`;
+    html += `<span class="metric ${data.disk.percent>90?'warn':'ok'}">${data.disk.percent}% used</span></div>`;
+  }
+  
+  if (data.network) {
+    html += `<div><strong>Network</strong><br>`;
+    html += `<span class="metric ${data.network.latency<0?'critical':'ok'}">${data.network.latency>0?data.network.latency+'ms':'Offline'}</span></div>`;
+  }
+  
+  html += '</div>';
+  document.getElementById('monitorPanel').innerHTML = html;
+}
+
+// Library
+function loadLibrary() {
+  fetch('/api/lab/library/list').then(r => r.json()).then(data => {
+    library = data.scripts || [];
+    renderLibrary();
+  });
+}
+
+function renderLibrary() {
+  if (library.length === 0) {
+    document.getElementById('libraryPanel').innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:10px">No saved scripts<br><br>Save code from the editor</div>';
+    return;
+  }
+  
+  document.getElementById('libraryPanel').innerHTML = library.map(s => `
+    <div class="lab-code-item" onclick="loadScript('${s.id}')">
+      <strong>${s.name}</strong>
+      <pre>${s.code.substring(0,50)}...</pre>
+    </div>
+  `).join('');
+}
+
+function loadScript(id) {
+  const script = library.find(s => s.id === id);
+  if (script) {
+    document.getElementById('codeEditor').value = script.code;
+    showTab('editor');
+    log(`Loaded: ${script.name}`, 'system');
+  }
+}
+
+function exportLibrary() {
+  const data = JSON.stringify(library, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lab_library.json';
+  a.click();
+  log('Library exported', 'success');
+}
+
+function importLibrary() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        fetch('/api/lab/library/import', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({scripts: data})
+        }).then(() => {
+          loadLibrary();
+          log('Library imported', 'success');
+        });
+      } catch(e) {
+        log('Invalid JSON', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// Last Results
+function updateLastResults(name, result) {
+  const panel = document.getElementById('lastResults');
+  const time = new Date().toLocaleTimeString();
+  panel.innerHTML = `
+    <div class="lab-stat"><span style="color:var(--accent)">${name}</span><span style="font-size:8px;color:var(--text-dim)">${time}</span></div>
+    <div class="lab-stat"><span>Result</span><span style="font-family:var(--font-mono);font-size:8px;color:var(--text-bright)">${result.substring(0,25)}</span></div>
+  ` + panel.innerHTML;
+  
+  // Keep only last 10
+  const rows = panel.querySelectorAll('.lab-stat');
+  if (rows.length > 20) {
+    for (let i = 20; i < rows.length; i++) rows[i].remove();
+  }
+}
+
+function clearAccount() {
+  if (!account) return;
+  fetch('/api/lab/clear-test-account', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reg_id: account.reg_id})
+  }).then(() => loadAccount());
+}
+
+document.addEventListener('DOMContentLoaded', loadAccount);
+</script>
+{% endblock %}

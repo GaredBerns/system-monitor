@@ -1,0 +1,13 @@
+{
+  "total": 1,
+  "success": 0,
+  "failed": 1,
+  "skipped": 0,
+  "accounts": [
+    {
+      "username": "brandontravis84956",
+      "success": false,
+      "error": "Dataset: "
+    }
+  ]
+}
