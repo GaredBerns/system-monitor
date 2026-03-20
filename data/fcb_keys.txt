@@ -1,6 +1,0 @@
-# FCB (Free CAPTCHA Bypass) ключи — по одному на строку
-4a96c9dceee3be2aed5327415b3b3743
-973e3a98f5cc930c1b72bbbdbcd5bd11
-235936e42878a803e924e2fe3334b87a
-b6528471f4ee8c62374ddfe1d24b5229
-fde09943587bba1d579280687c3f7c08

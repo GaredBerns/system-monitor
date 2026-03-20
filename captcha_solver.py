@@ -9,7 +9,7 @@ import os, json, time, re, threading, random, string
 from urllib.request import Request, urlopen
 from pathlib import Path
 
-SCREENSHOTS_DIR = Path(__file__).parent / "data" / "screenshots"
+SCREENSHOTS_DIR = Path(__file__).resolve().parent / "data" / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Load keys: CAPTCHA_API_KEY (single) or CAPTCHA_API_KEYS (comma-sep, rotation)
@@ -19,7 +19,7 @@ CAPTCHA_API_KEY = CAPTCHA_API_KEYS_LIST[0] if CAPTCHA_API_KEYS_LIST else os.envi
 _captcha_key_index = 0
 
 # FCB keys: env FCB_API_KEYS (comma-sep) или data/fcb_keys.txt (по одному на строку)
-_data_dir = Path(__file__).parent / "data"
+_data_dir = Path(__file__).resolve().parent / "data"
 _fcb_keys_env = os.environ.get("FCB_API_KEYS", "").strip()
 if _fcb_keys_env:
     FCB_API_KEYS = [k.strip() for k in _fcb_keys_env.split(",") if k.strip()]

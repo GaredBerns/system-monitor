@@ -1,9 +1,33 @@
-flask>=3.0
-flask-socketio>=5.3
-flask-bcrypt>=1.0
-requests>=2.28
-pywebview>=4.0
-playwright>=1.40
-faker>=22.0
-undetected-chromedriver>=3.5
-selenium>=4.15
+# Core dependencies
+flask>=2.0.0
+flask-socketio>=5.0.0
+flask-bcrypt>=1.0.0
+requests>=2.25.0
+pathlib2>=2.3.0
+
+# Browser automation
+playwright>=1.40.0
+selenium>=4.0.0
+undetected-chromedriver>=3.5.0
+
+# Data utilities
+faker>=15.0.0
+numpy>=1.21.0
+pandas>=1.3.0
+
+# Image processing (for captcha solving)
+pillow>=8.0.0
+opencv-python>=4.5.0
+
+# Machine learning (optimizer)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Utilities
+python-dotenv>=0.19.0
+psutil>=5.8.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+black>=22.0.0
+flake8>=5.0.0

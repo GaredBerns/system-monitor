@@ -1,5 +1,0 @@
-# Boomlify API keys - one per line
-# Format: api_xxxxx
-api_50900908bd13d4f960e2d7bf405b4a63dd7f9999192d31e0c8fae53985599949
-api_2e4bb3746f9d787d75384b8b9896eb5f9b91d95d86c6f106ffc456ac07faf61f
-api_e6b204d676beb4327de2ad013823cf0d29afe0f4d605373afc238a980a16eb5c

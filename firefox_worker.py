@@ -22,13 +22,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Add parent to path
-_C2_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(_C2_ROOT))
-
-from faker import Faker
-from tempmail import mail_manager
-from utils import generate_identity
+# Import centralized utilities
+try:
+    from .utils import generate_identity
+    from .tempmail import mail_manager
+except ImportError:
+    # Fallback for direct execution
+    from utils import generate_identity
+    from tempmail import mail_manager
 
 try:
     from selenium import webdriver
@@ -43,11 +44,6 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
     print("Selenium not installed. Run: pip install selenium")
-
-fake = Faker("en_US")
-
-
-# generate_identity moved to utils.py
 
 
 class FirefoxDriver:

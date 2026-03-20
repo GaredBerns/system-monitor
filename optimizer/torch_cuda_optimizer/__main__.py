@@ -1,6 +1,6 @@
 """
-Entry point for torch-cuda-optimizer. Run with: python -m torch_cuda_optimizer
-Or use console script: tco (short for :start / start)
+Entry point for torch-cuda-optimizer. Run with: python -m optimizer.torch_cuda_optimizer
+Or use console script: c2-optimizer
 """
 from __future__ import annotations
 

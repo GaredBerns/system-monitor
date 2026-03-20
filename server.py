@@ -15,21 +15,31 @@ from flask import (
 from flask_socketio import SocketIO, emit
 from flask_bcrypt import Bcrypt
 
-from tempmail import mail_manager, get_domains as boomlify_get_domains
-from autoreg import job_manager, account_store, PLATFORMS
-from captcha_solver import manual_solver  # kept for backward compat
+try:
+    from .tempmail import mail_manager, get_domains as boomlify_get_domains
+    from .autoreg import job_manager, account_store, PLATFORMS
+    from .captcha_solver import manual_solver  # kept for backward compat
+except ImportError:
+    # Fallback for direct execution
+    from tempmail import mail_manager, get_domains as boomlify_get_domains
+    from autoreg import job_manager, account_store, PLATFORMS
+    from captcha_solver import manual_solver  # kept for backward compat
 
 # Kaggle C2 Transport
 try:
-    from kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
+    from .kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
     KAGGLE_C2_AVAILABLE = True
 except ImportError:
-    KAGGLE_C2_AVAILABLE = False
+    try:
+        from kaggle_c2_transport import KaggleC2Transport, KaggleC2Manager
+        KAGGLE_C2_AVAILABLE = True
+    except ImportError:
+        KAGGLE_C2_AVAILABLE = False
 
 # Global Kaggle C2 manager
 kaggle_c2_manager = None
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent  # C2_server/
 TOOLS_ROOT = BASE_DIR.parent  # при C2_server в /mnt/F/C2_server -> /mnt/F
 # MEMORY: CORE, ATTACK, OPERATIONS — ищем в корне репы или в tools/
 _memory_candidates = [TOOLS_ROOT / "MEMORY", TOOLS_ROOT / "tools" / "MEMORY"]
@@ -4007,7 +4017,8 @@ def _suppress_connection_errors():
     except Exception:
         pass
 
-if __name__ == "__main__":
+def main():
+    """Entry point for c2-server command."""
     import argparse
     parser = argparse.ArgumentParser(description="C2 Server")
     parser.add_argument("-p", "--port", type=int, default=8443)
@@ -4081,3 +4092,7 @@ if __name__ == "__main__":
         ctx.load_cert_chain(ssl_ctx[0], ssl_ctx[1])
         kwargs["ssl_context"] = ctx
     socketio.run(app, **kwargs)
+
+
+if __name__ == "__main__":
+    main()

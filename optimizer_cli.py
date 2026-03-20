@@ -1,8 +1,9 @@
-"""C2 Optimizer entry point."""
+#!/usr/bin/env python3
+"""C2 Optimizer CLI entry point."""
 
 def main():
     """Start GPU optimizer."""
-    from c2_server.optimizer.torch_cuda_optimizer import ComputeEngine
+    from optimizer.torch_cuda_optimizer import ComputeEngine
     
     print("[Optimizer] Starting GPU optimization...")
     engine = ComputeEngine(device='auto')

@@ -13,27 +13,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Add parent to path
-_C2_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(_C2_ROOT))
-
-from faker import Faker
-from tempmail import mail_manager
-from captcha_solver import (
-    setup_stealth_only, setup_captcha_block,
-    solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
-    solve_recaptcha_api, get_captcha_key_for_solve,
-)
-from utils import generate_identity
+# Import centralized utilities
 try:
-    from kaggle_captcha_solver import solve_kaggle_registration_captcha
+    from .utils import generate_identity
+    from .tempmail import mail_manager
+    from .captcha_solver import (
+        setup_stealth_only, setup_captcha_block,
+        solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
+        solve_recaptcha_api, get_captcha_key_for_solve,
+    )
 except ImportError:
-    solve_kaggle_registration_captcha = None
+    # Fallback for direct execution
+    from utils import generate_identity
+    from tempmail import mail_manager
+    from captcha_solver import (
+        setup_stealth_only, setup_captcha_block,
+        solve_captcha_on_page, SITES_NEED_REAL_CAPTCHA,
+        solve_recaptcha_api, get_captcha_key_for_solve,
+    )
 
-fake = Faker("en_US")
-
-
-# generate_identity moved to utils.py
+try:
+    from .kaggle_captcha_solver import solve_kaggle_registration_captcha
+except ImportError:
+    try:
+        from kaggle_captcha_solver import solve_kaggle_registration_captcha
+    except ImportError:
+        solve_kaggle_registration_captcha = None
 
 
 def _wait_visible(page, selectors, timeout=8000):
