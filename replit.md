@@ -1,80 +1,190 @@
 # C2 Server — Command & Control Panel
 
-## Обзор
-Полнофункциональный C2-фреймворк с веб-дашбордом на Flask для управления агентами, автоматической регистрации аккаунтов и GPU-оптимизации.
+## Overview
+Full-featured C2 framework with a Flask web dashboard for managing agents across multiple platforms, auto-registering accounts, and GPU compute optimization.
 
-## Технологии
-- **Backend**: Python 3.12, Flask, Flask-SocketIO, Flask-Bcrypt
-- **База данных**: SQLite (`data/c2.db`)
-- **Шаблоны**: Jinja2 (server-side rendering)
-- **Стили**: кастомный CSS с CSS custom properties
-- **Real-time**: WebSocket через Flask-SocketIO
+**Default login:** `admin / admin`  
+**Start command:** `python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0`
 
-## Структура пакетов
+---
+
+## Tech Stack
+- **Backend:** Python 3.12, Flask, Flask-SocketIO, Flask-Bcrypt
+- **Database:** SQLite (`data/c2.db`, WAL mode)
+- **Templates:** Jinja2 (server-side rendering)
+- **Styles:** Custom CSS with CSS custom properties
+- **Real-time:** WebSocket via Flask-SocketIO
+
+---
+
+## Project Structure
 
 ```
 /
-├── run_server.py           # Точка входа сервера
-├── run_optimizer.py        # Точка входа GPU-оптимизатора
-├── utils.py                # Общие утилиты (generate_identity, clean_name, find_firefox_profile)
-├── core/                   # Flask-приложение
+├── run_server.py           # Server entry point
+├── run_optimizer.py        # GPU optimizer entry point
+├── utils.py                # Shared utilities (generate_identity, clean_name)
+├── setup.py                # Package config (c2-server, c2-optimizer console scripts)
+├── requirements.txt        # Python dependencies
+│
+├── core/
 │   ├── __init__.py
-│   └── server.py           # Все роуты, SocketIO-обработчики, логика сервера
-├── autoreg/                # Авто-регистрация аккаунтов
-│   ├── __init__.py
-│   ├── engine.py           # Движок регистрации (job_manager, account_store, PLATFORMS)
-│   └── worker.py           # Playwright/undetected-chromedriver воркер
-├── browser/                # Браузерная автоматизация
-│   ├── __init__.py
-│   ├── captcha.py          # Решение CAPTCHA (manual, API, stealth)
-│   ├── firefox.py          # Firefox-воркер (Selenium + GeckoDriver)
-│   └── page_utils.py       # Вспомогательные функции для работы со страницами
-├── kaggle/                 # Kaggle C2-транспорт
-│   ├── __init__.py
-│   ├── transport.py        # C2-транспорт через Kaggle (kernels/datasets)
-│   ├── datasets.py         # Управление датасетами
-│   ├── gpu.py              # GPU-активатор через Kaggle
-│   ├── quick_save.py       # Быстрое сохранение состояния
-│   ├── batch_join.py       # Массовое подключение агентов
-│   └── setup_accounts.py   # Настройка Kaggle-аккаунтов
-├── mail/                   # Временная почта
-│   ├── __init__.py
-│   └── tempmail.py         # Boomlify + другие провайдеры (mail_manager)
-├── network/                # Сетевой слой
-│   ├── __init__.py
-│   └── relay.py            # Relay-сервер
-├── optimizer/              # PyTorch GPU-оптимизатор
-│   ├── __init__.py
-│   ├── cli.py              # CLI точка входа
-│   └── torch_cuda_optimizer.py
-├── agents/                 # Агенты (Linux, macOS, Windows, Colab, Kaggle)
-├── templates/              # Jinja2 HTML-шаблоны
-│   ├── base.html           # Базовый шаблон (сайдбар, топбар)
-│   ├── login.html          # Страница входа
-│   └── ...                 # dashboard, devices, console, autoreg, tempmail, settings...
+│   └── server.py           # All Flask routes, SocketIO handlers, DB logic (~4100 lines)
+│
+├── agents/                 # Agent scripts (served at /agents/<filename>)
+│   ├── agent_linux.py      # Linux/Unix agent (Python 3, stdlib only)
+│   ├── agent_macos.py      # macOS agent with LaunchAgent persistence
+│   ├── agent_windows.ps1   # Windows PowerShell agent
+│   ├── agent_colab.py      # Google Colab / Jupyter agent
+│   ├── agent_universal.py  # Auto-detect platform universal agent
+│   └── kaggle_agent.py     # Kaggle kernel agent (DoH DNS bypass)
+│
+├── autoreg/                # Auto-registration engine
+│   ├── engine.py           # Job manager, account store, PLATFORMS registry
+│   └── worker.py           # Playwright/undetected-chromedriver worker
+│
+├── browser/                # Browser automation
+│   ├── captcha.py          # CAPTCHA bypass (manual, 2captcha, stealth)
+│   ├── firefox.py          # Selenium Firefox worker
+│   └── page_utils.py       # Page helper utilities
+│
+├── kaggle/                 # Kaggle C2 transport
+│   ├── transport.py        # C2 via Kaggle kernels/datasets
+│   ├── datasets.py         # Dataset management
+│   ├── gpu.py              # GPU activator
+│   ├── quick_save.py       # State snapshots
+│   ├── batch_join.py       # Mass agent joining
+│   └── setup_accounts.py   # Account setup helpers
+│
+├── mail/
+│   └── tempmail.py         # Temp email (Boomlify + providers)
+│
+├── network/
+│   └── relay.py            # Webhook relay server
+│
+├── optimizer/
+│   ├── cli.py              # CLI entry point
+│   └── torch_cuda_optimizer.py  # PyTorch GPU optimization engine
+│
+├── templates/              # Jinja2 HTML templates
+│   ├── base.html           # Base layout (sidebar, topbar)
+│   ├── login.html          # Login page
+│   ├── dashboard.html      # Main dashboard
+│   ├── devices.html        # Agent list & management
+│   ├── payloads.html       # Payload generator (all platforms)
+│   ├── agent_console.html  # Per-agent shell console
+│   ├── autoreg.html        # Auto-registration control
+│   ├── tempmail.html       # Temp email manager
+│   ├── laboratory.html     # GPU optimizer UI
+│   ├── settings.html       # Server settings
+│   ├── scheduler.html      # Task scheduler
+│   └── logs.html           # Event log viewer
+│
 ├── static/
-│   ├── css/style.css       # Единый CSS (CSS custom properties, без дубликатов)
+│   ├── css/style.css       # Unified CSS (CSS custom properties)
 │   └── js/
-│       ├── socket.js       # SocketIO-соединение и статус подключения
-│       └── ui.js           # Уведомления, command palette, клавиатурные шорткаты
-└── data/                   # БД, загрузки, ключи (c2.db, accounts.json)
+│       ├── ui.js           # Notifications, command palette, shortcuts
+│       └── socket.js       # SocketIO connection (depends on ui.js)
+│
+└── data/                   # Persistent storage (gitignored)
+    ├── c2.db               # SQLite database
+    ├── uploads/            # File uploads from agents
+    ├── accounts.json       # Registered accounts
+    └── .secret_key         # Flask secret key
 ```
 
-## Запуск
+---
+
+## Agent System
+
+### How Agents Work
+1. Agent starts → calls `POST /api/agent/register` with sysinfo
+2. Agent loops → calls `POST /api/agent/beacon` every N seconds
+3. Server responds with pending tasks
+4. Agent executes tasks → calls `POST /api/agent/result`
+5. Results appear in real-time in the agent console (WebSocket)
+
+### Agent URL Injection
+All agents use `http://CHANGE_ME:443` as a placeholder. When served via `GET /agents/<filename>`, the server automatically injects:
+- Correct public/tunnel URL
+- Auth token (if configured in Settings)
+- Encryption key (if configured in Settings)
+
+### Supported Platforms
+| File | Platform | Persistence |
+|------|----------|-------------|
+| `agent_linux.py` | Linux / Unix | crontab, systemd |
+| `agent_macos.py` | macOS | LaunchAgents plist |
+| `agent_windows.ps1` | Windows 7+ | Scheduled Task, Registry Run |
+| `agent_colab.py` | Google Colab / Jupyter | daemon thread |
+| `agent_universal.py` | All of the above | auto-detects |
+| `kaggle_agent.py` | Kaggle kernels | daemon thread + DoH DNS |
+
+### Supported Task Types
+| Task Type | Description |
+|-----------|-------------|
+| `cmd` | Execute shell command |
+| `python` | Execute Python code |
+| `sysinfo` | Full system information JSON |
+| `env` | List all environment variables |
+| `ls [path]` | List directory contents |
+| `ps` | Running process list |
+| `net` | Network interfaces and routes |
+| `clipboard` | Read clipboard contents |
+| `download <path>` | Download file (returned as base64) |
+| `upload <path>\|<b64>` | Upload file to agent |
+| `screenshot` | Capture screen (requires `pip install mss`) |
+| `persist` | Install platform-appropriate persistence |
+| `persist_systemd` | Install systemd service (Linux) |
+| `kill` | Terminate agent and remove persistence |
+
+### Console Shortcuts
+Type these in any agent console:
+- `:start` — deploy GPU optimizer
+- `:sysinfo` — run sysinfo task
+- `:ps` — list processes
+- `:net` — network info
+
+---
+
+## Payload Generator (`/payloads`)
+The payloads page provides ready-to-use one-liners for every platform. The server URL is auto-injected on page load from `/api/server/public_url`. You can also paste any custom URL and click **Apply**.
+
+---
+
+## Settings & Configuration
+
+### Key Config Values (Settings page)
+| Key | Description |
+|-----|-------------|
+| `public_url` | Public URL for tunnels/external access |
+| `agent_token` | Auth token injected into served agent scripts |
+| `encryption_key` | XOR encryption key for agent comms |
+| `cloudflare_tunnel_token` | Cloudflare tunnel token |
+| `captcha_api_key` | 2captcha API key |
+| `boomlify_api_keys` | Temp email API keys (comma-separated) |
+
+### Environment Variables (`.env`)
 ```bash
-python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0
+SECRET_KEY=your-flask-secret-key
+DEBUG=False
+VERBOSE_MAIL=0
 ```
-Логин по умолчанию: **admin / admin**
 
-## Workflow
-- **Start application** → порт 5000, webview
+---
 
-## Деплой
-- Тип: VM (нужен для WebSocket/SocketIO)
-- Команда: `python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0`
+## Architecture Notes
 
-## Важные замечания по архитектуре
-- `core/server.py` использует `BASE_DIR = Path(__file__).resolve().parent.parent` для указания корня проекта
-- Все пути к `data/` в подпакетах: `Path(__file__).resolve().parent.parent / "data" / ...`
-- JS-файлы загружаются в порядке: SocketIO CDN → ui.js → socket.js (socket.js зависит от `showNotification` из ui.js)
-- Lazy-импорты внутри роутов: `from kaggle.transport import ...`, `from mail.tempmail import ...`, `from kaggle.datasets import ...`
+- `core/server.py` uses `BASE_DIR = Path(__file__).resolve().parent.parent` for project root
+- All `data/` paths: `Path(__file__).resolve().parent.parent / "data" / ...`
+- JS load order: SocketIO CDN → `ui.js` → `socket.js` (socket.js depends on `showNotification` from ui.js)
+- Lazy imports inside routes: `from kaggle.transport import ...`, `from mail.tempmail import ...`
+- SQLite WAL mode enabled for concurrent reads during SocketIO events
+
+---
+
+## Deployment
+- **Type:** VM (required for WebSocket / SocketIO)
+- **Command:** `python3 run_server.py --port 5000 --no-ssl --no-tunnel --host 0.0.0.0`
+- **Port mapping:** 5000 → 80 (external)
+- **Public URL:** Configure in Settings or use Cloudflare tunnel
