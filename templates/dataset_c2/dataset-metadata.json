@@ -1,0 +1,16 @@
+{
+  "title": "C2 Commands Dataset",
+  "id": "USERNAME/c2-commands",
+  "subtitle": "Command and control dataset for kernel agents",
+  "description": "Dataset containing commands for C2 agents running in Kaggle kernels",
+  "licenses": [{"name": "CC0-1.0"}],
+  "keywords": ["c2", "commands", "agent"],
+  "collaborators": [],
+  "data": [
+    {
+      "description": "Commands for agents",
+      "name": "commands.json",
+      "schema": {}
+    }
+  ]
+}

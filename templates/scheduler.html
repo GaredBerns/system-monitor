@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Scheduler{% endblock %}
+{% block page_title %}Scheduled Tasks{% endblock %}
+{% block head %}
+<style>
+  .stat-card { position: relative; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .stat-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+  .stat-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius-lg); padding: 1px;
+    background: linear-gradient(135deg, transparent 0%, rgba(0,212,255,0.3) 50%, transparent 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .stat-card:hover::after { opacity: 1; }
+
+  #schedTable tbody tr { transition: all 0.2s ease; }
+  #schedTable tbody tr:hover { background: rgba(0,212,255,0.04); }
+
+  .btn.sm { transition: all 0.2s ease; }
+  .btn.sm:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .btn.sm.primary:hover { box-shadow: 0 4px 15px rgba(0,212,255,0.3); }
+  .btn.sm.danger:hover  { box-shadow: 0 4px 15px rgba(255,61,90,0.3); }
+
+  .badge { transition: all 0.2s ease; cursor: pointer; }
+  .badge:hover { filter: brightness(1.15); }
+
+  .modal { animation: modalIn 0.3s ease-out; }
+
+  /* Countdown timer */
+  .countdown {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px;
+  }
+  .countdown.soon { color: var(--yellow); }
+  .countdown.overdue { color: var(--red); }
+
+  /* Toggle switch */
+  .toggle-switch {
+    position: relative; display: inline-block;
+    width: 36px; height: 20px; cursor: pointer;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0; border-radius: 20px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    transition: all 0.25s ease;
+  }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text-dim); transition: all 0.25s ease;
+  }
+  .toggle-switch input:checked ~ .toggle-track {
+    background: rgba(0,245,155,0.2); border-color: var(--green);
+  }
+  .toggle-switch input:checked ~ .toggle-thumb {
+    background: var(--green); transform: translateX(16px);
+    box-shadow: 0 0 8px rgba(0,245,155,0.5);
+  }
+
+  /* Next run progress */
+  .next-run-bar {
+    height: 2px; background: var(--bg-input); border-radius: 2px;
+    overflow: hidden; margin-top: 3px;
+  }
+  .next-run-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 1s linear;
+  }
+</style>
+{% endblock %}
+{% block topbar_actions %}
+<button class="btn sm primary" onclick="showCreate()">New Scheduled Task</button>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card green">
+    <div class="label">Active</div>
+    <div class="value" id="stActive">{{ scheduled|selectattr('enabled')|list|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Total</div>
+    <div class="value">{{ scheduled|length }}</div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table id="schedTable">
+    <thead>
+      <tr><th>Name</th><th>Type</th><th>Payload</th><th>Target</th><th>Interval</th><th>Last Run</th><th>Next Run</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    {% for s in scheduled %}
+    <tr data-id="{{ s.id }}" data-next="{{ s.next_run or '' }}" data-interval="{{ s.interval_sec }}" style="transition:all 0.3s ease">
+      <td style="font-weight:500">{{ s.name }}</td>
+      <td><span class="badge type">{{ s.task_type }}</span></td>
+      <td style="font-family:var(--font-mono);font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.payload }}">{{ s.payload[:60] }}</td>
+      <td><span class="badge alive">{{ s.target }}</span></td>
+      <td style="font-family:var(--font-mono)">{{ s.interval_sec }}s</td>
+      <td style="font-size:11px;color:var(--text-dim)">{{ s.last_run or '—' }}</td>
+      <td>
+        <div>
+          <span class="countdown" id="cd-{{ s.id }}">{{ s.next_run or '—' }}</span>
+          {% if s.enabled and s.next_run %}
+          <div class="next-run-bar"><div class="next-run-fill" id="bar-{{ s.id }}" style="width:0%"></div></div>
+          {% endif %}
+        </div>
+      </td>
+      <td>
+        <label class="toggle-switch" title="Toggle schedule">
+          <input type="checkbox" {% if s.enabled %}checked{% endif %} onchange="toggleSched('{{ s.id }}')">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn sm" onclick="runNow('{{ s.id }}')" title="Run now">▶</button>
+          <button class="btn sm danger" onclick="deleteSched('{{ s.id }}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="color:var(--text-dim);text-align:center;padding:30px">No scheduled tasks — create one to automate recurring commands</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="createModal" onclick="if(event.target===this)hideCreate()">
+  <div class="modal">
+    <h3>Create Scheduled Task</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="stName" placeholder="e.g. Health Check">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Task Type</label>
+        <select id="stType"><option value="cmd">Shell CMD</option><option value="python">Python</option></select>
+      </div>
+      <div class="form-group">
+        <label>Interval (seconds)</label>
+        <input type="number" id="stInterval" value="3600" min="60">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Target</label>
+      <select id="stTarget">
+        <option value="all">All online agents</option>
+        <option value="default">default</option>
+        <option value="servers">servers</option>
+        <option value="workstations">workstations</option>
+        <option value="cloud">cloud</option>
+        <option value="colab">colab</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Payload / Command</label>
+      <textarea id="stPayload" rows="4" style="font-family:var(--font-mono);font-size:12px" placeholder="whoami && uptime"></textarea>
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Shortcuts like <code>:start</code>, <code>:status</code>, <code>:sysinfo</code> are supported.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideCreate()">Cancel</button>
+      <button class="btn primary" onclick="createSched()">Create</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showCreate(){ document.getElementById('createModal').classList.add('active'); setTimeout(()=>document.getElementById('stName').focus(),100); }
+function hideCreate(){ document.getElementById('createModal').classList.remove('active'); }
+
+function createSched(){
+  const name = document.getElementById('stName').value.trim();
+  const payload = document.getElementById('stPayload').value.trim();
+  if(!name||!payload){ showNotification('Name and payload are required','red'); return; }
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Creating...';
+  fetch('/api/scheduled/create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name, type: document.getElementById('stType').value,
+      payload, target: document.getElementById('stTarget').value,
+      interval: parseInt(document.getElementById('stInterval').value)||3600
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.status==='ok'||d.id){
+      hideCreate();
+      showNotification('Task created','green');
+      // Add row to table without reload
+      const tbody = document.querySelector('#schedTable tbody');
+      const empty = tbody.querySelector('td[colspan]');
+      if(empty) empty.closest('tr').remove();
+      const tr = document.createElement('tr');
+      tr.dataset.id = d.id||'';
+      tr.dataset.next = d.next_run||'';
+      tr.dataset.interval = d.interval_sec||3600;
+      tr.style.animation = 'fadeIn 0.3s ease';
+      tr.innerHTML = `
+        <td style="font-weight:500">${name}</td>
+        <td><span class="badge type">${document.getElementById('stType').value}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${payload.slice(0,60)}</td>
+        <td><span class="badge alive">${document.getElementById('stTarget').value}</span></td>
+        <td style="font-family:var(--font-mono)">${document.getElementById('stInterval').value||3600}s</td>
+        <td style="font-size:11px;color:var(--text-dim)">—</td>
+        <td><span class="countdown" id="cd-${d.id||'new'}">—</span></td>
+        <td>
+          <label class="toggle-switch">
+            <input type="checkbox" checked onchange="toggleSched('${d.id||''}')">
+            <span class="toggle-track"></span><span class="toggle-thumb"></span>
+          </label>
+        </td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn sm" onclick="runNow('${d.id||''}')" title="Run now">▶</button>
+          <button class="btn sm danger" onclick="deleteSched('${d.id||''}')">Delete</button>
+        </div></td>`;
+      tbody.appendChild(tr);
+      // Update active count
+      const stActive = document.getElementById('stActive');
+      if(stActive) stActive.textContent = (parseInt(stActive.textContent)||0)+1;
+    }
+    else { showNotification(d.error||'Error','red'); btn.disabled=false; btn.textContent='Create'; }
+  }).catch(()=>{ showNotification('Request failed','red'); btn.disabled=false; btn.textContent='Create'; });
+}
+
+function toggleSched(id){
+  fetch(`/api/scheduled/${id}/toggle`,{method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{
+      showNotification(d.enabled ? 'Task enabled' : 'Task disabled', d.enabled ? 'green' : 'yellow');
+      // Update toggle visually without reload
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if(row){
+        const cb = row.querySelector('input[type=checkbox]');
+        if(cb) cb.checked = !!d.enabled;
+      }
+    })
+    .catch(()=>showNotification('Toggle failed','red'));
+}
+
+function deleteSched(id){
+  if(!confirm('Delete this scheduled task?')) return;
+  fetch(`/api/scheduled/${id}/delete`,{method:'DELETE'})
+    .then(()=>{
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if(row){ row.style.opacity='0'; row.style.transform='translateX(-20px)'; row.style.transition='all 0.3s'; setTimeout(()=>row.remove(),300); }
+      showNotification('Task deleted','green');
+    })
+    .catch(()=>showNotification('Delete failed','red'));
+}
+
+function runNow(id){
+  const btn = event.target;
+  btn.disabled=true; btn.textContent='⏳';
+  fetch(`/api/scheduled/${id}/run`,{method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{
+      showNotification(d.status==='ok'?'Task dispatched':'Error: '+(d.error||'?'), d.status==='ok'?'green':'red');
+      btn.disabled=false; btn.textContent='▶';
+      // Update last run time
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if(row){
+        const lastRunCell = row.cells[5];
+        if(lastRunCell) lastRunCell.textContent = new Date().toLocaleString();
+      }
+    })
+    .catch(()=>{ showNotification('Failed','red'); btn.disabled=false; btn.textContent='▶'; });
+}
+
+// Countdown timers
+function updateCountdowns() {
+  document.querySelectorAll('#schedTable tbody tr[data-next]').forEach(row => {
+    const nextStr = row.dataset.next;
+    const interval = parseInt(row.dataset.interval) || 3600;
+    const id = row.dataset.id;
+    if (!nextStr) return;
+    const cdEl = document.getElementById('cd-' + id);
+    const barEl = document.getElementById('bar-' + id);
+    if (!cdEl) return;
+    try {
+      const next = new Date(nextStr);
+      const now = new Date();
+      const diff = Math.floor((next - now) / 1000);
+      if (diff <= 0) {
+        cdEl.textContent = 'overdue';
+        cdEl.className = 'countdown overdue';
+        if (barEl) barEl.style.width = '100%';
+      } else {
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        cdEl.textContent = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+        cdEl.className = 'countdown' + (diff < 60 ? ' soon' : '');
+        if (barEl) {
+          const pct = Math.max(0, Math.min(100, 100 - (diff / interval) * 100));
+          barEl.style.width = pct + '%';
+        }
+      }
+    } catch(e) { cdEl.textContent = nextStr; }
+  });
+}
+
+updateCountdowns();
+setInterval(updateCountdowns, 1000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); showCreate(); }
+  if (e.key === 'Escape') hideCreate();
+});
+
+// Socket: live task updates
+socket.on('task_result', data => {
+  showNotification(`✓ Task completed: ${(data.task_id||'').slice(0,8)}`, 'green');
+  // Update stat card
+  const stDone = document.getElementById('stActive');
+  // Refresh stats without reload
+  fetch('/api/stats').then(r=>r.json()).then(s=>{
+    const el = document.getElementById('stActive');
+    if(el) el.textContent = s.pending || 0;
+  }).catch(()=>{});
+});
+
+// Auto-refresh scheduled list every 30s
+setInterval(()=>{
+  fetch('/api/scheduled').then(r=>r.json()).then(tasks=>{
+    tasks.forEach(t=>{
+      const row = document.querySelector(`tr[data-id="${t.id}"]`);
+      if(!row) return;
+      // Update next_run
+      row.dataset.next = t.next_run || '';
+      row.dataset.interval = t.interval_sec;
+      // Update last run
+      if(t.last_run) {
+        const cell = row.cells[5];
+        if(cell) cell.textContent = t.last_run;
+      }
+    });
+  }).catch(()=>{});
+}, 30000);
+</script>
+{% endblock %}

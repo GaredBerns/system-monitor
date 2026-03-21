@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block head %}
+<style>
+  .stat-card { cursor: pointer; position: relative; overflow: hidden; }
+  .stat-card .sc-icon {
+    position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; opacity: 0.12;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    background: currentColor;
+  }
+  .stat-card:hover .sc-icon { opacity: 0.2; transform: translateY(-50%) scale(1.1) rotate(5deg); }
+  .stat-card .sc-delta {
+    font-size: 10px; font-weight: 600;
+    display: flex; align-items: center; gap: 3px;
+    margin-top: 6px; opacity: 0.7;
+  }
+  .stat-card .sc-delta.up   { color: var(--green); }
+  .stat-card .sc-delta.down { color: var(--red); }
+  .stat-card .sc-delta.neu  { color: var(--text-muted); }
+
+  /* Sparkline */
+  .sc-sparkline { position: absolute; bottom: 0; left: 0; right: 0; height: 36px; opacity: 0.15; pointer-events: none; }
+  .stat-card:hover .sc-sparkline { opacity: 0.3; }
+
+  .chart-card { position: relative; overflow: hidden; }
+  .chart-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+    opacity: 0.5;
+  }
+
+  .log-list { display: flex; flex-direction: column; gap: 2px; }
+
+  /* Log entry color coding */
+  .log-entry[data-ev="login"] .ev { color: var(--accent); }
+  .log-entry[data-ev="agent"] .ev { color: var(--green); }
+  .log-entry[data-ev="task"]  .ev { color: var(--yellow); }
+  .log-entry[data-ev="error"] .ev { color: var(--red); }
+  .log-entry[data-ev="autoreg"] .ev { color: var(--purple); }
+  .log-entry[data-ev="tunnel"] .ev { color: var(--orange); }
+
+  .agent-row { cursor: pointer; }
+  .agent-row:hover td { background: rgba(0,212,255,0.04); }
+
+  .empty-state { padding: 40px 20px; text-align: center; animation: fadeIn 0.5s ease; }
+  .empty-state .es-icon { font-size: 36px; display: block; margin-bottom: 12px; animation: float 3s ease-in-out infinite; }
+  .empty-state p { color: var(--text-dim); font-size: 13px; }
+  .empty-state a { color: var(--accent); }
+
+  .live-indicator {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 12px;
+    background: rgba(0,245,155,0.08);
+    border: 1px solid rgba(0,245,155,0.2);
+    border-radius: 20px;
+    font-size: 10.5px; font-weight: 700;
+    color: var(--green);
+    text-transform: uppercase; letter-spacing: 1px;
+    animation: popIn 0.4s ease;
+  }
+  .live-indicator .dot {
+    width: 7px; height: 7px;
+    background: var(--green); border-radius: 50%;
+    animation: pulse 1.8s infinite;
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  .refresh-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 13px; border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-dim); font-size: 11.5px;
+    cursor: pointer; transition: all 0.2s ease;
+    font-family: var(--font-ui); font-weight: 500;
+  }
+  .refresh-btn:hover { border-color: var(--accent-dim); color: var(--accent); background: var(--accent-glow); }
+  .refresh-btn svg { width: 14px; height: 14px; transition: transform 0.5s ease; }
+  .refresh-btn.loading svg { animation: spin 0.8s linear infinite; }
+
+  .listener-row { cursor: pointer; }
+  .listener-row:hover td { background: rgba(0,212,255,0.04); }
+
+  .card h2 svg { display: inline; vertical-align: -3px; margin-right: 8px; opacity: 0.7; }
+  .card h2 .card-extra {
+    margin-left: auto; display: flex; gap: 6px; align-items: center;
+    font-size: 10px; color: var(--text-muted);
+    text-transform: none; letter-spacing: 0; font-weight: 400;
+  }
+
+  /* Uptime counter */
+  .uptime-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15);
+    font-size: 10px; font-family: var(--font-mono); color: var(--text-dim);
+  }
+
+  /* Agent row online indicator */
+  .agent-row td { transition: background 0.15s; }
+  .agent-row:hover td:first-child { border-left: none; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex;gap:10px;align-items:center">
+  <div class="uptime-badge" id="uptimeBadge" title="Server uptime">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span id="uptimeVal">—</span>
+  </div>
+  <div class="conn-status" id="wsStatus">
+    <span class="conn-dot ok" id="wsDot"></span>
+    <span id="wsText">Connected</span>
+  </div>
+  <div class="live-indicator">
+    <span class="dot"></span>
+    Live
+  </div>
+  <button class="refresh-btn" onclick="refreshAll()" id="refreshBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M23 4v6h-6M1 20v-6h6"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+    Refresh
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Stats grid ── -->
+<div class="stats-grid">
+  <div class="stat-card green" onclick="location='/devices'">
+    <svg class="sc-sparkline" id="spark-alive" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
+    <div class="sc-icon">🟢</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Agents Online
+    </div>
+    <div class="value" id="stAlive">{{ alive }}</div>
+    <div class="sc-delta up" id="stAliveD">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+      active
+    </div>
+  </div>
+
+  <div class="stat-card" onclick="location='/devices'">
+    <svg class="sc-sparkline" id="spark-total" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
+    <div class="sc-icon">🖥</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+      </svg>
+      Total Agents
+    </div>
+    <div class="value" id="stTotal">{{ total }}</div>
+    <div class="sc-delta neu">all registered</div>
+  </div>
+
+  <div class="stat-card yellow" onclick="location='/scheduler'">
+    <svg class="sc-sparkline" id="spark-pending" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
+    <div class="sc-icon">⏱</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      Pending Tasks
+    </div>
+    <div class="value" id="stPending">{{ tasks_pending }}</div>
+    <div class="sc-delta neu">in queue</div>
+  </div>
+
+  <div class="stat-card orange" onclick="location='/scheduler'">
+    <svg class="sc-sparkline" id="spark-done" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
+    <div class="sc-icon">✅</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      Completed Tasks
+    </div>
+    <div class="value" id="stDone">{{ tasks_done }}</div>
+    <div class="sc-delta up">executed</div>
+  </div>
+
+  <div class="stat-card purple">
+    <div class="sc-icon">✨</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+      New Today
+    </div>
+    <div class="value" id="stNewToday" style="color:var(--purple)">{{ new_today }}</div>
+    <div class="sc-delta up">joined today</div>
+  </div>
+
+  <div class="stat-card red">
+    <div class="sc-icon">📊</div>
+    <div class="label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      Tasks Today
+    </div>
+    <div class="value" id="stTasksToday">{{ tasks_today }}</div>
+    <div class="sc-delta neu">dispatched</div>
+  </div>
+</div>
+
+<!-- ── Charts row ── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+  <div class="card chart-card">
+    <h2>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>
+      </svg>
+      OS Distribution
+      <span class="card-extra">
+        <span id="osTotal">—</span> agents
+      </span>
+    </h2>
+    <div style="padding:8px 0"><canvas id="osChart" height="185"></canvas></div>
+  </div>
+  <div class="card chart-card">
+    <h2>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Platform Types
+      <span class="card-extra">
+        by deployment
+      </span>
+    </h2>
+    <div style="padding:8px 0"><canvas id="platChart" height="185"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Listeners ── -->
+<div class="card">
+  <h2>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    Active Listeners
+    <span class="card-extra">
+      <a href="/settings" style="color:var(--accent);font-size:10px">Manage →</a>
+    </span>
+  </h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Protocol</th><th>Host</th><th>Port</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in listeners %}
+      <tr class="listener-row" onclick="location='/settings'">
+        <td style="font-family:var(--font-mono);color:var(--text-dim);font-size:11px">{{ l.id }}</td>
+        <td style="font-weight:600">{{ l.name }}</td>
+        <td><span class="badge type">{{ l.protocol }}</span></td>
+        <td style="font-family:var(--font-mono);font-size:12px">{{ l.host }}</td>
+        <td style="font-family:var(--font-mono);font-weight:600">{{ l.port }}</td>
+        <td>
+          {% if l.active %}
+            <span class="badge alive">
+              <span style="display:inline-block;width:5px;height:5px;background:var(--green);border-radius:50%;margin-right:4px;animation:pulse 1.5s infinite"></span>
+              ACTIVE
+            </span>
+          {% else %}
+            <span class="badge dead">STOPPED</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">
+          <div class="empty-state">
+            <span class="es-icon">🛡️</span>
+            <p>No listeners configured — <a href="/settings">go to Settings</a> to create one</p>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Recent agents ── -->
+<div class="card">
+  <h2>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+    </svg>
+    Recent Agents
+    <span class="card-extra">
+      <a href="/devices" style="color:var(--accent);font-size:10px">View all →</a>
+    </span>
+  </h2>
+  <table id="dashAgentsTable">
+    <thead>
+      <tr>
+        <th style="width:28px"></th>
+        <th>Hostname</th><th>OS</th><th>External IP</th><th>Type</th><th>Last Seen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in agents[:10] %}
+      <tr class="agent-row" data-id="{{ a.id }}" onclick="location='/console/{{ a.id }}'">
+        <td style="text-align:center">
+          {% if a.is_alive %}
+            <span class="dot-alive pulse" title="Online"></span>
+          {% else %}
+            <span class="dot-dead" title="Offline"></span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="/console/{{ a.id }}" style="font-weight:600;color:var(--text-bright)">
+            {{ a.hostname or a.id[:8] }}
+          </a>
+        </td>
+        <td><span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}">{{ a.os or '?' }}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim)">{{ a.ip_external }}</td>
+        <td><span class="badge type">{{ a.platform_type }}</span></td>
+        <td class="last-seen" style="color:var(--text-muted);font-size:11.5px;font-family:var(--font-mono)">{{ a.last_seen }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">
+          <div class="empty-state">
+            <span class="es-icon">🤖</span>
+            <p>No agents connected — <a href="/payloads">generate payloads</a> to deploy</p>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Activity Log ── -->
+<div class="card">
+  <h2>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+    Activity Log
+    <span class="card-extra">
+      <a href="/logs" style="color:var(--accent);font-size:10px">Full log →</a>
+    </span>
+  </h2>
+  <div class="log-list" id="dashActivityLog">
+    {% for l in recent_logs %}
+    <div class="log-entry" data-ev="{{ l.event.split(':')[0]|lower if l.event else '' }}">
+      <span class="ts">{{ l.ts }}</span>
+      <span class="ev">{{ l.event }}</span>
+      <span class="det">{{ l.details }}</span>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <span class="es-icon">📋</span>
+      <p>No events yet</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// Sparkline helper
+const _sparkHistory = {alive:[], total:[], pending:[], done:[]};
+function drawSparkline(svgId, data, color) {
+  const svg = document.getElementById(svgId);
+  if (!svg || data.length < 2) return;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 36 - ((v - min) / range) * 30 - 3;
+    return `${x},${y}`;
+  });
+  svg.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+function updateSparklines(s) {
+  const push = (arr, val) => { arr.push(val); if (arr.length > 20) arr.shift(); };
+  push(_sparkHistory.alive,   s.alive || 0);
+  push(_sparkHistory.total,   s.total_agents || 0);
+  push(_sparkHistory.pending, s.pending || 0);
+  push(_sparkHistory.done,    s.completed || 0);
+  drawSparkline('spark-alive',   _sparkHistory.alive,   '#00f59b');
+  drawSparkline('spark-total',   _sparkHistory.total,   '#00d4ff');
+  drawSparkline('spark-pending', _sparkHistory.pending, '#ffd000');
+  drawSparkline('spark-done',    _sparkHistory.done,    '#ff8c00');
+}
+
+
+
+const PALETTE = ['#00d4ff','#00f59b','#ffd200','#ff8c00','#b07dfa','#ff3d5a','#06b6d4','#f59e0b'];
+Chart.defaults.color = '#4a5a72';
+Chart.defaults.font.family = 'Inter';
+
+// WebSocket status indicator
+let wsConnected = false;
+const wsDot = document.getElementById('wsDot');
+const wsText = document.getElementById('wsText');
+
+socket.on('connect', () => {
+  wsConnected = true;
+  wsDot.className = 'conn-dot ok';
+  wsText.textContent = 'Connected';
+  console.log('[WS] Connected');
+});
+
+socket.on('disconnect', () => {
+  wsConnected = false;
+  wsDot.className = 'conn-dot err';
+  wsText.textContent = 'Disconnected';
+  console.log('[WS] Disconnected');
+});
+
+function makePie(id, data) {
+  const labels = Object.keys(data), vals = Object.values(data);
+  const totalEl = document.getElementById('osTotal');
+  if (totalEl) totalEl.textContent = vals.reduce((a,b) => a+b, 0);
+  if (!labels.length) {
+    document.getElementById(id)?.parentElement
+      .insertAdjacentHTML('afterend', '<div class="empty-state" style="padding:20px 0"><span class="es-icon" style="font-size:24px">📊</span><p>No data yet</p></div>');
+    document.getElementById(id)?.parentElement.remove();
+    return;
+  }
+  new Chart(document.getElementById(id), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        backgroundColor: PALETTE.slice(0, labels.length).map(c => c + 'DD'),
+        borderColor: PALETTE.slice(0, labels.length),
+        borderWidth: 2,
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#5b6b88',
+            font: { size: 11, family: 'Inter', weight: '600' },
+            padding: 14,
+            usePointStyle: true,
+            pointStyle: 'circle',
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(13,24,41,0.95)',
+          borderColor: 'rgba(0,212,255,0.3)',
+          borderWidth: 1,
+          titleColor: '#00d4ff',
+          bodyColor: '#a8b8d0',
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: 'bold' },
+          bodyFont: { size: 12 },
+          displayColors: true,
+          boxPadding: 6,
+        }
+      },
+      cutout: '65%',
+      responsive: true,
+      maintainAspectRatio: true,
+      animation: { 
+        animateRotate: true, 
+        animateScale: true, 
+        duration: 1000, 
+        easing: 'easeInOutQuart' 
+      },
+      interaction: {
+        mode: 'nearest',
+        intersect: true
+      }
+    }
+  });
+}
+makePie('osChart',   {{ os_stats|safe }});
+makePie('platChart', {{ platform_stats|safe }});
+
+/* ── Socket events ── */
+socket.on('agent_update', data => {
+  refreshStats();
+  // Push live event to activity log
+  const logEl = document.getElementById('dashActivityLog');
+  if (logEl) {
+    const evType = data.action === 'register' ? 'agent' : data.action === 'offline' ? 'agent' : 'agent';
+    const msg = data.action === 'register' ? `New agent: ${data.hostname || data.id?.slice(0,8)}` : `Agent offline: ${data.hostname || data.id?.slice(0,8)}`;
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.dataset.ev = evType;
+    entry.style.animation = 'fadeIn 0.3s ease';
+    entry.innerHTML = `<span class="ts">${ts}</span><span class="ev">${data.action}</span><span class="det">${msg}</span>`;
+    const empty = logEl.querySelector('.empty-state');
+    if (empty) empty.remove();
+    logEl.prepend(entry);
+    // Keep max 20 entries
+    const entries = logEl.querySelectorAll('.log-entry');
+    if (entries.length > 20) entries[entries.length - 1].remove();
+  }
+  if (data.action === 'register') {
+    showNotification(`✨ New agent: ${data.hostname || data.id?.slice(0,8)}`, 'green');
+    playSound('join');
+  }
+  if (data.action === 'offline') {
+    showNotification(`⚠️ Agent offline: ${data.hostname || data.id?.slice(0,8)}`, 'red');
+  }
+});
+
+socket.on('task_result', data => {
+  console.log('[Task Result]', data);
+});
+
+/* ── Refresh stats ── */
+function refreshStats() {
+  fetch('/api/stats').then(r => r.json()).then(s => {
+    const map = {
+      stAlive:      s.alive,
+      stTotal:      s.total_agents,
+      stPending:    s.pending,
+      stDone:       s.completed,
+      stNewToday:   s.new_today,
+      stTasksToday: s.tasks_today,
+    };
+    Object.entries(map).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = parseInt(el.textContent) || 0;
+      if (cur !== val) {
+        const card = el.closest('.stat-card');
+        card?.classList.add('updating');
+        animateCount(el, cur, val, 600);
+        setTimeout(() => card?.classList.remove('updating'), 700);
+      }
+    });
+    updateSparklines(s);
+  }).catch(err => {
+    console.error('[Stats Error]', err);
+    showNotification('Failed to refresh stats', 'red');
+  });
+}
+
+function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn?.classList.add('loading');
+  refreshStats();
+  setTimeout(() => {
+    btn?.classList.remove('loading');
+    showNotification('Dashboard refreshed', 'green');
+  }, 700);
+}
+
+// Sound effects
+function playSound(type) {
+  const sounds = {
+    join: [523.25, 659.25, 783.99], // C5, E5, G5
+    leave: [783.99, 659.25, 523.25],
+    task: [440, 554.37]
+  };
+  const freqs = sounds[type] || [440];
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  freqs.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.1 + 0.2);
+    osc.start(ctx.currentTime + i * 0.1);
+    osc.stop(ctx.currentTime + i * 0.1 + 0.2);
+  });
+}
+
+// Auto refresh
+refreshStats();
+setInterval(refreshStats, 10000);
+
+// Live agent rows update
+function refreshAgentRows() {
+  fetch('/api/agents').then(r => r.json()).then(agents => {
+    const tbody = document.querySelector('#dashAgentsTable tbody');
+    if (!tbody) return;
+    agents.slice(0, 10).forEach(a => {
+      const row = tbody.querySelector(`tr[data-id="${a.id}"]`);
+      if (!row) return;
+      const dot = row.querySelector('.dot-alive, .dot-dead');
+      if (dot) {
+        dot.className = a.is_alive ? 'dot-alive pulse' : 'dot-dead';
+        dot.title = a.is_alive ? 'Online' : 'Offline';
+      }
+      const lastSeen = row.querySelector('.last-seen');
+      if (lastSeen && a.last_seen) lastSeen.textContent = a.last_seen;
+    });
+  }).catch(() => {});
+}
+setInterval(refreshAgentRows, 12000);
+
+// Uptime counter
+const _startTs = Date.now();
+function updateUptime() {
+  const el = document.getElementById('uptimeVal');
+  if (!el) return;
+  fetch('/api/server/time').then(r => r.json()).then(d => {
+    if (d.uptime_seconds !== undefined) {
+      const s = d.uptime_seconds;
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      el.textContent = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+    }
+  }).catch(() => {
+    const s = Math.floor((Date.now() - _startTs) / 1000);
+    const m = Math.floor(s / 60), sec = s % 60;
+    el.textContent = m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  });
+}
+updateUptime();
+setInterval(updateUptime, 10000);
+
+// Update time
+setInterval(() => {
+  fetch('/api/server/time').then(r => r.json()).then(d => {
+    const timeEl = document.querySelector('.topbar-time');
+    if (timeEl) timeEl.textContent = d.time;
+  }).catch(() => {});
+}, 60000);
+
+console.log('%c🚀 C2 Dashboard Loaded', 'color: #00d4ff; font-size: 16px; font-weight: bold;');
+</script>
+{% endblock %}

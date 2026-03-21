@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block page_title %}Activity Logs{% endblock %}
+{% block head %}
+<style>
+  .card { transition: border-color 0.3s ease; }
+  .card:hover { border-color: var(--border-light); }
+
+  .log-entry {
+    position: relative;
+    padding: 4px 8px 4px 12px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    border-left: 2px solid transparent;
+  }
+  .log-entry:hover {
+    background: rgba(0,212,255,0.03);
+    border-left-color: var(--accent);
+  }
+
+  /* Event type color coding */
+  .log-entry[data-ev*="login"]   { border-left-color: rgba(0,212,255,0.3); }
+  .log-entry[data-ev*="login"] .ev   { color: var(--accent); }
+  .log-entry[data-ev*="agent"]   { border-left-color: rgba(0,245,155,0.3); }
+  .log-entry[data-ev*="agent"] .ev   { color: var(--green); }
+  .log-entry[data-ev*="task"]    { border-left-color: rgba(255,208,0,0.3); }
+  .log-entry[data-ev*="task"] .ev    { color: var(--yellow); }
+  .log-entry[data-ev*="error"]   { border-left-color: rgba(255,61,90,0.4); }
+  .log-entry[data-ev*="error"] .ev   { color: var(--red); }
+  .log-entry[data-ev*="autoreg"] { border-left-color: rgba(167,139,250,0.3); }
+  .log-entry[data-ev*="autoreg"] .ev { color: var(--purple); }
+  .log-entry[data-ev*="tunnel"]  { border-left-color: rgba(255,140,0,0.3); }
+  .log-entry[data-ev*="tunnel"] .ev  { color: var(--orange); }
+  .log-entry[data-ev*="server"]  { border-left-color: rgba(0,212,255,0.2); }
+  .log-entry[data-ev*="server"] .ev  { color: var(--text-dim); }
+
+  #logFilter:focus {
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15), 0 0 20px rgba(0,212,255,0.1);
+    border-color: var(--accent);
+  }
+
+  .btn.sm { transition: all 0.2s ease; }
+  .btn.sm:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+  #autoRefreshLogs { accent-color: var(--accent); cursor: pointer; }
+
+  /* Log stats bar */
+  .log-stats {
+    display: flex; gap: 16px; align-items: center;
+    padding: 8px 0; font-size: 11px;
+  }
+  .log-stat-item { display: flex; align-items: center; gap: 5px; }
+  .log-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Scroll to bottom button */
+  #scrollBottomBtn {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 36px; height: 36px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 50%; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    color: var(--text-dim); transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    z-index: 100;
+  }
+  #scrollBottomBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #scrollBottomBtn.visible { display: flex; }
+
+  .empty-state { animation: fadeIn 0.5s ease; }
+</style>
+{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <label style="font-size:12px;display:flex;align-items:center;gap:8px;color:var(--text-dim);cursor:pointer">
+    <input type="checkbox" id="autoRefreshLogs" checked style="width:auto"> Live
+  </label>
+  <button class="btn sm" onclick="refreshLogs()">Refresh</button>
+  <a href="/api/export/logs" class="btn sm" style="font-size:11px">CSV</a>
+  <button class="btn sm" onclick="exportLogsJson()" style="font-size:11px">JSON</button>
+  <button class="btn sm" onclick="clearDisplayedLogs()" style="font-size:11px">Clear View</button>
+</div>
+{% endblock %}
+{% block content %}
+<div class="card" style="padding:14px 20px;margin-bottom:16px">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div style="position:relative;flex:1;min-width:200px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="logFilter" placeholder="Filter by event, details, timestamp..." oninput="filterLogs()" style="padding-left:30px">
+    </div>
+    <select id="logTypeFilter" onchange="filterLogs()" style="width:160px">
+      <option value="">All events</option>
+      <option value="login">🔑 login</option>
+      <option value="agent">🤖 agent</option>
+      <option value="task">⚡ task</option>
+      <option value="autoreg">👤 autoreg</option>
+      <option value="tempmail">📧 tempmail</option>
+      <option value="tunnel">🔗 tunnel</option>
+      <option value="server">🖥 server</option>
+      <option value="error">❌ error</option>
+    </select>
+    <span id="logCount" style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap"></span>
+  </div>
+  <!-- Log stats -->
+  <div class="log-stats" id="logStats" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+</div>
+<div class="card">
+  <h2 style="display:flex;align-items:center;justify-content:space-between">
+    Event Log
+    <span id="liveIndicator" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--green);font-weight:400;text-transform:none;letter-spacing:0">
+      <span style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite"></span>
+      live
+    </span>
+  </h2>
+  <div id="logEntries"></div>
+</div>
+
+<!-- Scroll to bottom -->
+<button id="scrollBottomBtn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Scroll to bottom">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+let _logHash = '';
+const EVENT_COLORS = {
+  login: 'var(--accent)', agent: 'var(--green)', task: 'var(--yellow)',
+  error: 'var(--red)', autoreg: 'var(--purple)', tunnel: 'var(--orange)',
+  server: 'var(--text-dim)', tempmail: '#06b6d4'
+};
+
+function getEvType(ev) {
+  const s = (ev || '').toLowerCase();
+  for (const k of Object.keys(EVENT_COLORS)) { if (s.includes(k)) return k; }
+  return 'server';
+}
+
+function renderLogs(logs) {
+  const el = document.getElementById('logEntries');
+  const hash = logs.length + (logs[0]?.ts || '');
+  if (hash === _logHash) return;
+  _logHash = hash;
+  document.getElementById('logCount').textContent = `${logs.length} entries`;
+
+  // Stats
+  const counts = {};
+  logs.forEach(l => { const t = getEvType(l.event); counts[t] = (counts[t]||0)+1; });
+  const statsEl = document.getElementById('logStats');
+  if (statsEl) {
+    statsEl.innerHTML = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v]) =>
+      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:10px">${v}</span></span>`
+    ).join('');
+  }
+
+  if (!logs.length) {
+    el.innerHTML = '<div class="empty-state">No log entries</div>';
+    return;
+  }
+  el.innerHTML = logs.map(l => {
+    const evType = getEvType(l.event);
+    return `<div class="log-entry" data-ev="${evType}" data-search="${l.ts} ${l.event} ${l.details}">
+      <span class="ts">${l.ts}</span>
+      <span class="ev">${l.event}</span>
+      <span class="det">${l.details || ''}</span>
+    </div>`;
+  }).join('');
+  filterLogs();
+}
+
+function refreshLogs() {
+  fetch('/api/logs').then(r => r.json()).then(renderLogs).catch(() => {});
+}
+
+function filterLogs() {
+  const q = document.getElementById('logFilter').value.toLowerCase();
+  const t = document.getElementById('logTypeFilter').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('.log-entry').forEach(el => {
+    const s = (el.dataset.search || '').toLowerCase();
+    const evType = el.dataset.ev || '';
+    const show = (!q || s.includes(q)) && (!t || evType.includes(t));
+    el.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const total = document.querySelectorAll('.log-entry').length;
+  document.getElementById('logCount').textContent = visible === total ? `${total} entries` : `${visible}/${total} entries`;
+}
+
+function clearDisplayedLogs() {
+  document.getElementById('logEntries').innerHTML = '<div class="empty-state">View cleared — logs still stored on server</div>';
+  _logHash = '';
+}
+
+let autoTimer = null;
+function startAuto() { autoTimer = setInterval(refreshLogs, 15000); }
+function stopAuto() { clearInterval(autoTimer); }
+
+document.getElementById('autoRefreshLogs').addEventListener('change', function() {
+  const liveEl = document.getElementById('liveIndicator');
+  if (this.checked) { startAuto(); if (liveEl) liveEl.style.opacity = '1'; }
+  else { stopAuto(); if (liveEl) liveEl.style.opacity = '0.3'; }
+});
+
+// Scroll to bottom button
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('scrollBottomBtn');
+  if (!btn) return;
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 200;
+  btn.classList.toggle('visible', !nearBottom && document.body.scrollHeight > window.innerHeight + 400);
+});
+
+refreshLogs();
+startAuto();
+
+// Live socket push — новые логи без polling
+socket.on('new_log', entry => {
+  const el = document.getElementById('logEntries');
+  if (!el) return;
+  const evType = getEvType(entry.event);
+  const div = document.createElement('div');
+  div.className = 'log-entry log-entry-new';
+  div.dataset.ev = evType;
+  div.dataset.search = `${entry.ts} ${entry.event} ${entry.details}`;
+  div.innerHTML = `<span class="ts">${entry.ts}</span><span class="ev">${entry.event}</span><span class="det">${entry.details || ''}</span>`;
+  const empty = el.querySelector('.empty-state');
+  if (empty) empty.remove();
+  el.prepend(div);
+  const entries = el.querySelectorAll('.log-entry');
+  if (entries.length > 500) entries[entries.length - 1].remove();
+  const total = el.querySelectorAll('.log-entry').length;
+  document.getElementById('logCount').textContent = `${total} entries`;
+  // Rebuild stats
+  const counts = {};
+  el.querySelectorAll('.log-entry').forEach(l => { const t = getEvType(l.dataset.ev); counts[t] = (counts[t]||0)+1; });
+  const statsEl = document.getElementById('logStats');
+  if (statsEl) {
+    statsEl.innerHTML = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v]) =>
+      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:10px">${v}</span></span>`
+    ).join('');
+  }
+  _logHash = '';
+  setTimeout(() => div.classList.remove('log-entry-new'), 1500);
+});
+
+// Export JSON
+function exportLogsJson() {
+  fetch('/api/logs').then(r => r.json()).then(logs => {
+    const b = new Blob([JSON.stringify(logs, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'logs_' + Date.now() + '.json';
+    a.click();
+  });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'r' && !e.ctrlKey) { e.preventDefault(); refreshLogs(); }
+  if (e.key === 'c' && !e.ctrlKey) { e.preventDefault(); clearDisplayedLogs(); }
+  if (e.key === 'l' && !e.ctrlKey) {
+    e.preventDefault();
+    const cb = document.getElementById('autoRefreshLogs');
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  }
+});
+</script>
+{% endblock %}

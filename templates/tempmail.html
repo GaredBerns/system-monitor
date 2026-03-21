@@ -1,0 +1,1067 @@
+{% extends "base.html" %}
+{% block title %}Temp Mail{% endblock %}
+{% block page_title %}Temporary Email (Boomlify EDU){% endblock %}
+{% block head %}
+<style>
+  /* Card hover */
+  .tm-card {
+    transition: all 0.3s ease;
+  }
+  .tm-card:hover {
+    border-color: var(--border-light);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  
+  /* Button hover */
+  .btn.sm, .btn.primary {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn.sm:hover, .btn.primary:hover {
+    box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+  }
+  .btn.sm:active, .btn.primary:active {
+    filter: brightness(0.9);
+  }
+  
+  /* Email item hover */
+  .email-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .email-item:hover {
+    background: rgba(0,212,255,0.06);
+  }
+  .email-item.active {
+    border-left: 2px solid var(--accent);
+    background: rgba(0,212,255,0.08);
+  }
+  
+  /* Icon wrap animation */
+  .tm-icon-wrap {
+    transition: all 0.2s ease;
+  }
+  .tm-card:hover .tm-icon-wrap {
+    filter: brightness(1.2);
+  }
+  .tm-icon-wrap.accent {
+    box-shadow: 0 0 15px rgba(0,212,255,0.3);
+  }
+  .tm-icon-wrap.green {
+    box-shadow: 0 0 15px rgba(0,245,155,0.3);
+  }
+  
+  /* Badge count */
+  .tm-badge-count {
+    transition: all 0.2s ease;
+  }
+  .tm-badge-count:hover {
+    filter: brightness(1.15);
+  }
+  
+  /* Create button */
+  .tm-create-btn {
+    position: relative;
+    overflow: hidden;
+  }
+  .tm-create-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+  }
+  .tm-create-btn:hover::after {
+    width: 200px;
+    height: 200px;
+  }
+  
+  /* Domain select */
+  #domainSelect {
+    transition: all 0.2s ease;
+  }
+  #domainSelect:focus {
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+    border-color: var(--accent);
+  }
+  
+  /* Message item */
+  .message-item {
+    transition: all 0.2s ease;
+  }
+  .message-item:hover {
+    background: rgba(0,212,255,0.04);
+  }
+  
+  /* Section header */
+  .tm-section-header {
+    transition: background 0.2s ease;
+  }
+  .tm-card:hover .tm-section-header {
+    background: rgba(0,212,255,0.03);
+  }
+</style>
+{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex;gap:8px;align-items:center">
+  <button id="createBtnTop" class="btn sm primary" onclick="createEmail()" title="New email [N]">+ Create Email</button>
+  <button class="btn sm" onclick="refreshAllInboxes()" id="refreshAllBtn" title="Refresh all [R]">↻ Refresh All</button>
+  <span style="font-size:10px;color:var(--text-muted)" title="Keyboard shortcuts">[N] new · [R] refresh</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tempmail-layout" style="display:grid;grid-template-columns:380px 1fr;gap:20px;height:calc(100vh - 120px)">
+  <!-- Left Panel: Email List -->
+  <div class="email-panel" style="display:flex;flex-direction:column;gap:16px;overflow:hidden">
+    <!-- Create Email Card -->
+    <div class="tm-card create-card" style="flex-shrink:0">
+      <div class="tm-section-header">
+        <div class="tm-icon-wrap accent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <span class="tm-section-title">Create Email</span>
+      </div>
+      <div class="tm-form-group">
+        <label>EDU Domain</label>
+        <select id="domainSelect">
+          <option value="">Loading domains...</option>
+        </select>
+      </div>
+      <button id="createBtn" class="btn primary tm-create-btn" onclick="createEmail()">
+        <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Создать почту
+      </button>
+    </div>
+
+    <!-- Active Emails Card -->
+    <div class="tm-card emails-card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div class="tm-section-header" style="flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="tm-icon-wrap green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </div>
+          <span class="tm-section-title">Active Emails</span>
+        </div>
+        <div class="tm-badge-count" id="emailCount">0</div>
+      </div>
+      <div class="tm-divider"></div>
+      <div id="emailList" class="tm-email-list">
+        {% for acc in accounts %}
+        <div class="email-card" data-email="{{ acc.email }}" onclick="selectEmail('{{ acc.email }}')">
+          <div class="email-card-main">
+            {% if acc.is_edu %}
+            <span class="tm-edu-badge">EDU</span>
+            {% endif %}
+            {% if acc.registration_job %}
+            <span class="tm-reg-badge" title="Registration: {{ acc.registration_job.platform_name }}">{{ acc.registration_job.platform }}</span>
+            {% endif %}
+            <span class="email-address">{{ acc.email }}</span>
+            <div class="inbox-indicator"></div>
+          </div>
+          <div class="email-card-footer">
+            <span class="email-time">{{ acc.created_at|datetimeformat if acc.created_at else '' }}</span>
+            <div class="email-actions">
+              <button class="tm-icon-btn" onclick="event.stopPropagation();copyEmail('{{ acc.email }}')" title="Copy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="tm-icon-btn danger" onclick="event.stopPropagation();deleteEmail('{{ acc.email }}')" title="Delete">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="tm-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          <div>No emails created yet</div>
+          <small>Click "Создать почту" to get started</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Inbox Viewer -->
+  <div class="inbox-panel" style="display:flex;flex-direction:column;overflow:hidden">
+    <div class="tm-card inbox-card" id="inboxCard" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div class="tm-section-header" style="flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="tm-icon-wrap accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="tm-section-title">Inbox</span>
+            <span id="inboxEmail" class="tm-inbox-email"></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <label class="tm-checkbox-label">
+            <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+            <span class="tm-checkbox-custom"></span>
+            <span>Auto-refresh</span>
+          </label>
+          <button class="btn sm" onclick="refreshInbox()" id="refreshInboxBtn">
+            <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+      <div class="tm-divider"></div>
+      
+      <div id="inboxContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+        <!-- No Email Selected State -->
+        <div id="noEmailSelected" class="tm-empty-state large">
+          <div class="tm-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </div>
+          <div class="tm-empty-title">Select an email</div>
+          <div class="tm-empty-desc">Choose an email from the list to view its inbox</div>
+        </div>
+        
+        <!-- Inbox List -->
+        <div id="inboxList" style="display:none;flex:1;overflow-y:auto;padding:12px">
+          <div id="messagesList" class="tm-messages-list"></div>
+          <div id="noMessages" class="tm-empty-state" style="display:none">
+            <div class="tm-empty-icon small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div>No messages yet</div>
+            <small>Waiting for incoming mail...</small>
+          </div>
+        </div>
+        
+        <!-- Message View -->
+        <div id="messageView" style="display:none;flex:1;overflow:hidden;display:flex;flex-direction:column">
+          <div class="tm-msg-header">
+            <button class="btn sm" onclick="backToInbox()">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              Back
+            </button>
+            <h3 id="msgSubject" class="tm-msg-subject"></h3>
+            <div class="tm-msg-meta">
+              <div class="tm-msg-from">
+                <span class="tm-label">From:</span>
+                <span id="msgFrom"></span>
+              </div>
+              <div class="tm-msg-date">
+                <span class="tm-label">Date:</span>
+                <span id="msgDate"></span>
+              </div>
+            </div>
+          </div>
+          <div id="msgBody" class="tm-msg-body"></div>
+          <div class="tm-msg-actions">
+            <button class="btn sm primary" onclick="extractCode()">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10M7 12h10M7 17h4"/>
+              </svg>
+              Extract Code
+            </button>
+            <button class="btn sm" onclick="extractLink()">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              Extract Link
+            </button>
+            <button class="btn sm" onclick="copyMessageBody()">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy Body
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ═══ TEMPMAIL CARDS ═══ */
+.tm-card {
+  background: linear-gradient(145deg, var(--bg-card) 0%, rgba(16,24,40,.8) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition);
+}
+.tm-card:hover { border-color: var(--border-light); }
+.create-card { padding: 20px; }
+.emails-card, .inbox-card { padding: 0; }
+
+/* ═══ SECTION HEADERS ═══ */
+.tm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+.tm-section-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-bright);
+  letter-spacing: .3px;
+}
+
+/* ═══ ICON WRAPS ═══ */
+.tm-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tm-icon-wrap svg { width: 18px; height: 18px; }
+.tm-icon-wrap.accent { background: var(--accent-glow); color: var(--accent); }
+.tm-icon-wrap.green { background: var(--green-glow); color: var(--green); }
+
+/* ═══ FORM ═══ */
+.tm-form-group { margin-bottom: 14px; }
+.tm-form-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  display: block;
+}
+.tm-create-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+}
+
+/* ═══ BADGES ═══ */
+.tm-badge-count {
+  background: linear-gradient(135deg, var(--accent) 0%, #00b4d8 100%);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+}
+.tm-edu-badge {
+  background: linear-gradient(135deg, var(--green) 0%, #00cc6a 100%);
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.tm-reg-badge {
+  background: linear-gradient(135deg, var(--purple) 0%, #8b5cf6 100%);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: lowercase;
+  letter-spacing: .3px;
+}
+
+/* ═══ DIVIDER ═══ */
+.tm-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--border) 20%, var(--border) 80%, transparent 100%);
+  margin: 0;
+}
+
+/* ═══ EMAIL LIST ═══ */
+.tm-email-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ═══ EMAIL CARD ═══ */
+.email-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+.email-card:hover {
+  border-color: var(--accent);
+  background: rgba(0,212,255,.05);
+}
+.email-card.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.email-card-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.email-address {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  word-break: break-all;
+  flex: 1;
+}
+.email-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.email-time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.email-actions { display: flex; gap: 4px; }
+
+/* ═══ INBOX INDICATOR ═══ */
+.inbox-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: .3;
+  transition: all var(--transition);
+}
+.email-card.has-messages .inbox-indicator {
+  background: var(--green);
+  opacity: 1;
+  box-shadow: 0 0 8px var(--green);
+  animation: tmPulse 2s infinite;
+}
+@keyframes tmPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px var(--green); }
+  50% { transform: scale(1.3); box-shadow: 0 0 16px var(--green); }
+}
+
+/* ═══ ICON BUTTONS ═══ */
+.tm-icon-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.tm-icon-btn svg { width: 14px; height: 14px; }
+.tm-icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.tm-icon-btn.danger:hover { border-color: var(--red); color: var(--red); background: var(--red-glow); }
+
+/* ═══ EMPTY STATES ═══ */
+.tm-empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 30px 20px;
+  font-size: 13px;
+}
+.tm-empty-state svg {
+  width: 40px;
+  height: 40px;
+  opacity: .25;
+  margin-bottom: 10px;
+}
+.tm-empty-state.large { padding: 60px 20px; }
+.tm-empty-state.large svg { width: 56px; height: 56px; }
+.tm-empty-state small { display: block; margin-top: 4px; font-size: 11px; opacity: .7; }
+.tm-empty-icon { margin-bottom: 12px; }
+.tm-empty-icon.small svg { width: 28px; height: 28px; }
+.tm-empty-title { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+.tm-empty-desc { font-size: 12px; opacity: .7; }
+
+/* ═══ MESSAGES LIST ═══ */
+.tm-messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.message-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.message-card:hover {
+  border-color: var(--accent);
+  background: rgba(0,212,255,.05);
+}
+.message-card .msg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 4px;
+}
+.message-card .msg-subject {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-card .msg-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.message-card .msg-from {
+  font-size: 11px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══ MESSAGE VIEW ═══ */
+.tm-msg-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tm-msg-subject {
+  margin: 10px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.tm-msg-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.tm-msg-from span, .tm-msg-date span { color: var(--text); }
+.tm-msg-from .tm-label, .tm-msg-date .tm-label { color: var(--text-dim); margin-right: 4px; }
+.tm-msg-from span:last-child { color: var(--accent); font-family: var(--font-mono); }
+.tm-msg-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.tm-msg-body pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-input);
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.tm-msg-body .html-content {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  background: var(--bg-input);
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.tm-msg-body .html-content a { color: var(--accent); }
+.tm-msg-body .html-content img { max-width: 100%; border-radius: 4px; }
+.tm-msg-actions {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,.15);
+}
+
+/* ═══ CHECKBOX ═══ */
+.tm-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+.tm-checkbox-label input { display: none; }
+.tm-checkbox-custom {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  position: relative;
+  transition: all var(--transition);
+}
+.tm-checkbox-label input:checked + .tm-checkbox-custom {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.tm-checkbox-label input:checked + .tm-checkbox-custom::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ═══ INBOX EMAIL ═══ */
+.tm-inbox-email {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ═══ ANIMATIONS ═══ */
+.fade-in { animation: tmFadeIn .3s ease; }
+@keyframes tmFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentEmail = '';
+let currentMessage = null;
+let autoRefreshTimer = null;
+let inboxCache = {};
+
+// Load EDU domains only
+fetch('/api/tempmail/domains').then(r => r.ok ? r.json() : Promise.reject(r.status))
+  .then(domains => {
+    const sel = document.getElementById('domainSelect');
+    sel.innerHTML = '';
+    if (domains && domains.length) {
+      domains.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.domain;
+        o.textContent = '@' + d.domain;
+        sel.appendChild(o);
+      });
+    } else {
+      sel.innerHTML = '<option value="">No EDU domains</option>';
+    }
+  }).catch(() => {
+    document.getElementById('domainSelect').innerHTML = '<option value="">Failed to load</option>';
+  });
+
+function createEmail() {
+  const btn = document.getElementById('createBtn');
+  const btnTop = document.getElementById('createBtnTop');
+  const domain = document.getElementById('domainSelect').value || null;
+  
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<svg style="width:16px;height:16px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/></svg> Creating...`;
+  }
+  if (btnTop) { btnTop.disabled = true; btnTop.textContent = '...'; }
+  
+  fetch('/api/tempmail/create', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain: domain || null}) })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      addEmailCard(data);
+      selectEmail(data.email);
+      showToast('Email created: ' + data.email, 'success');
+    })
+    .catch(err => showToast('Create failed: ' + (err.message || err), 'error'))
+    .finally(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Создать почту`;
+      }
+      if (btnTop) { btnTop.disabled = false; btnTop.textContent = '+ Create Email'; }
+    });
+}
+
+function addEmailCard(acc) {
+  const list = document.getElementById('emailList');
+  if (list.querySelector('.tm-empty-state')) list.innerHTML = '';
+  
+  const div = document.createElement('div');
+  div.className = 'email-card fade-in';
+  div.dataset.email = acc.email;
+  div.onclick = () => selectEmail(acc.email);
+  
+  const eduBadge = acc.is_edu ? '<span class="tm-edu-badge">EDU</span>' : '';
+  const regBadge = acc.registration_job ? `<span class="tm-reg-badge" title="Registration: ${acc.registration_job.platform_name}">${acc.registration_job.platform}</span>` : '';
+  
+  div.innerHTML = `
+    <div class="email-card-main">
+      ${eduBadge}
+      ${regBadge}
+      <span class="email-address">${acc.email}</span>
+      <div class="inbox-indicator"></div>
+    </div>
+    <div class="email-card-footer">
+      <span class="email-time">now</span>
+      <div class="email-actions">
+        <button class="tm-icon-btn" onclick="event.stopPropagation();copyEmail('${acc.email}')" title="Copy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="tm-icon-btn danger" onclick="event.stopPropagation();deleteEmail('${acc.email}')" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  
+  list.prepend(div);
+  updateEmailCount();
+}
+
+function selectEmail(email) {
+  currentEmail = email;
+  currentMessage = null;
+  
+  document.querySelectorAll('.email-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.email === email);
+  });
+  
+  document.getElementById('noEmailSelected').style.display = 'none';
+  document.getElementById('inboxList').style.display = 'flex';
+  document.getElementById('messageView').style.display = 'none';
+  document.getElementById('inboxEmail').textContent = email;
+  
+  refreshInbox();
+}
+
+function refreshInbox() {
+  if (!currentEmail) return;
+  
+  const btn = document.getElementById('refreshInboxBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<svg style="width:14px;height:14px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/></svg>`;
+  
+  fetch(`/api/tempmail/inbox?email=${encodeURIComponent(currentEmail)}`)
+    .then(r => r.json())
+    .then(messages => {
+      inboxCache[currentEmail] = messages;
+      renderMessages(messages);
+      updateInboxIndicator(messages.length > 0);
+    })
+    .catch(err => console.error('Inbox error:', err))
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = `<svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh`;
+    });
+}
+
+function renderMessages(messages) {
+  const list = document.getElementById('messagesList');
+  const noMsg = document.getElementById('noMessages');
+  
+  if (!messages || messages.length === 0) {
+    list.style.display = 'none';
+    noMsg.style.display = 'block';
+    return;
+  }
+  
+  list.style.display = 'flex';
+  noMsg.style.display = 'none';
+  
+  list.innerHTML = messages.map((m, i) => `
+    <div class="message-card fade-in" onclick="viewMessage('${m.id}')" style="animation-delay:${i * 0.05}s">
+      <div class="msg-row">
+        <span class="msg-subject">${escapeHtml(m.subject || '(no subject)')}</span>
+        <span class="msg-time">${formatDate(m.date)}</span>
+      </div>
+      <div class="msg-from">${escapeHtml(m.from || 'unknown')}</div>
+    </div>
+  `).join('');
+}
+
+function viewMessage(msgId) {
+  const messages = inboxCache[currentEmail] || [];
+  const msg = messages.find(m => String(m.id) === String(msgId));
+  if (!msg) return;
+  
+  currentMessage = msg;
+  
+  document.getElementById('inboxList').style.display = 'none';
+  document.getElementById('messageView').style.display = 'flex';
+  
+  document.getElementById('msgSubject').textContent = msg.subject || '(no subject)';
+  document.getElementById('msgFrom').textContent = msg.from || 'unknown';
+  document.getElementById('msgDate').textContent = msg.date || '';
+  
+  const bodyEl = document.getElementById('msgBody');
+  if (msg.html) {
+    bodyEl.innerHTML = `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--bg-input);max-height:400px;overflow-y:auto">${msg.html}</div>`;
+  } else {
+    bodyEl.innerHTML = `<pre>${escapeHtml(msg.body || '')}</pre>`;
+  }
+}
+
+function backToInbox() {
+  currentMessage = null;
+  document.getElementById('messageView').style.display = 'none';
+  document.getElementById('inboxList').style.display = 'flex';
+}
+
+function extractCode() {
+  if (!currentMessage) return;
+  fetch(`/api/tempmail/extract?email=${encodeURIComponent(currentEmail)}&msg_id=${currentMessage.id}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.code) {
+        navigator.clipboard.writeText(data.code);
+        showToast('Code copied: ' + data.code, 'success');
+      } else {
+        showToast('No code found in message', 'warning');
+      }
+    });
+}
+
+function extractLink() {
+  if (!currentMessage) return;
+  fetch(`/api/tempmail/extract?email=${encodeURIComponent(currentEmail)}&msg_id=${currentMessage.id}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.link) {
+        navigator.clipboard.writeText(data.link);
+        showToast('Link copied', 'success');
+      } else {
+        showToast('No link found in message', 'warning');
+      }
+    });
+}
+
+function copyMessageBody() {
+  if (!currentMessage) return;
+  const text = currentMessage.body || currentMessage.html || '';
+  navigator.clipboard.writeText(text);
+  showToast('Message body copied', 'success');
+}
+
+function deleteEmail(email) {
+  if (!confirm('Delete ' + email + '?')) return;
+  fetch(`/api/tempmail/delete?email=${encodeURIComponent(email)}`, {method:'DELETE'})
+    .then(() => {
+      document.querySelector(`.email-card[data-email="${email}"]`)?.remove();
+      delete inboxCache[email];
+      if (currentEmail === email) {
+        currentEmail = '';
+        document.getElementById('noEmailSelected').style.display = 'flex';
+        document.getElementById('inboxList').style.display = 'none';
+        document.getElementById('messageView').style.display = 'none';
+        document.getElementById('inboxEmail').textContent = '';
+      }
+      updateEmailCount();
+      showToast('Email deleted', 'success');
+    });
+}
+
+function copyEmail(email) {
+  navigator.clipboard.writeText(email);
+  showToast('Email copied to clipboard', 'success');
+}
+
+function toggleAutoRefresh() {
+  const enabled = document.getElementById('autoRefresh').checked;
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (enabled && currentEmail) {
+    autoRefreshTimer = setInterval(refreshInbox, 5000);
+    showToast('Auto-refresh enabled (5s)', 'info');
+  } else if (!enabled) {
+    showToast('Auto-refresh disabled', 'info');
+  }
+}
+
+function refreshAllInboxes() {
+  const cards = document.querySelectorAll('.email-card');
+  const btn = document.getElementById('refreshAllBtn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  
+  let checked = 0;
+  const total = cards.length;
+  
+  cards.forEach(card => {
+    const email = card.dataset.email;
+    fetch(`/api/tempmail/inbox?email=${encodeURIComponent(email)}`)
+      .then(r => r.json())
+      .then(msgs => {
+        inboxCache[email] = msgs;
+        card.classList.toggle('has-messages', msgs && msgs.length > 0);
+        if (email === currentEmail) {
+          renderMessages(msgs);
+        }
+        checked++;
+        if (checked === total) {
+          btn.disabled = false;
+          btn.textContent = '↻ Refresh All';
+          showToast(`Checked ${total} inboxes`, 'success');
+        }
+      });
+  });
+  
+  if (total === 0) {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh All';
+    showToast('No emails to check', 'warning');
+  }
+}
+
+function updateInboxIndicator(hasMessages) {
+  const card = document.querySelector(`.email-card[data-email="${currentEmail}"]`);
+  if (card) {
+    card.classList.toggle('has-messages', hasMessages);
+  }
+}
+
+function updateEmailCount() {
+  const count = document.querySelectorAll('.email-card').length;
+  document.getElementById('emailCount').textContent = count;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+  } catch { return dateStr.slice(0, 10); }
+}
+
+function showToast(message, type = 'info') {
+  const existing = document.querySelector('.tm-toast');
+  if (existing) existing.remove();
+  
+  const toast = document.createElement('div');
+  toast.className = 'tm-toast ' + type;
+  toast.innerHTML = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => toast.classList.add('fade-out'), 2500);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// Add toast styles dynamically
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+.tm-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  animation: tmToastIn .3s ease;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+.tm-toast.success { background: linear-gradient(135deg, rgba(0,255,136,.9) 0%, rgba(0,204,106,.9) 100%); color: #000; }
+.tm-toast.error { background: linear-gradient(135deg, rgba(255,68,102,.9) 0%, rgba(204,54,82,.9) 100%); color: #fff; }
+.tm-toast.warning { background: linear-gradient(135deg, rgba(255,208,0,.9) 0%, rgba(204,166,0,.9) 100%); color: #000; }
+.tm-toast.info { background: linear-gradient(135deg, rgba(0,212,255,.9) 0%, rgba(0,180,216,.9) 100%); color: #000; }
+.tm-toast.fade-out { opacity: 0; transform: translateY(10px); transition: all .3s ease; }
+@keyframes tmToastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`;
+document.head.appendChild(toastStyles);
+
+// Initial count
+updateEmailCount();
+
+// Socket: live new email notification
+socket.on('new_email', data => {
+  if (!data.email) return;
+  const card = document.querySelector(`.email-card[data-email="${data.email}"]`);
+  if (card) {
+    card.classList.add('has-messages');
+    showToast(`✉ New email for ${data.email.split('@')[0]}@…`, 'success');
+    if (currentEmail === data.email) refreshInbox();
+  }
+});
+
+// Smart auto-refresh: если есть активный email — обновляем чаще
+let _globalRefreshTimer = setInterval(() => {
+  if (currentEmail) refreshInbox();
+  else refreshAllInboxes();
+}, 8000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); createEmail(); }
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); if (currentEmail) refreshInbox(); else refreshAllInboxes(); }
+  if (e.key === 'Escape' && currentMessage) backToInbox();
+});
+</script>
+{% endblock %}
