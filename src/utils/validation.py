@@ -1,5 +1,5 @@
 """Input validation using Pydantic."""
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 import re
 
@@ -13,7 +13,8 @@ class AgentRegister(BaseModel):
     ip_internal: Optional[str] = None
     platform_type: str = Field(default="machine", max_length=64)
     
-    @validator('id')
+    @field_validator('id')
+    @classmethod
     def validate_id(cls, v):
         if v and (len(v) > 64 or not re.match(r'^[a-zA-Z0-9\-_]+$', v)):
             raise ValueError('Invalid agent ID format')
@@ -25,13 +26,15 @@ class TaskCreate(BaseModel):
     type: str = Field(..., min_length=1, max_length=64)
     payload: str = Field(..., min_length=1, max_length=65535)
     
-    @validator('agent_id')
+    @field_validator('agent_id')
+    @classmethod
     def validate_agent_id(cls, v):
         if not re.match(r'^[a-zA-Z0-9\-_]+$', v):
             raise ValueError('Invalid agent_id format')
         return v
     
-    @validator('type')
+    @field_validator('type')
+    @classmethod
     def validate_type(cls, v):
         allowed = ['cmd', 'shell', 'upload', 'download', 'kill', 'sleep', 'exec']
         if v not in allowed:
@@ -44,7 +47,8 @@ class TaskBroadcast(BaseModel):
     payload: str = Field(..., min_length=1, max_length=65535)
     target: str = Field(default="all", max_length=64)
     
-    @validator('type')
+    @field_validator('type')
+    @classmethod
     def validate_type(cls, v):
         allowed = ['cmd', 'shell', 'upload', 'download', 'kill', 'sleep', 'exec']
         if v not in allowed:
@@ -57,13 +61,15 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=4, max_length=128)
     role: str = Field(default="operator", max_length=32)
     
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         if not re.match(r'^[a-zA-Z0-9_\-]+$', v):
             raise ValueError('Username must be alphanumeric')
         return v
     
-    @validator('role')
+    @field_validator('role')
+    @classmethod
     def validate_role(cls, v):
         if v not in ['admin', 'operator', 'viewer']:
             raise ValueError('Invalid role')
@@ -77,7 +83,8 @@ class ConfigUpdate(BaseModel):
     agent_token: Optional[str] = Field(None, max_length=128)
     public_url: Optional[str] = Field(None, max_length=512)
     
-    @validator('public_url')
+    @field_validator('public_url')
+    @classmethod
     def validate_url(cls, v):
         if v and not re.match(r'^https?://.+', v):
             raise ValueError('Invalid URL format')
@@ -99,6 +106,6 @@ def validate_request(model_class: type[BaseModel], data: dict):
     """
     try:
         validated = model_class(**data)
-        return True, validated.dict()
+        return True, validated.model_dump()
     except Exception as e:
         return False, {"error": str(e)}

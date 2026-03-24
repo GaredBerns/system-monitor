@@ -4358,6 +4358,14 @@ def api_stats():
 
 # ──────────────────────── API: LISTENERS ────────────────────────
 
+@app.route("/api/listeners", methods=["GET"])
+@login_required
+def list_listeners():
+    db = get_db()
+    listeners = db.execute("SELECT * FROM listeners ORDER BY created_at DESC").fetchall()
+    db.close()
+    return jsonify({"listeners": [dict(l) for l in listeners]})
+
 @app.route("/api/listener/create", methods=["POST"])
 @login_required
 def create_listener():

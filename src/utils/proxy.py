@@ -9,13 +9,23 @@ import threading
 import json
 import time
 import hashlib
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, session
+from functools import wraps
 from src.utils.logger import get_logger
 
 log = get_logger('proxy')
 
 # Blueprint for proxy routes
 proxy_bp = Blueprint('proxy', __name__)
+
+# Login required decorator for blueprint
+def proxy_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # Active tunnel connections
 tunnels = {}
@@ -88,6 +98,7 @@ class StratumProxy:
 
 
 @proxy_bp.route('/tunnel/connect', methods=['POST'])
+@proxy_login_required
 def tunnel_connect():
     """Create new tunnel to pool."""
     data = request.json or {}
@@ -117,6 +128,7 @@ def tunnel_connect():
 
 
 @proxy_bp.route('/tunnel/send', methods=['POST'])
+@proxy_login_required
 def tunnel_send():
     """Send data through tunnel."""
     data = request.json or {}
@@ -144,6 +156,7 @@ def tunnel_send():
 
 
 @proxy_bp.route('/tunnel/recv', methods=['POST'])
+@proxy_login_required
 def tunnel_recv():
     """Receive data from tunnel."""
     data = request.json or {}
@@ -169,6 +182,7 @@ def tunnel_recv():
 
 
 @proxy_bp.route('/tunnel/close', methods=['POST'])
+@proxy_login_required
 def tunnel_close():
     """Close tunnel."""
     data = request.json or {}
@@ -184,6 +198,7 @@ def tunnel_close():
 
 
 @proxy_bp.route('/tunnel/list', methods=['GET', 'POST'])
+@proxy_login_required
 def tunnel_list():
     """List active tunnels."""
     result = []
