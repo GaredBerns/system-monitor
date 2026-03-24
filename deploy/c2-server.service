@@ -1,0 +1,39 @@
+[Unit]
+Description=C2 Server - Command & Control Framework
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=%USER%
+Group=%GROUP%
+WorkingDirectory=/mnt/F/C2_server-main
+Environment="PATH=/mnt/F/C2_server-main/venv/bin"
+Environment="PYTHONPATH=/mnt/F/C2_server-main"
+EnvironmentFile=/mnt/F/C2_server-main/.env
+
+# Gunicorn with gevent workers for WebSocket support
+ExecStart=/mnt/F/C2_server-main/venv/bin/gunicorn \
+    --config /mnt/F/C2_server-main/gunicorn.conf.py \
+    wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/F/C2_server-main/data /mnt/F/C2_server-main/logs
+
+# Limits
+LimitNOFILE=65535
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

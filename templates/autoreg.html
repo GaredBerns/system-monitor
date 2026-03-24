@@ -3,120 +3,28 @@
 {% block page_title %}Auto-Registration Engine{% endblock %}
 {% block head %}
 <style>
-  /* Stat card animations */
-  .stat-card {
-    position: relative;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .stat-card:hover {
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-  }
-  .stat-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: var(--radius-lg);
-    padding: 1px;
-    background: linear-gradient(135deg, transparent 0%, rgba(0,212,255,0.3) 50%, transparent 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  .stat-card:hover::after { opacity: 1; }
-  .stat-card .value {
-    transition: color 0.2s ease;
-  }
-  .stat-card:hover .value {
-    color: var(--text-bright);
-  }
-  
-  /* Button hover */
-  .btn.sm {
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .btn.sm:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  }
-  .btn.sm.primary:hover {
-    box-shadow: 0 4px 15px rgba(0,212,255,0.3);
-  }
-  .btn.sm svg {
-    transition: opacity 0.2s ease;
-  }
-  .btn.sm:hover svg {
-    opacity: 0.85;
-  }
-  
-  /* Card hover */
-  .card {
-    transition: border-color 0.3s ease;
-  }
-  .card:hover {
-    border-color: var(--border-light);
-  }
-  
-  /* Table row animations */
-  table tbody tr {
-    transition: all 0.2s ease;
-  }
-  table tbody tr:hover {
-    background: rgba(0,212,255,0.04);
-  }
-  
-  /* Badge hover */
-  .badge {
-    transition: all 0.2s ease;
-  }
-  .badge:hover {
-    filter: brightness(1.15);
-  }
-  
-  /* Progress bar */
-  .progress-bar {
-    position: relative;
-    overflow: hidden;
-  }
+  .stat-card { cursor: pointer; }
+  .stat-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  .stat-card .value { transition: color 0.2s ease; }
+  .stat-card:hover .value { color: var(--text-bright); }
+  table tbody tr:hover td { background: rgba(0,212,255,0.04); }
+  .btn.sm.primary:hover { box-shadow: 0 3px 12px rgba(0,212,255,0.25); }
+  .job-card.live { border-color: rgba(0,212,255,0.3); box-shadow: 0 0 16px rgba(0,212,255,0.05); }
+  .platform-btn.selected { border-color: var(--accent); background: var(--accent-glow); }
+  @keyframes progressShine { 0% { left: -100%; } 100% { left: 100%; } }
+  .progress-bar { position: relative; overflow: hidden; }
   .progress-bar::after {
-    content: '';
-    position: absolute; top: 0; left: -100%;
+    content: ''; position: absolute; top: 0; left: -100%;
     width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
     animation: progressShine 1.5s infinite;
   }
-  @keyframes progressShine {
-    0% { left: -100%; }
-    100% { left: 100%; }
-  }
-
-  /* ETA badge */
-  .eta-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; font-family: var(--font-mono);
-    color: var(--text-dim); padding: 2px 8px;
-    background: var(--bg-input); border-radius: 4px;
-    border: 1px solid var(--border);
-  }
-
-  /* Job card live pulse */
-  .job-card.live {
-    border-color: rgba(0,212,255,0.3);
-    box-shadow: 0 0 20px rgba(0,212,255,0.05);
-  }
-
-  /* Platform button selected */
-  .platform-btn.selected {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-    box-shadow: 0 0 16px rgba(0,212,255,0.2);
-  }
-
-  .modal { animation: modalIn 0.3s ease-out; }
+  .mail-provider-option:has(input:checked) { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+  .mail-provider-option:hover { border-color: var(--border-light); }
+  .cred-copy { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; transition: color .15s; border-radius: 3px; padding: 0 2px; }
+  .cred-copy:hover { color: var(--accent); }
+  .cred-copy-icon { width: 11px; height: 11px; opacity: .5; flex-shrink: 0; }
+  .cred-copy:hover .cred-copy-icon { opacity: 1; }
 </style>
 {% endblock %}
 {% block topbar_actions %}
@@ -640,31 +548,6 @@
 {% endblock %}
 
 {% block scripts %}
-<style>
-.mail-provider-option:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-  color: var(--accent);
-}
-.mail-provider-option:hover {
-  border-color: var(--border-light);
-}
-.cred-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: color .15s;
-  border-radius: 3px;
-  padding: 0 2px;
-}
-.cred-copy:hover { color: var(--accent); }
-.cred-copy-icon {
-  width: 11px; height: 11px; opacity: .5; flex-shrink: 0;
-}
-.cred-copy:hover .cred-copy-icon { opacity: 1; }
-</style>
-
 <script>
 let selectedPlatform = '';
 let currentLiveJob = '';
@@ -1476,12 +1359,241 @@ socket.on('autoreg_update', data => {
   if (data.status === 'completed') {
     showNotification(`✓ Registration complete: ${data.platform || ''}`, 'green');
     _lastAccHash = ''; refreshAccounts();
+    updateAutoRegInsights();
   } else if (data.status === 'failed') {
     showNotification(`✗ Registration failed: ${data.platform || ''}`, 'red');
+    updateAutoRegInsights();
   } else if (data.status === 'step') {
     const statusEl = document.getElementById('liveStatus');
     if (statusEl) statusEl.textContent = data.step || '';
   }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   SMART AUTOMATION INSIGHTS
+   ═══════════════════════════════════════════════════════════ */
+
+let autoRegInsightsPanel = null;
+
+function initAutoRegInsights() {
+  const panel = document.createElement('div');
+  panel.id = 'autoRegInsights';
+  panel.className = 'autoreg-insights';
+  panel.innerHTML = `
+    <div class="ari-header">
+      <span>🤖 Automation Insights</span>
+      <button onclick="updateAutoRegInsights()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">⟳</button>
+    </div>
+    <div id="ariContent" class="ari-content"></div>
+    <div class="ari-quick-actions">
+      <button onclick="autoAction('register')" class="ari-btn">🚀 Quick Register</button>
+      <button onclick="autoAction('verify')" class="ari-btn">✅ Verify All</button>
+      <button onclick="autoAction('deploy')" class="ari-btn">📦 Deploy C2</button>
+      <button onclick="autoAction('export')" class="ari-btn">📥 Export</button>
+    </div>
+  `;
+  
+  const statsGrid = document.querySelector('.stats-grid');
+  if (statsGrid) {
+    statsGrid.insertAdjacentElement('afterend', panel);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .autoreg-insights { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+    .ari-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .ari-content { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .ari-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid var(--accent); }
+    .ari-item.warning { border-left-color: var(--yellow); }
+    .ari-item.success { border-left-color: var(--green); }
+    .ari-item.danger { border-left-color: var(--red); }
+    .ari-icon { font-size: 18px; }
+    .ari-text { flex: 1; font-size: 12px; }
+    .ari-action { background: rgba(0,212,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
+    .ari-quick-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .ari-btn { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-size: 11px; cursor: pointer; transition: all 0.2s; }
+    .ari-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); color: var(--accent); }
+  `;
+  document.head.appendChild(style);
+  
+  updateAutoRegInsights();
+}
+
+function updateAutoRegInsights() {
+  const content = document.getElementById('ariContent');
+  if (!content) return;
+  
+  const insights = [];
+  
+  // Check unverified accounts
+  const unverified = document.querySelectorAll('#accountsTable tbody tr:not([data-verified="true"])').length;
+  if (unverified > 0) {
+    insights.push({
+      type: 'warning',
+      icon: '⚠️',
+      text: `${unverified} accounts need verification`,
+      action: 'Verify All',
+      onClick: 'autoAction("verify")'
+    });
+  }
+  
+  // Check accounts without C2
+  const total = document.querySelectorAll('#accountsTable tbody tr').length;
+  if (total > 0) {
+    insights.push({
+      type: 'info',
+      icon: '📊',
+      text: `${total} accounts ready for operations`,
+      action: 'Deploy C2',
+      onClick: 'autoAction("deploy")'
+    });
+  }
+  
+  // Active jobs
+  const activeJobs = document.getElementById('statJobs')?.textContent || '0';
+  if (parseInt(activeJobs) > 0) {
+    insights.push({
+      type: 'success',
+      icon: '⏳',
+      text: `${activeJobs} registration jobs running`,
+    });
+  }
+  
+  // No accounts - suggest registration
+  if (total === 0) {
+    insights.push({
+      type: 'info',
+      icon: '🚀',
+      text: 'Start by creating accounts',
+      action: 'New Registration',
+      onClick: 'openNewJob()'
+    });
+  }
+  
+  if (insights.length === 0) {
+    content.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:10px">✓ All systems optimal</div>';
+    return;
+  }
+  
+  content.innerHTML = insights.map(i => `
+    <div class="ari-item ${i.type || ''}">
+      <span class="ari-icon">${i.icon}</span>
+      <span class="ari-text">${i.text}</span>
+      ${i.action ? `<button class="ari-action" onclick="${i.onClick}">${i.action}</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function autoAction(action) {
+  switch(action) {
+    case 'register':
+      openNewJob();
+      break;
+    case 'verify':
+      showNotification('Starting batch verification...', 'accent');
+      // Trigger batch verify if available
+      if (typeof startBatchLegacy === 'function') {
+        openBatchLegacyModal();
+      }
+      break;
+    case 'deploy':
+      openBatchJoinC2Modal();
+      break;
+    case 'export':
+      location.href = '/api/autoreg/export';
+      showNotification('Exporting accounts...', 'accent');
+      break;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AUTO-PILOT MODE
+   ═══════════════════════════════════════════════════════════ */
+
+let autoPilotEnabled = false;
+
+function initAutoPilot() {
+  const toggle = document.createElement('div');
+  toggle.className = 'autopilot-toggle';
+  toggle.innerHTML = `
+    <div class="ap-header">
+      <span>🤖 Auto-Pilot</span>
+      <label class="ap-switch">
+        <input type="checkbox" id="autoPilotCheck" onchange="toggleAutoPilot(this.checked)">
+        <span class="ap-slider"></span>
+      </label>
+    </div>
+    <div id="apStatus" class="ap-status" style="display:none"></div>
+  `;
+  
+  const insights = document.getElementById('autoRegInsights');
+  if (insights) {
+    insights.insertAdjacentElement('afterend', toggle);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .autopilot-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; padding: 16px; }
+    .ap-header { display: flex; justify-content: space-between; align-items: center; }
+    .ap-header span { font-weight: 600; font-size: 13px; }
+    .ap-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .ap-switch input { opacity: 0; width: 0; height: 0; }
+    .ap-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-input); transition: 0.3s; border-radius: 24px; border: 1px solid var(--border); }
+    .ap-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px; background-color: var(--text-dim); transition: 0.3s; border-radius: 50%; }
+    .ap-switch input:checked + .ap-slider { background-color: var(--accent); border-color: var(--accent); }
+    .ap-switch input:checked + .ap-slider:before { transform: translateX(20px); background-color: #000; }
+    .ap-status { margin-top: 12px; padding: 10px; background: rgba(0,212,255,0.1); border-radius: 8px; font-size: 11px; color: var(--accent); }
+  `;
+  document.head.appendChild(style);
+}
+
+function toggleAutoPilot(enabled) {
+  autoPilotEnabled = enabled;
+  const status = document.getElementById('apStatus');
+  
+  if (enabled) {
+    status.style.display = 'block';
+    status.innerHTML = '🤖 Auto-Pilot active - monitoring and auto-optimizing...';
+    showNotification('Auto-Pilot enabled', 'green');
+    
+    // Start auto-monitoring
+    startAutoPilotMonitoring();
+  } else {
+    status.style.display = 'none';
+    showNotification('Auto-Pilot disabled', 'yellow');
+  }
+}
+
+function startAutoPilotMonitoring() {
+  if (!autoPilotEnabled) return;
+  
+  // Auto-refresh stats
+  setInterval(() => {
+    if (!autoPilotEnabled) return;
+    refreshAccounts();
+    updateAutoRegInsights();
+  }, 15000);
+  
+  // Auto-suggestions
+  setTimeout(() => {
+    if (autoPilotEnabled) {
+      const unverified = document.querySelectorAll('#accountsTable tbody tr:not([data-verified="true"])').length;
+      if (unverified > 3) {
+        showNotification(`💡 Auto-Pilot: ${unverified} accounts need verification`, 'accent');
+      }
+    }
+  }, 30000);
+}
+
+// Initialize smart features
+document.addEventListener('DOMContentLoaded', () => {
+  initAutoRegInsights();
+  initAutoPilot();
+  
+  // Welcome
+  setTimeout(() => {
+    showNotification('💡 Use Auto-Pilot for automated operations', 'accent');
+  }, 1500);
 });
 
 // Keyboard shortcuts

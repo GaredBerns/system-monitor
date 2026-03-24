@@ -7,13 +7,13 @@
   .stat-card .sc-icon {
     position: absolute; right: 14px; top: 50%;
     transform: translateY(-50%);
-    width: 44px; height: 44px; border-radius: 12px;
+    width: 38px; height: 38px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px; opacity: 0.12;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    background: currentColor;
+    opacity: 0.55;
+    transition: opacity 0.25s ease, transform 0.25s ease;
   }
-  .stat-card:hover .sc-icon { opacity: 0.2; transform: translateY(-50%) scale(1.1) rotate(5deg); }
+  .stat-card:hover .sc-icon { opacity: 0.85; transform: translateY(-50%) scale(1.08); }
+  .stat-card .sc-icon svg { width: 22px; height: 22px; }
   .stat-card .sc-delta {
     font-size: 10px; font-weight: 600;
     display: flex; align-items: center; gap: 3px;
@@ -138,7 +138,12 @@
 <div class="stats-grid">
   <div class="stat-card green" onclick="location='/devices'">
     <svg class="sc-sparkline" id="spark-alive" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
-    <div class="sc-icon">🟢</div>
+    <div class="sc-icon" style="color:var(--green)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -156,7 +161,11 @@
 
   <div class="stat-card" onclick="location='/devices'">
     <svg class="sc-sparkline" id="spark-total" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
-    <div class="sc-icon">🖥</div>
+    <div class="sc-icon" style="color:var(--accent)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
@@ -169,7 +178,11 @@
 
   <div class="stat-card yellow" onclick="location='/scheduler'">
     <svg class="sc-sparkline" id="spark-pending" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
-    <div class="sc-icon">⏱</div>
+    <div class="sc-icon" style="color:var(--yellow)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -182,7 +195,11 @@
 
   <div class="stat-card orange" onclick="location='/scheduler'">
     <svg class="sc-sparkline" id="spark-done" viewBox="0 0 100 36" preserveAspectRatio="none"></svg>
-    <div class="sc-icon">✅</div>
+    <div class="sc-icon" style="color:var(--orange)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
@@ -194,7 +211,11 @@
   </div>
 
   <div class="stat-card purple">
-    <div class="sc-icon">✨</div>
+    <div class="sc-icon" style="color:var(--purple)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
@@ -206,7 +227,11 @@
   </div>
 
   <div class="stat-card red">
-    <div class="sc-icon">📊</div>
+    <div class="sc-icon" style="color:var(--red)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
     <div class="label">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-1px;margin-right:3px">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -602,9 +627,251 @@ function playSound(type) {
   });
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SMART INSIGHTS & RECOMMENDATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+let insightsPanel = null;
+
+function initSmartInsights() {
+  const panel = document.createElement('div');
+  panel.id = 'insightsPanel';
+  panel.className = 'insights-panel';
+  panel.innerHTML = `
+    <div class="insights-header">
+      <span>💡 Smart Insights</span>
+      <button onclick="refreshInsights()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">⟳</button>
+    </div>
+    <div id="insightsContent" class="insights-content"></div>
+  `;
+  
+  // Insert after stats grid
+  const statsGrid = document.querySelector('.stats-grid');
+  if (statsGrid) {
+    statsGrid.insertAdjacentElement('afterend', panel);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
+    .insights-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .insights-content { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .insight-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid var(--accent); }
+    .insight-item.warning { border-left-color: var(--yellow); }
+    .insight-item.success { border-left-color: var(--green); }
+    .insight-item.danger { border-left-color: var(--red); }
+    .insight-icon { font-size: 20px; }
+    .insight-text { flex: 1; }
+    .insight-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .insight-desc { font-size: 11px; color: var(--text-dim); }
+    .insight-action { margin-top: 8px; }
+    .insight-action button { background: rgba(0,212,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
+    .insight-action button:hover { background: rgba(0,212,255,0.2); }
+  `;
+  document.head.appendChild(style);
+  
+  refreshInsights();
+}
+
+function refreshInsights() {
+  fetch('/api/stats')
+    .then(r => r.json())
+    .then(stats => {
+      const insights = generateInsights(stats);
+      const content = document.getElementById('insightsContent');
+      if (!content) return;
+      
+      if (insights.length === 0) {
+        content.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px">✓ All systems optimal</div>';
+        return;
+      }
+      
+      content.innerHTML = insights.map(i => `
+        <div class="insight-item ${i.type}">
+          <span class="insight-icon">${i.icon}</span>
+          <div class="insight-text">
+            <div class="insight-title">${i.title}</div>
+            <div class="insight-desc">${i.description}</div>
+            ${i.action ? `<div class="insight-action"><button onclick="${i.action.onClick}">${i.action.label}</button></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    });
+}
+
+function generateInsights(stats) {
+  const insights = [];
+  
+  // Offline agents warning
+  const offlineCount = (stats.total_agents || 0) - (stats.alive || 0);
+  if (offlineCount > 0) {
+    insights.push({
+      type: 'warning',
+      icon: '⚠️',
+      title: `${offlineCount} agents offline`,
+      description: 'Some agents haven\'t checked in recently. Check their status.',
+      action: { label: 'View Devices', onClick: "location.href='/devices'" }
+    });
+  }
+  
+  // Pending tasks
+  if (stats.pending > 5) {
+    insights.push({
+      type: 'warning',
+      icon: '📋',
+      title: `${stats.pending} pending tasks`,
+      description: 'Many tasks are waiting for agent response.',
+      action: { label: 'View Console', onClick: "location.href='/console'" }
+    });
+  }
+  
+  // Low agent count
+  if (stats.total_agents < 3) {
+    insights.push({
+      type: 'info',
+      icon: '📈',
+      title: 'Grow your fleet',
+      description: 'Generate payloads and deploy to add more agents.',
+      action: { label: 'Payloads', onClick: "location.href='/payloads'" }
+    });
+  }
+  
+  // Many online agents - success
+  if (stats.alive > 10) {
+    insights.push({
+      type: 'success',
+      icon: '✅',
+      title: `${stats.alive} agents online`,
+      description: 'Your C2 network is healthy and active.',
+    });
+  }
+  
+  // New agents today
+  if (stats.new_today > 0) {
+    insights.push({
+      type: 'success',
+      icon: '✨',
+      title: `${stats.new_today} new agents today`,
+      description: 'Your deployment strategy is working!',
+    });
+  }
+  
+  return insights;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUICK ACTIONS WIDGET
+   ═══════════════════════════════════════════════════════════ */
+
+function initQuickActions() {
+  const widget = document.createElement('div');
+  widget.className = 'quick-actions-widget';
+  widget.innerHTML = `
+    <div class="qa-header">⚡ Quick Actions</div>
+    <div class="qa-grid">
+      <button onclick="quickAction('batchCmd')" class="qa-btn">
+        <span class="qa-icon">💬</span>
+        <span>Batch Command</span>
+      </button>
+      <button onclick="quickAction('export')" class="qa-btn">
+        <span class="qa-icon">📥</span>
+        <span>Export Agents</span>
+      </button>
+      <button onclick="quickAction('payload')" class="qa-btn">
+        <span class="qa-icon">📦</span>
+        <span>New Payload</span>
+      </button>
+      <button onclick="quickAction('mining')" class="qa-btn">
+        <span class="qa-icon">⛏️</span>
+        <span>Mining Stats</span>
+      </button>
+    </div>
+  `;
+  
+  const insightsPanel = document.getElementById('insightsPanel');
+  if (insightsPanel) {
+    insightsPanel.insertAdjacentElement('afterend', widget);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .quick-actions-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; padding: 16px; }
+    .qa-header { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
+    .qa-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .qa-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+    .qa-icon { font-size: 24px; }
+    .qa-btn span:last-child { font-size: 11px; color: var(--text-dim); }
+    @media (max-width: 768px) { .qa-grid { grid-template-columns: repeat(2, 1fr); } }
+  `;
+  document.head.appendChild(style);
+}
+
+function quickAction(action) {
+  switch(action) {
+    case 'batchCmd':
+      location.href = '/devices';
+      showNotification('Select agents and use Batch Command', 'accent');
+      break;
+    case 'export':
+      location.href = '/api/export/agents';
+      break;
+    case 'payload':
+      location.href = '/payloads';
+      break;
+    case 'mining':
+      location.href = '/moneroocean';
+      break;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AUTO-REFRESH WITH VISUAL INDICATOR
+   ═══════════════════════════════════════════════════════════ */
+
+let autoRefreshEnabled = true;
+let lastUpdateTime = Date.now();
+
+function initAutoRefresh() {
+  // Add progress bar
+  const progressBar = document.createElement('div');
+  progressBar.id = 'autoRefreshProgress';
+  progressBar.style.cssText = 'position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:9999;transition:width 0.1s linear';
+  document.body.appendChild(progressBar);
+  
+  setInterval(() => {
+    if (!autoRefreshEnabled) return;
+    
+    const elapsed = Date.now() - lastUpdateTime;
+    const progress = (elapsed / 10000) * 100; // 10s cycle
+    progressBar.style.width = progress + '%';
+    
+    if (elapsed >= 10000) {
+      lastUpdateTime = Date.now();
+      refreshStats();
+    }
+  }, 100);
+  
+  // Pause on hover
+  document.addEventListener('mouseenter', () => { autoRefreshEnabled = true; });
+  document.addEventListener('mouseleave', () => { autoRefreshEnabled = true; });
+}
+
 // Auto refresh
 refreshStats();
 setInterval(refreshStats, 10000);
+
+// Initialize smart features
+document.addEventListener('DOMContentLoaded', () => {
+  initSmartInsights();
+  initQuickActions();
+  initAutoRefresh();
+  
+  // Welcome notification
+  setTimeout(() => {
+    showNotification('👋 Welcome! Use Ctrl+K for quick commands', 'accent');
+  }, 1000);
+});
 
 // Live agent rows update
 function refreshAgentRows() {

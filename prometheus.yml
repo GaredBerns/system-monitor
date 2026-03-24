@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'c2-server'
+    static_configs:
+      - targets: ['c2-server:8443']
+    metrics_path: '/metrics'
+    scheme: http

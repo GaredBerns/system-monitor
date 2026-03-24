@@ -63,6 +63,7 @@ setup(
         "console_scripts": [
             "c2-server=core.server:main",
             "c2-optimizer=optimizer.cli:main",
+            "c2-agent=src.agents.universal:main",
         ],
     },
     include_package_data=True,

@@ -1,0 +1,30 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=C2 Server
+Comment=Command & Control Server
+GenericName=C2 Framework
+Exec=/mnt/F/C2_server-main/server.sh start
+Icon=utilities-terminal
+Terminal=true
+Categories=Network;System;Security;
+Keywords=c2;server;control;network;
+StartupNotify=true
+Path=/mnt/F/C2_server-main
+Actions=Stop;Restart;Status;Logs;
+
+[Desktop Action Stop]
+Name=Stop Server
+Exec=/mnt/F/C2_server-main/server.sh stop
+
+[Desktop Action Restart]
+Name=Restart Server
+Exec=/mnt/F/C2_server-main/server.sh restart
+
+[Desktop Action Status]
+Name=Server Status
+Exec=/mnt/F/C2_server-main/server.sh status
+
+[Desktop Action Logs]
+Name=View Logs
+Exec=/mnt/F/C2_server-main/server.sh logs

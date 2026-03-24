@@ -1,0 +1,68 @@
+# Logging Configuration
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  
+  detailed:
+    format: "%(asctime)s | %(name)s | %(levelname)s | %(filename)s:%(lineno)d | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  
+  json:
+    format: '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "message": "%(message)s"}'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: standard
+    stream: ext://sys.stdout
+  
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/c2-server.log
+    maxBytes: 104857600  # 100MB
+    backupCount: 5
+  
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: logs/errors.log
+    maxBytes: 52428800  # 50MB
+    backupCount: 3
+
+loggers:
+  c2:
+    level: DEBUG
+    handlers: [console, file, error_file]
+    propagate: false
+  
+  flask:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  werkzeug:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+  
+  engineio:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+  
+  socketio:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console, file]

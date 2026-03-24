@@ -1,0 +1,98 @@
+{
+  "iydfqszgpz@bscse.okcx.edu.rs": {
+    "email": "iydfqszgpz@bscse.okcx.edu.rs",
+    "email_id": "8c890c89-fccd-40ac-ac94-2f253254acf8",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774378161.0296192
+  },
+  "vap0on6a4u@bscse.okcx.edu.rs": {
+    "email": "vap0on6a4u@bscse.okcx.edu.rs",
+    "email_id": "827c9fd9-2e7b-4e66-b723-28d397cf2bb0",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774378355.2143352,
+    "registration_job": {
+      "reg_id": "be2549f3",
+      "platform": "devin_ai",
+      "platform_name": "Devin AI",
+      "job_index": 0
+    }
+  },
+  "xwdzsv7xnq@bscse.okcx.edu.rs": {
+    "email": "xwdzsv7xnq@bscse.okcx.edu.rs",
+    "email_id": "bd984e2d-d201-4749-ab33-8ca5fd74f5ff",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774378429.6783524
+  },
+  "s0lhy81axy@bscse.okcx.edu.rs": {
+    "email": "s0lhy81axy@bscse.okcx.edu.rs",
+    "email_id": "ae9ee481-c772-4575-b94f-039113331652",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774378773.0249436
+  },
+  "28ap4ku4f1@bscse.okcx.edu.rs": {
+    "email": "28ap4ku4f1@bscse.okcx.edu.rs",
+    "email_id": "b13ceaf9-d82e-4b32-a0c3-59b223ff2fd1",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774379395.8406143
+  },
+  "nix9hcijpq@bscse.okcx.edu.rs": {
+    "email": "nix9hcijpq@bscse.okcx.edu.rs",
+    "email_id": "19c398c3-7f67-4f1f-b258-d7c655ae2d9d",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774379752.8135805
+  },
+  "futzcxb8xo@bscse.okcx.edu.rs": {
+    "email": "futzcxb8xo@bscse.okcx.edu.rs",
+    "email_id": "71faafce-94ba-4ec4-9a1b-a2a309558442",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380198.8790925
+  },
+  "fjjg3avde7@bscse.okcx.edu.rs": {
+    "email": "fjjg3avde7@bscse.okcx.edu.rs",
+    "email_id": "2161a9cd-ca67-4ef6-ace8-5bcae81d4955",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380274.2100644
+  },
+  "j0n73xnfh9@bscse.okcx.edu.rs": {
+    "email": "j0n73xnfh9@bscse.okcx.edu.rs",
+    "email_id": "59e2cbbc-006f-482a-a8e5-0c1c211fa95b",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380365.5515769,
+    "registration_job": {
+      "reg_id": "0853dca7",
+      "platform": "kaggle",
+      "platform_name": "Kaggle",
+      "job_index": 0
+    }
+  },
+  "bvbfgpboce@bscse.okcx.edu.rs": {
+    "email": "bvbfgpboce@bscse.okcx.edu.rs",
+    "email_id": "6e2bd837-487c-4bca-874f-40f376dfee83",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380393.2222183
+  },
+  "ai7ofwk13x@bscse.okcx.edu.rs": {
+    "email": "ai7ofwk13x@bscse.okcx.edu.rs",
+    "email_id": "1cb4d1aa-bf5c-479b-a7c2-0a40a3bbf0cb",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380745.0798318
+  },
+  "80zhkqt0zc@bscse.okcx.edu.rs": {
+    "email": "80zhkqt0zc@bscse.okcx.edu.rs",
+    "email_id": "fef960b1-a85c-4740-86b0-fbd2fd07303d",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774380833.532226
+  }
+}
