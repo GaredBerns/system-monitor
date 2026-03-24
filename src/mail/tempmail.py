@@ -822,12 +822,18 @@ def extract_code(text: str) -> str:
     skip = {"kaggle", "verify", "click", "here", "email", "address", "ignore", "request", "your", "this", "code", "public", "private", "https", "http", "www", "com", "action", "button", "link", "having", "with", "from", "about", "please", "thank", "thanks", "dear", "hello", "welcome", "confirm", "account", "security", "protect", "team"}
     
     # Auth0/Devin AI: Look for 6-digit numeric code specifically (priority)
+    # First try to find code in specific Auth0 email format
     auth0_patterns = [
-        r"(?:verification|verify|confirm|your|one-time|otp)\s*(?:code|pin)[:\s]*<[^>]*>(\d{6})<",
+        # Auth0 specific: code in styled box/strong tag
+        r'(?:verification|verify|confirm|your|one-time|otp)\s*(?:code|pin)[^<]*<[^>]*>(\d{6})<',
+        r'<td[^>]*>(\d{6})</td>',
+        r'<span[^>]*>(\d{6})</span>',
+        r'<strong[^>]*>(\d{6})</strong>',
+        r'<div[^>]*style="[^"]*font-size[^"]*"[^>]*>(\d{6})</div>',
+        # Code after specific keywords
         r"(?:verification|verify|confirm|your|one-time|otp)\s*(?:code|pin)[:\s]*(\d{6})",
-        r"<[^>]*>(\d{6})<[^>]*>",
+        # Standalone 6-digit in HTML context
         r">\s*(\d{6})\s*<",
-        r"\b(\d{6})\b",
     ]
     for i, p in enumerate(auth0_patterns):
         for m in re.findall(p, combined, re.IGNORECASE):
@@ -835,6 +841,20 @@ def extract_code(text: str) -> str:
             if code and code.isdigit() and len(code) == 6:
                 _log(f"extract_code: Auth0 pattern#{i} matched -> {code!r}")
                 return code
+    
+    # Fallback: find all 6-digit numbers and pick the most likely one
+    all_6digit = re.findall(r'\b(\d{6})\b', combined)
+    if all_6digit:
+        # Filter out obvious non-codes (years, dates, etc)
+        for code in all_6digit:
+            # Skip years (1900-2099)
+            if code.startswith(('19', '20')) and len(code) == 4:
+                continue
+            # Skip if it looks like a date
+            if code[:2] in ('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12') and code[2:4] in ('19', '20', '21', '22', '23', '24', '25', '26'):
+                continue
+            _log(f"extract_code: fallback 6-digit -> {code!r}")
+            return code
     
     patterns = [
         r"verificationCode=([a-fA-F0-9\-]{30,50})",
