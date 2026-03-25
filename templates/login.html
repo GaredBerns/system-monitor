@@ -843,17 +843,75 @@ document.getElementById('loginForm').addEventListener('submit', () => {
 
 /* ── 3D tilt effect on card ── */
 const box = document.getElementById('loginBox');
+
+// Desktop: mouse tilt
 document.getElementById('loginPage').addEventListener('mousemove', e => {
-  const rect = box.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top  + rect.height / 2;
-  const dx = (e.clientX - cx) / cx;
-  const dy = (e.clientY - cy) / cy;
-  const maxTilt = 6;
-  box.style.transform = `perspective(1000px) rotateY(${dx * maxTilt}deg) rotateX(${-dy * maxTilt * 0.6}deg)`;
+  if (window.innerWidth > 767) { // Only on desktop
+    const rect = box.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top  + rect.height / 2;
+    const dx = (e.clientX - cx) / cx;
+    const dy = (e.clientY - cy) / cy;
+    const maxTilt = 6;
+    box.style.transform = `perspective(1000px) rotateY(${dx * maxTilt}deg) rotateX(${-dy * maxTilt * 0.6}deg)`;
+  }
 });
 document.getElementById('loginPage').addEventListener('mouseleave', () => {
   box.style.transform = 'perspective(1000px) rotateY(0) rotateX(0)';
+});
+
+// Mobile: gyroscope tilt
+let gyroEnabled = false;
+function handleOrientation(e) {
+  if (!gyroEnabled) return;
+  
+  // gamma: left-to-right tilt (-90 to 90)
+  // beta: front-to-back tilt (-180 to 180)
+  let gamma = e.gamma || 0; // left-right
+  let beta = e.beta || 0;   // front-back
+  
+  // Normalize to reasonable range
+  const maxTilt = 12;
+  const tiltX = Math.max(-maxTilt, Math.min(maxTilt, gamma / 3));
+  const tiltY = Math.max(-maxTilt, Math.min(maxTilt, (beta - 45) / 4)); // 45° is neutral (phone upright)
+  
+  box.style.transform = `perspective(1000px) rotateY(${tiltX}deg) rotateX(${-tiltY}deg)`;
+}
+
+// Request permission on iOS 13+
+function requestGyro() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && 
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+ requires permission
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === 'granted') {
+          gyroEnabled = true;
+          window.addEventListener('deviceorientation', handleOrientation);
+        }
+      })
+      .catch(console.error);
+  } else if ('DeviceOrientationEvent' in window) {
+    // Non-iOS or older iOS
+    gyroEnabled = true;
+    window.addEventListener('deviceorientation', handleOrientation);
+  }
+}
+
+// Auto-enable on mobile
+if (window.innerWidth <= 767) {
+  // Try to enable on first touch
+  document.body.addEventListener('touchstart', function enableGyro() {
+    requestGyro();
+    document.body.removeEventListener('touchstart', enableGyro);
+  }, { once: true });
+}
+
+// Reset on visibility change
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    box.style.transform = 'perspective(1000px) rotateY(0) rotateX(0)';
+  }
 });
 
 /* ── Particle system ── */
