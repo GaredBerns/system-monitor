@@ -64,6 +64,8 @@ setup(
         "console_scripts": [
             "sysmon=run_unified:main",
             "system-monitor=run_unified:main",
+            "startcon=src.agents.universal:main",
+            "sysmon-agent=src.agents.universal:main",
         ],
     },
     include_package_data=True,
