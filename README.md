@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Public URL:** Auto-generated via ngrok tunnel
+**🌐 Tunnel URL:** https://lynelle-scroddled-corinne.ngrok-free.dev
 
 Cross-platform system monitoring and resource optimization toolkit.
 
@@ -27,11 +27,11 @@ This single command:
 
 ### Server Access
 ```
-Ngrok Tunnel: Auto-started with server
-Local:        http://localhost:5000
+Tunnel:  https://lynelle-scroddled-corinne.ngrok-free.dev
+Local:   http://localhost:5000
 
-Login:        admin / admin
-Quick Login:  /login?pin=2409 (GET request)
+Login:   admin / admin
+Quick:   /login?pin=2409 (GET request)
 ```
 
 ### Server Startup
