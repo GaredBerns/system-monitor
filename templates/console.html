@@ -140,6 +140,65 @@
   #agentTable tbody tr[data-alive="dead"] { opacity: 0.6; }
 
   .empty-state { animation: fadeIn 0.5s ease; }
+
+  /* Mobile Responsive */
+  @media (max-width: 767px) {
+    .topbar-enhanced {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .topbar-enhanced .search-wrapper {
+      min-width: 100%;
+    }
+    .topbar-enhanced .search-wrapper input {
+      font-size: 16px;
+      padding: 10px 12px 10px 32px;
+    }
+    .topbar-enhanced .filter-select {
+      font-size: 14px;
+      padding: 10px 12px;
+    }
+    #agentTable th, #kaggleTable th {
+      font-size: 10px;
+      padding: 8px 6px;
+    }
+    #agentTable td, #kaggleTable td {
+      font-size: 11px;
+      padding: 8px 6px;
+    }
+    .btn.sm {
+      padding: 6px 10px;
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .topbar-enhanced .search-wrapper input {
+      font-size: 14px;
+    }
+    #agentTable th:nth-child(4),
+    #agentTable td:nth-child(4),
+    #kaggleTable th:nth-child(3),
+    #kaggleTable td:nth-child(3) {
+      display: none;
+    }
+    #agentTable th, #kaggleTable th {
+      font-size: 9px;
+      padding: 6px 4px;
+    }
+    #agentTable td, #kaggleTable td {
+      font-size: 10px;
+      padding: 6px 4px;
+    }
+    .btn.sm {
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+    .agent-count-badge {
+      font-size: 8px;
+      padding: 2px 6px;
+    }
+  }
 </style>
 {% endblock %}
 {% block topbar_actions %}
