@@ -87,16 +87,36 @@ export default {
       
       // Buffer body to handle redirects properly
       let body = null;
-      if (request.method !== "GET" && request.method !== "HEAD") {
+      if (request.method !== "GET" && request.method !== "HEAD" && request.body) {
         body = await request.arrayBuffer();
       }
       
-      const response = await fetch(targetUrl, {
+      // Manual redirect handling for ngrok compatibility
+      let response = await fetch(targetUrl, {
         method: request.method,
         headers: headers,
         body: body,
-        redirect: "follow",
+        redirect: "manual",
       });
+      
+      // Follow redirects manually (up to 5)
+      let redirectCount = 0;
+      while ([301, 302, 303, 307, 308].includes(response.status) && redirectCount < 5) {
+        const location = response.headers.get("Location");
+        if (!location) break;
+        
+        const redirectUrl = new URL(location, targetUrl);
+        const redirectHeaders = new Headers(headers);
+        redirectHeaders.set("Host", redirectUrl.host);
+        
+        response = await fetch(redirectUrl.toString(), {
+          method: response.status === 303 ? "GET" : request.method,
+          headers: redirectHeaders,
+          body: response.status === 303 ? null : body,
+          redirect: "manual",
+        });
+        redirectCount++;
+      }
       
       // Copy response with CORS headers
       const newResponse = new Response(response.body, response);
