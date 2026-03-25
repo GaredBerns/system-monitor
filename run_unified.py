@@ -4,6 +4,10 @@ System Monitor - Unified Launcher
 """
 import os, sys, subprocess, threading, time, json, requests
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # Add project to path
 project_root = Path(__file__).parent
@@ -22,6 +26,7 @@ class NgrokTunnel:
         self.port = port
         self.process = None
         self.public_url = None
+        self.authtoken = os.getenv('NGROK_AUTHTOKEN', '')
         
     def start(self):
         """Start ngrok tunnel"""
@@ -33,18 +38,23 @@ class NgrokTunnel:
                 return None
             
             # Kill existing ngrok processes
-            subprocess.run(['pkill', '-f', 'ngrok'], capture_output=True)
-            time.sleep(2)
+            subprocess.run(['pkill', '-9', '-f', 'ngrok'], capture_output=True)
+            time.sleep(1)
+            
+            # Build ngrok command with authtoken if available
+            ngrok_cmd = ['ngrok', 'http', str(self.port)]
+            if self.authtoken:
+                ngrok_cmd = ['ngrok', 'http', str(self.port), '--authtoken=' + self.authtoken]
             
             # Start ngrok
             self.process = subprocess.Popen(
-                ['ngrok', 'http', str(self.port)],
+                ngrok_cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
             
             # Wait for ngrok to start
-            time.sleep(5)
+            time.sleep(3)
             
             # Get public URL from ngrok API
             try:
@@ -53,6 +63,7 @@ class NgrokTunnel:
                 if data.get('tunnels'):
                     self.public_url = data['tunnels'][0]['public_url']
                     log.success(f"Ngrok tunnel: {self.public_url}")
+                    log.info(f"Login URL: {self.public_url}/login?pin=2409")
                     return self.public_url
             except Exception as e:
                 log.warning(f"Could not get ngrok URL: {e}")
@@ -96,17 +107,16 @@ def main():
     parser.add_argument("--host", default=os.getenv("HOST", "0.0.0.0"), help="Host")
     parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "5000")), help="Port")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
-    parser.add_argument("--ngrok", action="store_true", default=True, help="Start ngrok tunnel")
-    parser.add_argument("--no-ngrok", action="store_true", help="Disable ngrok tunnel")
+    parser.add_argument("--no-ngrok", action="store_true", help="Disable ngrok tunnel (enabled by default)")
     
     args = parser.parse_args()
     
     app = setup_app()
     
-    # Start ngrok tunnel
+    # Start ngrok tunnel (enabled by default)
     global ngrok_tunnel
     tunnel_url = None
-    if args.ngrok and not args.no_ngrok:
+    if not args.no_ngrok:
         ngrok_tunnel = NgrokTunnel(args.port)
         tunnel_url = ngrok_tunnel.start()
     
