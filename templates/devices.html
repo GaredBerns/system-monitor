@@ -2,6 +2,78 @@
 {% block title %}Devices{% endblock %}
 {% block page_title %}Connected Devices{% endblock %}
 {% block page_subtitle %}Manage your agents{% endblock %}
+{% block head %}
+<style>
+  /* Mobile Responsive - CRITICAL */
+  @media (max-width: 767px) {
+    .grid.gap-3 {
+      grid-template-columns: 1fr !important;
+    }
+    .flex.flex-wrap.gap-3 {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .flex.flex-wrap.gap-3 > div {
+      min-width: 100% !important;
+    }
+    input[type="text"] {
+      font-size: 16px !important;
+      padding: 12px 14px !important;
+    }
+    .filter-btn {
+      padding: 10px 14px !important;
+      font-size: 12px !important;
+    }
+    .bg-bg-secondary {
+      padding: 12px !important;
+    }
+    .text-sm {
+      font-size: 14px !important;
+    }
+    .text-xs {
+      font-size: 12px !important;
+    }
+    .grid.grid-cols-4 {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 8px !important;
+    }
+    .flex.gap-2.mt-3 {
+      flex-wrap: wrap;
+    }
+    .flex.gap-2.mt-3 a,
+    .flex.gap-2.mt-3 button {
+      padding: 8px 12px !important;
+      font-size: 11px !important;
+      min-height: 36px !important;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .filter-btn {
+      padding: 8px 10px !important;
+      font-size: 11px !important;
+    }
+    .bg-bg-secondary {
+      padding: 10px !important;
+    }
+    .text-sm {
+      font-size: 13px !important;
+    }
+    .text-xs {
+      font-size: 11px !important;
+    }
+    .w-9.h-9 {
+      width: 32px !important;
+      height: 32px !important;
+    }
+    .flex.gap-2.mt-3 a,
+    .flex.gap-2.mt-3 button {
+      padding: 6px 10px !important;
+      font-size: 10px !important;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 

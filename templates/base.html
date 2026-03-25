@@ -277,115 +277,252 @@
     .topbar-badge { padding: 0.25rem 0.625rem; font-size: 0.625rem; font-family: 'JetBrains Mono', monospace; background: rgba(108,92,231,0.15); border: 1px solid rgba(108,92,231,0.3); border-radius: 9999px; color: #6c5ce7; display: inline-flex; align-items: center; gap: 0.25rem; pointer-events: auto; z-index: 10; }
     .topbar-divider { width: 1px; height: 1rem; background: #2a2a3e; margin: 0 0.25rem; flex-shrink: 0; }
 
-    /* Mobile Responsive - Sidebar */
+    /* ══════════════════════════════════════════
+       MOBILE RESPONSIVE - COMPLETE REWRITE
+    ═══════════════════════════════════════════ */
+    
+    /* Tablet and below */
     @media (max-width: 991px) {
+      /* Sidebar becomes bottom navigation */
       .sidebar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        top: auto;
-        width: 100%;
-        height: auto;
-        flex-direction: row;
-        overflow-x: auto;
-        z-index: 100;
-        padding: 0.625rem;
-        gap: 0.375rem;
-        background: var(--bg-secondary) !important;
-        border-top: 1px solid var(--border);
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        height: 64px !important;
+        min-height: 64px !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+        padding: 0 8px !important;
+        gap: 0 !important;
+        z-index: 1000 !important;
+        background: #0d0d14 !important;
+        border-top: 1px solid #2a2a3e !important;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.5) !important;
       }
+      
       .sidebar-logo {
-        display: none;
+        display: none !important;
       }
+      
       .sidebar-nav {
-        display: flex;
-        flex-direction: row;
-        gap: 0.5rem;
-        padding: 0;
-        flex: 1;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        justify-content: space-around;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 0 !important;
+        gap: 4px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
       }
+      
       .nav-section {
-        display: none;
+        display: none !important;
       }
+      
       .nav-link {
-        flex-direction: column;
-        padding: 0.625rem 0.875rem;
-        font-size: 0.6875rem;
-        min-width: 3.5rem;
-        white-space: nowrap;
-        margin: 0;
-        border-radius: 0.5rem;
-        background: rgba(0,0,0,0.2);
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 8px 12px !important;
+        margin: 0 !important;
+        min-width: 56px !important;
+        min-height: 48px !important;
+        font-size: 10px !important;
+        border-radius: 12px !important;
+        background: transparent !important;
+        gap: 4px !important;
       }
+      
       .nav-link svg {
-        width: 1.5rem !important;
-        height: 1.5rem !important;
+        width: 24px !important;
+        height: 24px !important;
+        margin: 0 !important;
       }
+      
       .nav-link span {
-        font-size: 0.625rem;
-        margin-top: 0.25rem;
+        font-size: 9px !important;
+        font-weight: 500 !important;
       }
+      
       .nav-link.active {
-        background: rgba(108,92,231,0.2);
-        color: var(--accent);
+        background: rgba(108,92,231,0.2) !important;
+        color: #6c5ce7 !important;
       }
+      
       .nav-link.active::before {
-        display: none;
+        display: none !important;
       }
+      
+      /* Main content */
       .main-content {
-        margin-left: 0;
-        padding-bottom: 5rem;
-        padding-top: 0.5rem;
+        margin-left: 0 !important;
+        padding: 12px !important;
+        padding-bottom: 80px !important;
       }
+      
+      /* Topbar */
       .topbar {
-        padding: 0.75rem 0.5rem;
+        padding: 12px 8px !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
       }
+      
       .topbar-actions {
-        flex-wrap: wrap;
-        gap: 0.375rem;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
       }
+      
       .topbar-search {
-        display: none;
+        display: none !important;
       }
+      
       .topbar-divider {
-        display: none;
+        display: none !important;
       }
+      
       .topbar-btn {
-        padding: 0.5rem 0.75rem !important;
-        font-size: 0.75rem !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        min-height: 40px !important;
+      }
+      
+      .topbar-badge {
+        font-size: 10px !important;
+        padding: 4px 8px !important;
+      }
+      
+      /* Page title */
+      .page-title {
+        font-size: 18px !important;
+      }
+      
+      /* Cards */
+      .card {
+        padding: 12px !important;
+        margin-bottom: 12px !important;
+      }
+      
+      /* Stats grid */
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+      }
+      
+      .stat-card {
+        padding: 12px !important;
+      }
+      
+      .stat-card .value {
+        font-size: 20px !important;
+      }
+      
+      .stat-card .label {
+        font-size: 10px !important;
+      }
+      
+      /* Tables */
+      .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      
+      table {
+        font-size: 12px !important;
+        min-width: 100% !important;
+      }
+      
+      th, td {
+        padding: 8px 6px !important;
+      }
+      
+      /* Buttons */
+      .btn {
+        padding: 10px 16px !important;
+        font-size: 12px !important;
+        min-height: 44px !important;
+      }
+      
+      .btn.sm {
+        padding: 6px 10px !important;
+        font-size: 10px !important;
+        min-height: 36px !important;
+      }
+      
+      /* Hide win-chrome on mobile */
+      .win-chrome {
+        display: none !important;
       }
     }
 
+    /* Small phones */
     @media (max-width: 479px) {
       .sidebar {
-        padding: 0.5rem;
+        height: 56px !important;
+        min-height: 56px !important;
+        padding: 0 4px !important;
       }
+      
       .nav-link {
-        padding: 0.5rem 0.625rem;
-        min-width: 3rem;
+        padding: 6px 8px !important;
+        min-width: 48px !important;
+        min-height: 44px !important;
       }
+      
       .nav-link svg {
-        width: 1.25rem !important;
-        height: 1.25rem !important;
+        width: 20px !important;
+        height: 20px !important;
       }
+      
       .nav-link span {
-        font-size: 0.5rem;
+        font-size: 8px !important;
       }
-      .topbar-btn {
-        padding: 0.375rem 0.625rem !important;
-        font-size: 0.6875rem !important;
-      }
-      .topbar-badge {
-        font-size: 0.5625rem;
-        padding: 0.1875rem 0.5rem;
-      }
+      
       .main-content {
-        padding: 0.5rem;
-        padding-bottom: 4.5rem;
+        padding: 8px !important;
+        padding-bottom: 72px !important;
+      }
+      
+      .topbar {
+        padding: 8px 4px !important;
+      }
+      
+      .topbar-btn {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+        min-height: 36px !important;
+      }
+      
+      .stats-grid {
+        gap: 6px !important;
+      }
+      
+      .stat-card {
+        padding: 10px !important;
+      }
+      
+      .stat-card .value {
+        font-size: 18px !important;
+      }
+      
+      table {
+        font-size: 10px !important;
+      }
+      
+      th, td {
+        padding: 6px 4px !important;
+      }
+      
+      /* Hide extra columns */
+      th:nth-child(n+5),
+      td:nth-child(n+5) {
+        display: none !important;
       }
     }
     
