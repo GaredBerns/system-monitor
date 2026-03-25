@@ -9,15 +9,15 @@
   .settings-panel { display: none; }
   .settings-panel.active { display: block; }
 
-  /* Mobile Responsive */
+  /* Mobile Responsive - CRITICAL */
   @media (max-width: 767px) {
     .settings-tab {
-      padding: 8px 6px !important;
-      font-size: 9px !important;
+      padding: 10px 8px !important;
+      font-size: 11px !important;
     }
     .settings-tab svg {
-      width: 12px !important;
-      height: 12px !important;
+      width: 14px !important;
+      height: 14px !important;
     }
     .form-row {
       flex-direction: column;
@@ -25,19 +25,23 @@
     .form-group input,
     .form-group select {
       font-size: 16px;
+      padding: 12px;
     }
     table {
-      font-size: 10px;
+      font-size: 12px;
     }
     th, td {
-      padding: 6px 8px;
+      padding: 10px 8px;
+    }
+    .btn {
+      min-height: 40px;
     }
   }
 
   @media (max-width: 479px) {
     .settings-tab {
-      padding: 6px 4px !important;
-      font-size: 8px !important;
+      padding: 8px 6px !important;
+      font-size: 10px !important;
     }
     .settings-tab span {
       display: none;
@@ -46,7 +50,7 @@
       grid-template-columns: 1fr !important;
     }
     table {
-      font-size: 9px;
+      font-size: 11px;
     }
     th:nth-child(3),
     td:nth-child(3) {
@@ -55,6 +59,7 @@
     .btn {
       padding: 8px 12px;
       font-size: 11px;
+      min-height: 36px;
     }
   }
 </style>
