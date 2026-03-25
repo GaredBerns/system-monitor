@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for C2 Server."""
+"""Setup script for System Monitor."""
 
 from setuptools import setup, find_packages
 from pathlib import Path
@@ -16,14 +16,14 @@ if requirements_path.exists():
     requirements = [req.strip() for req in requirements if req.strip() and not req.startswith("#")]
 
 setup(
-    name="c2-server",
-    version="2.0.0",
+    name="system-monitor",
+    version="3.0.0",
     author="GaredBerns",
     author_email="",
-    description="A comprehensive C2 framework with multi-platform agents, GPU optimization, and auto-registration",
+    description="Cross-platform system monitoring and resource optimization toolkit",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/GaredBerns/C2_server",
+    url="https://github.com/GaredBerns/system-monitor",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -61,9 +61,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "c2-server=core.server:main",
-            "c2-optimizer=optimizer.cli:main",
-            "c2-agent=src.agents.universal:main",
+            "sysmon=run_unified:main",
+            "system-monitor=run_unified:main",
         ],
     },
     include_package_data=True,
