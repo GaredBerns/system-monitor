@@ -372,27 +372,30 @@ function initPayloadAssistant() {
   assistant.innerHTML = `
     <div class="pa-header">
       <span>🤖 Payload Assistant</span>
-      <button onclick="togglePayloadAssistant()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="C2_DEBUG.showDebugPanel()" class="pa-debug-btn" title="Debug Console">🔧</button>
+        <button onclick="togglePayloadAssistant()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">×</button>
+      </div>
     </div>
     <div class="pa-content">
       <div class="pa-section">
         <div class="pa-label">Quick Deploy</div>
         <div class="pa-quick-grid">
-          <button onclick="quickPayload('windows')" class="pa-quick-btn">
-            <span class="pq-icon">🪟</span>
-            <span>Windows</span>
+          <button onclick="quickPayload('github')" class="pa-quick-btn">
+            <span class="pq-icon">🐙</span>
+            <span>GitHub</span>
           </button>
           <button onclick="quickPayload('linux')" class="pa-quick-btn">
             <span class="pq-icon">🐧</span>
             <span>Linux</span>
           </button>
-          <button onclick="quickPayload('python')" class="pa-quick-btn">
-            <span class="pq-icon">🐍</span>
-            <span>Python</span>
+          <button onclick="quickPayload('windows')" class="pa-quick-btn">
+            <span class="pq-icon">🪟</span>
+            <span>Windows</span>
           </button>
-          <button onclick="quickPayload('powershell')" class="pa-quick-btn">
-            <span class="pq-icon">⚡</span>
-            <span>PowerShell</span>
+          <button onclick="quickPayload('colab')" class="pa-quick-btn">
+            <span class="pq-icon">☁️</span>
+            <span>Colab</span>
           </button>
         </div>
       </div>
@@ -416,6 +419,8 @@ function initPayloadAssistant() {
   style.textContent = `
     .payload-assistant { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
     .pa-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .pa-debug-btn { background: rgba(0,212,255,0.1); border: 1px solid var(--accent-dim); border-radius: 6px; color: var(--accent); cursor: pointer; padding: 4px 8px; font-size: 14px; transition: all 0.2s; }
+    .pa-debug-btn:hover { background: rgba(0,212,255,0.2); border-color: var(--accent); }
     .pa-content { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
     .pa-section { }
     .pa-label { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -443,9 +448,14 @@ function togglePayloadAssistant() {
 }
 
 function quickPayload(type) {
-  // Scroll to relevant section
   const blocks = document.querySelectorAll('.payload-block');
-  const typeMap = { windows: 'windows', linux: 'linux', python: 'python', powershell: 'powershell' };
+  const typeMap = { 
+    github: 'github', 
+    linux: 'linux', 
+    windows: 'windows', 
+    colab: 'colab',
+    kaggle: 'colab'
+  };
   
   blocks.forEach(block => {
     const header = block.querySelector('h3');

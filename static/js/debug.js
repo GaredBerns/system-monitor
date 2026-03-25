@@ -1,6 +1,6 @@
 /**
- * C2 Panel — Unified Debug Module v1.0
- * Единая система отладки для всех страниц
+ * System Monitor — Unified Debug Module v1.0
+ * Debug system for all pages
  */
 
 const C2_DEBUG = {
@@ -164,22 +164,7 @@ const C2_DEBUG = {
     }
   },
   
-  // Кнопка отладки
-  addDebugButton() {
-    const btn = document.createElement('div');
-    btn.id = 'c2-debug-btn';
-    btn.innerHTML = '🔧';
-    btn.style.cssText = `
-      position: fixed; bottom: 20px; left: 20px; width: 40px; height: 40px;
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      font-size: 18px; z-index: 9999; opacity: 0.5; transition: opacity 0.2s;
-    `;
-    btn.onmouseenter = () => btn.style.opacity = '1';
-    btn.onmouseleave = () => btn.style.opacity = '0.5';
-    btn.onclick = () => this.showDebugPanel();
-    document.body.appendChild(btn);
-  },
+  // Debug panel (button is in Payload Assistant)
   
   // Панель отладки
   showDebugPanel() {
