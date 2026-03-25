@@ -67,6 +67,12 @@ app = Flask(
     static_folder=str(BASE_DIR / "static"),
 )
 
+# Add ngrok-skip-browser-warning header to bypass ngrok warning page
+@app.after_request
+def add_ngrok_header(response):
+    response.headers['ngrok-skip-browser-warning'] = 'true'
+    return response
+
 _secret_path = BASE_DIR / "data" / ".secret_key"
 _secret_path.parent.mkdir(parents=True, exist_ok=True)
 if _secret_path.exists():
