@@ -106,6 +106,72 @@
   .tm-card:hover .tm-section-header {
     background: rgba(0,212,255,0.03);
   }
+
+  /* Mobile Responsive */
+  @media (max-width: 991px) {
+    .tempmail-layout {
+      grid-template-columns: 1fr !important;
+      height: auto !important;
+    }
+    .email-panel {
+      max-height: 400px;
+    }
+    .message-panel {
+      max-height: 400px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .tm-card {
+      padding: 10px;
+    }
+    .tm-icon-wrap {
+      width: 32px;
+      height: 32px;
+    }
+    .btn.sm {
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+    .email-item {
+      padding: 8px;
+      font-size: 10px;
+    }
+    .message-item {
+      padding: 8px;
+      font-size: 10px;
+    }
+    #domainSelect {
+      font-size: 14px;
+      padding: 10px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .tm-card {
+      padding: 8px;
+    }
+    .tm-icon-wrap {
+      width: 28px;
+      height: 28px;
+    }
+    .btn.sm {
+      padding: 4px 6px;
+      font-size: 8px;
+    }
+    .email-item {
+      padding: 6px;
+      font-size: 9px;
+    }
+    .message-item {
+      padding: 6px;
+      font-size: 9px;
+    }
+    .tm-badge-count {
+      font-size: 8px;
+      padding: 2px 6px;
+    }
+  }
 </style>
 {% endblock %}
 {% block topbar_actions %}

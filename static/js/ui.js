@@ -3,6 +3,10 @@
  * Notifications, command palette, keyboard shortcuts, animations, tooltips
  */
 
+/* ──────────────────────── MOBILE DETECTION ──────────────────────── */
+const isMobile = () => window.innerWidth <= 767;
+const isTouch = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
 /* ──────────────────────── NOTIFICATIONS ──────────────────────── */
 let _notifStack = 0;
 let _notifQueue = [];
@@ -18,24 +22,32 @@ function showNotification(msg, type = 'accent', duration = 4500) {
   const t = themes[type] || themes.accent;
   const n = document.createElement('div');
   const slot = _notifStack;
-  const offset = 20 + slot * 66;
+  
+  // Mobile-friendly positioning
+  const isMobileView = isMobile();
+  const offset = isMobileView ? 10 + slot * 56 : 20 + slot * 66;
+  const rightPos = isMobileView ? '10px' : '20px';
+  const maxWidth = isMobileView ? '280px' : '360px';
+  const minWidth = isMobileView ? '180px' : '220px';
+  const fontSize = isMobileView ? '12px' : '13px';
+  const padding = isMobileView ? '9px 12px 9px 10px' : '11px 16px 11px 14px';
 
   Object.assign(n.style, {
     position:      'fixed',
     top:           offset + 'px',
-    right:         '20px',
+    right:         rightPos,
     background:    t.bg,
     border:        `1px solid ${t.border}`,
-    borderRadius:  '12px',
-    padding:       '11px 16px 11px 14px',
-    fontSize:      '13px',
+    borderRadius:  isMobileView ? '10px' : '12px',
+    padding:       padding,
+    fontSize:      fontSize,
     fontWeight:    '500',
     zIndex:        '9999',
     backdropFilter:'blur(20px)',
     boxShadow:     `0 8px 32px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.04)`,
     fontFamily:    'Inter, sans-serif',
-    maxWidth:      '360px',
-    minWidth:      '220px',
+    maxWidth:      maxWidth,
+    minWidth:      minWidth,
     cursor:        'pointer',
     userSelect:    'none',
     transition:    'all .3s cubic-bezier(.4,0,.2,1)',
@@ -43,11 +55,11 @@ function showNotification(msg, type = 'accent', duration = 4500) {
     transform:     'translateX(20px)',
     display:       'flex',
     alignItems:    'center',
-    gap:           '10px',
+    gap:           isMobileView ? '8px' : '10px',
   });
 
   const icon = document.createElement('span');
-  icon.style.cssText = `font-size:14px;color:${t.color};flex-shrink:0;`;
+  icon.style.cssText = `font-size:${isMobileView ? '12px' : '14px'};color:${t.color};flex-shrink:0;`;
   icon.textContent = t.icon;
 
   const text = document.createElement('span');
@@ -55,7 +67,7 @@ function showNotification(msg, type = 'accent', duration = 4500) {
   text.textContent = msg;
 
   const close = document.createElement('span');
-  close.style.cssText = `color:${t.color};opacity:0.5;font-size:16px;flex-shrink:0;line-height:1;`;
+  close.style.cssText = `color:${t.color};opacity:0.5;font-size:${isMobileView ? '14px' : '16px'};flex-shrink:0;line-height:1;`;
   close.textContent = '×';
 
   n.appendChild(icon);

@@ -100,6 +100,88 @@
   border-color: var(--green);
 }
 
+/* ══════════════════════════════════════════
+   MOBILE RESPONSIVE STYLES
+══════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .panel {
+    margin-bottom: 12px;
+    border-radius: var(--radius);
+  }
+  
+  .panel-header {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  
+  .panel-content {
+    padding: 12px;
+  }
+  
+  .panel-footer {
+    padding: 10px 12px;
+  }
+  
+  .action-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .action-btn {
+    padding: 10px 8px;
+    font-size: 10px;
+  }
+  
+  .action-btn .action-icon {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 479px) {
+  .panel {
+    margin-bottom: 8px;
+  }
+  
+  .panel-header {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  
+  .panel-content {
+    padding: 10px;
+  }
+  
+  .action-grid {
+    gap: 6px;
+  }
+  
+  .action-btn {
+    padding: 8px 6px;
+    font-size: 9px;
+  }
+  
+  .action-btn .action-icon {
+    font-size: 16px;
+  }
+  
+  .action-btn .action-label {
+    font-size: 8px;
+  }
+}
+
+/* Touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .action-btn {
+    min-height: 44px;
+  }
+  
+  .action-btn:hover {
+    transform: none;
+  }
+}
+}
+
 .action-btn.danger {
   border-color: rgba(255,61,90,0.3);
   color: var(--red);

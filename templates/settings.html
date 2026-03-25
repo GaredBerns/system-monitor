@@ -8,6 +8,55 @@
   .btn.danger:hover  { box-shadow: 0 4px 20px rgba(255,71,87,0.2); }
   .settings-panel { display: none; }
   .settings-panel.active { display: block; }
+
+  /* Mobile Responsive */
+  @media (max-width: 767px) {
+    .settings-tab {
+      padding: 8px 6px !important;
+      font-size: 9px !important;
+    }
+    .settings-tab svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+    .form-row {
+      flex-direction: column;
+    }
+    .form-group input,
+    .form-group select {
+      font-size: 16px;
+    }
+    table {
+      font-size: 10px;
+    }
+    th, td {
+      padding: 6px 8px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .settings-tab {
+      padding: 6px 4px !important;
+      font-size: 8px !important;
+    }
+    .settings-tab span {
+      display: none;
+    }
+    .grid {
+      grid-template-columns: 1fr !important;
+    }
+    table {
+      font-size: 9px;
+    }
+    th:nth-child(3),
+    td:nth-child(3) {
+      display: none;
+    }
+    .btn {
+      padding: 8px 12px;
+      font-size: 11px;
+    }
+  }
 </style>
 {% endblock %}
 

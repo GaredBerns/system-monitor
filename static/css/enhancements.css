@@ -1000,6 +1000,110 @@ tr[data-alive="online"]  { opacity: 1;    transition: opacity 0.5s ease; }
   transition: all 0.3s ease;
 }
 
+/* ══════════════════════════════════════════
+   MOBILE RESPONSIVE STYLES
+══════════════════════════════════════════ */
+
+/* ── Global Mobile Optimizations ── */
+@media (max-width: 767px) {
+  /* Reduce animations on mobile */
+  .stat-card .value.animated {
+    animation: none;
+  }
+  
+  /* Smaller inline results */
+  .inline-result {
+    font-size: 10px;
+    padding: 6px 10px;
+    max-height: 100px;
+  }
+  
+  /* Compact badges */
+  .eta-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+  }
+  
+  .uptime-badge {
+    font-size: 8px;
+    padding: 2px 8px;
+  }
+  
+  /* Faster animations */
+  .content {
+    animation-duration: 0.2s;
+  }
+  
+  /* Smaller autocomplete */
+  .cmd-autocomplete {
+    max-height: 120px;
+  }
+  .ac-item {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 479px) {
+  /* Disable heavy animations */
+  .stat-card .value.animated {
+    animation: none;
+  }
+  
+  .inline-result {
+    font-size: 9px;
+    padding: 5px 8px;
+    max-height: 80px;
+  }
+  
+  .eta-badge {
+    font-size: 7px;
+    padding: 1px 4px;
+  }
+  
+  .uptime-badge {
+    font-size: 7px;
+    padding: 1px 6px;
+  }
+  
+  .batch-progress-wrap {
+    height: 4px;
+  }
+  
+  .cmd-autocomplete {
+    max-height: 100px;
+  }
+  .ac-item {
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+}
+
+/* ── Touch Device Optimizations ── */
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover transforms on touch */
+  .stat-card:hover {
+    transform: none;
+  }
+  
+  .action-btn:hover {
+    transform: none;
+  }
+  
+  /* Larger touch targets */
+  .btn.sm {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .toggle-switch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+  transition: all 0.3s ease;
+}
+
 /* ── Settings tab active indicator ── */
 .settings-tab.active {
   position: relative;
