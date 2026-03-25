@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Public URL:** https://system-monitor-6dru.onrender.com
+**🌐 Public URL:** https://gbctwoserver.net
 
 Cross-platform system monitoring and resource optimization toolkit.
 
@@ -13,13 +13,13 @@ Cross-platform system monitoring and resource optimization toolkit.
 
 ### Server is Running
 ```bash
-# Server: deployed on Render
-# URL: https://system-monitor-6dru.onrender.com
+# Server: deployed via Cloudflare Tunnel
+# URL: https://gbctwoserver.net
 ```
 
 ### Access Dashboard
 ```
-Public: https://system-monitor-6dru.onrender.com
+Public: https://gbctwoserver.net
 Local:  http://localhost:5000 (development)
 
 Login:  admin / admin
@@ -96,7 +96,7 @@ alias reinstall-sysmon='pip install --force-reinstall --no-cache-dir git+https:/
 
 ### 2. Check Server
 ```bash
-curl -s https://system-monitor-6dru.onrender.com/api/health
+curl -s https://gbctwoserver.net/api/health
 ```
 
 ### 3. Run Agent
