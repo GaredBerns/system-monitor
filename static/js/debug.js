@@ -1,13 +1,19 @@
 /**
- * System Monitor — Unified Debug Module v1.0
+ * System Monitor — Unified Debug Module v1.1
  * Debug system for all pages
  */
+
+// Mobile detection
+const isMobile = () => window.innerWidth <= 767;
+const isTouch = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 const C2_DEBUG = {
   enabled: true,
   level: 'info', // error, warn, info, debug, trace
   logHistory: [],
   maxHistory: 500,
+  isMobile: isMobile(),
+  isTouch: isTouch(),
   
   // Цвета для разных уровней
   colors: {

@@ -1,7 +1,10 @@
 /**
- * socket.js — SocketIO connection management v2.1
+ * socket.js — SocketIO connection management v2.2
  * Initializes connection, updates UI status, global event bus.
  */
+
+// Mobile detection
+const isMobile = () => window.innerWidth <= 767;
 
 const socket = io({ transports: ['websocket', 'polling'], reconnectionDelay: 1000, reconnectionAttempts: Infinity });
 
