@@ -1,0 +1,20 @@
+{
+  "9l3r7i": {
+    "target_url": "https://google.com",
+    "display_url": "https://dash.cloudflare.com/security/waf",
+    "display_text": "Cloudflare Dashboard",
+    "mask_type": "cloudflare",
+    "created_at": "2026-03-26T00:52:19.559507",
+    "clicks": 3,
+    "last_click": "2026-03-26T00:53:11.698647"
+  },
+  "ojgym6": {
+    "target_url": "https://example.com",
+    "display_url": "https://dash.cloudflare.com/security/waf",
+    "display_text": "Cloudflare Dashboard",
+    "mask_type": "cloudflare",
+    "created_at": "2026-03-26T00:53:11.336343",
+    "clicks": 1,
+    "last_click": "2026-03-26T00:53:15.607164"
+  }
+}

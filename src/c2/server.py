@@ -5185,24 +5185,29 @@ def kaggle_auto_start_kernels():
 
 # ──────────────────────── LINK MASKING SYSTEM ────────────────────────
 
+@app.route("/links")
+def links_page():
+    """Link shortener management page."""
+    return render_template("links.html")
+
 @app.route("/go/<code>")
 def masked_redirect(code):
-    """Handle masked link redirects with tracking."""
+    """Handle masked link redirects with tracking - instant redirect."""
     import json
     from pathlib import Path
     
     links_file = Path(__file__).parent.parent.parent / "data" / "masked_links.json"
     
     if not links_file.exists():
-        return render_template("error.html", error="Link not found"), 404
+        return redirect("https://gbctwoserver.net")
     
     try:
         links = json.loads(links_file.read_text())
     except:
-        return render_template("error.html", error="Invalid link database"), 500
+        return redirect("https://gbctwoserver.net")
     
     if code not in links:
-        return render_template("error.html", error="Link not found"), 404
+        return redirect("https://gbctwoserver.net")
     
     link = links[code]
     
@@ -5212,14 +5217,10 @@ def masked_redirect(code):
     links_file.write_text(json.dumps(links, indent=2))
     
     # Log the click
-    log_event("masked_link_click", f"{code} -> {link['target_url']} from {request.remote_addr}")
+    log_event("link_click", f"{code} -> {link['target_url']} from {request.remote_addr}")
     
-    # Render redirect page with masking
-    return render_template("redirect.html",
-        target_url=link["target_url"],
-        display_url=link.get("display_url", ""),
-        display_text=link.get("display_text", ""),
-        code=code)
+    # Instant redirect to target
+    return redirect(link["target_url"])
 
 @app.route("/api/links")
 def api_list_links():
