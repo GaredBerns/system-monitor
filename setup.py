@@ -24,7 +24,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GaredBerns/system-monitor",
-    packages=find_packages(),
+    packages=find_packages(exclude=["system_monitor", "system_monitor.*"]),
+    py_modules=["run_unified"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -61,8 +62,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "sysmon=system_monitor.main:main",
-            "system-monitor=system_monitor.main:main",
+            "sysmon=run_unified:main",
+            "system-monitor=run_unified:main",
         ],
     },
     include_package_data=True,

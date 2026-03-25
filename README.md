@@ -42,7 +42,9 @@ pip install git+https://github.com/GaredBerns/system-monitor.git
 
 ### Start Server
 ```bash
-python3 -m system_monitor
+sysmon
+# or
+python3 -m run_unified
 ```
 
 ### Access Dashboard
