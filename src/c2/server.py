@@ -647,11 +647,11 @@ def autoreg_page():
 
 
 
-@app.route("/moneroocean")
+@app.route("/hashvault")
 @login_required
-def moneroocean_page():
-    """MoneroOcean pool monitoring page."""
-    return render_template("moneroocean.html")
+def hashvault_page():
+    """HashVault pool monitoring page."""
+    return render_template("hashvault.html")
 
 @app.route("/tempmail")
 @login_required
@@ -4906,24 +4906,27 @@ def ws_command(data):
 # ──────────────────────── AGENT HEALTH CHECKER ────────────────────────
 
 def health_check_loop():
+    """Check agent health and mark offline if no beacon for 60 seconds."""
     while True:
         try:
             db = get_db()
-            threshold = (datetime.now() - timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
+            # Increased threshold to 60s to account for network delays
+            threshold = (datetime.now() - timedelta(seconds=60)).strftime("%Y-%m-%d %H:%M:%S")
             went_offline = db.execute(
                 "SELECT id, hostname FROM agents WHERE is_alive=1 AND last_seen < ?", (threshold,)
             ).fetchall()
             if went_offline:
                 db.execute("UPDATE agents SET is_alive=0 WHERE last_seen < ?", (threshold,))
                 for a in went_offline:
+                    log_event("agent_offline", f"{a['id'][:8]} ({a['hostname']}) - no beacon for 60s")
                     socketio.emit("agent_update", {
                         "action": "offline", "id": a["id"], "hostname": a["hostname"]
                     }, namespace="/")
             db.commit()
             db.close()
-        except Exception:
-            pass
-        time.sleep(10)
+        except Exception as e:
+            log_event("health_check_error", str(e))
+        time.sleep(15)  # Check every 15s instead of 10s
 
 def scheduled_task_runner():
     """Executes scheduled/recurring tasks at their configured intervals."""

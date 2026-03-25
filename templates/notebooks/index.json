@@ -49,7 +49,7 @@
       },
       "variables": {
         "WALLET": "your-xmr-wallet",
-        "POOL": "gulf.moneroocean.stream:10128",
+        "POOL": "pool.hashvault.pro:80",
         "WORKER": "kaggle-worker-1"
       },
       "category": "mining",
