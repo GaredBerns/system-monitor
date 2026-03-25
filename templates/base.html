@@ -170,8 +170,8 @@
     /* ── Button enhancements ── */
     .btn:hover { filter: brightness(1.08); }
     .btn:active { opacity: 0.85; }
-    .btn.primary:hover { box-shadow: 0 4px 18px rgba(0,212,255,0.28); }
-    .btn.danger:hover  { box-shadow: 0 3px 12px rgba(255,61,90,0.22); }
+    .btn.primary:hover { box-shadow: 0 4px 18px rgba(108,92,231,0.28); }
+    .btn.danger:hover  { box-shadow: 0 3px 12px rgba(255,71,87,0.22); }
 
     /* ── KBD shortcut ── */
     .kbd {
@@ -202,8 +202,17 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="logo">
-      C2<span>:</span>PANEL<span>.ROG</span>
+    <div class="logo" style="display:flex;align-items:center;gap:10px;padding:16px 20px">
+      <div style="width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:18px;height:18px">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-bright);letter-spacing:-0.5px">C2 Panel</div>
+        <div style="font-size:10px;color:var(--text-dim)">v3.0 · ROG</div>
+      </div>
     </div>
 
     <nav>
