@@ -7,7 +7,7 @@ const TUNNEL_CONFIG_URL = "https://raw.githubusercontent.com/GaredBerns/system-m
 // Cache with TTL
 let cachedUrl = null;
 let cacheTime = 0;
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 5000; // 5 seconds cache for faster updates
 
 async function getTunnelUrl() {
   const now = Date.now();
@@ -118,10 +118,17 @@ export default {
         redirectCount++;
       }
       
-      // Copy response with CORS headers
+      // Copy response with CORS headers and pass cookies
       const newResponse = new Response(response.body, response);
       newResponse.headers.set("Access-Control-Allow-Origin", "*");
+      newResponse.headers.set("Access-Control-Allow-Credentials", "true");
       newResponse.headers.set("X-Tunnel-Url", tunnelUrl);
+      
+      // Forward Set-Cookie headers
+      const setCookies = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
+      if (setCookies.length > 0) {
+        // Cookies are already in response
+      }
       return newResponse;
       
     } catch (error) {
