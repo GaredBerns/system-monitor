@@ -1,6 +1,6 @@
 # C2 Server - Development Documentation
 
-**🌐 Public URL:** https://gbctwoserver.net
+**🌐 Public URL:** https://gbctwoserver.pages.dev
 
 ## 📋 Project Overview
 

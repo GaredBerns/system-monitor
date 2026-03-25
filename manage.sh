@@ -12,7 +12,7 @@ cd "$SCRIPT_DIR"
 # CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-DOMAIN="gbctwoserver.net"
+DOMAIN="gbctwoserver.pages.dev"
 TUNNEL_NAME="c2-server"
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-5000}"

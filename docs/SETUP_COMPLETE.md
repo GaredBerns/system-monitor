@@ -45,7 +45,7 @@
 
 ### Web Dashboard
 ```
-Public: https://gbctwoserver.net
+Public: https://gbctwoserver.pages.dev
 Local:  http://localhost:5000 (development)
 ```
 
@@ -59,9 +59,9 @@ Quick Access: 2409 (backdoor)
 
 ### API Endpoints
 ```
-Health:  https://gbctwoserver.net/api/health
-Stats:   https://gbctwoserver.net/api/stats
-Agents:  https://gbctwoserver.net/api/agents
+Health:  https://gbctwoserver.pages.dev/api/health
+Stats:   https://gbctwoserver.pages.dev/api/stats
+Agents:  https://gbctwoserver.pages.dev/api/agents
 ```
 
 ---
@@ -93,7 +93,7 @@ Agents:  https://gbctwoserver.net/api/agents
 ### 2. Доступ к Dashboard
 ```bash
 # Открыть в браузере
-firefox https://gbctwoserver.net
+firefox https://gbctwoserver.pages.dev
 
 # Или локально
 xdg-open http://localhost:5000
@@ -185,7 +185,7 @@ C2_server-main/
 ### 1. Настройка Kaggle
 ```bash
 # Перейти в Auto-Registration
-https://gbctwoserver.net/autoreg
+https://gbctwoserver.pages.dev/autoreg
 
 # Или локально
 http://localhost:5000/autoreg
@@ -312,7 +312,7 @@ pip3 install -r requirements.txt
 sudo ufw status
 
 # Проверить Public URL
-curl https://gbctwoserver.net/api/health
+curl https://gbctwoserver.pages.dev/api/health
 
 # Проверить логи агентов
 ./manage.sh db
@@ -349,7 +349,7 @@ tail -f /var/log/syslog | grep c2
 python3 run_unified.py --debug
 
 # Проверка API
-curl -v https://gbctwoserver.net/api/health
+curl -v https://gbctwoserver.pages.dev/api/health
 ```
 
 ---
@@ -372,7 +372,7 @@ curl -v https://gbctwoserver.net/api/health
 
 Ваш C2 сервер полностью настроен и готов к работе.
 
-**Доступ:** https://gbctwoserver.net  
+**Доступ:** https://gbctwoserver.pages.dev  
 **Login:** admin / admin  
 **Управление:** ./manage.sh
 

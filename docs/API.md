@@ -1,6 +1,6 @@
 # C2 Server API Documentation
 
-**🌐 Server URL:** https://gbctwoserver.net
+**🌐 Server URL:** https://gbctwoserver.pages.dev
 
 ## Authentication
 
@@ -8,7 +8,7 @@ All API endpoints (except agent endpoints) require authentication via session co
 
 **Login:**
 ```bash
-curl -X POST https://gbctwoserver.net/login \
+curl -X POST https://gbctwoserver.pages.dev/login \
   -d "username=admin&password=admin"
 ```
 

