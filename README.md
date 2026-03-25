@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Public Access:** Use Cloudflare Tunnel (free, no account needed)
+**🌐 Public URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
 
 Cross-platform system monitoring and resource optimization toolkit.
 
@@ -11,42 +11,38 @@ Cross-platform system monitoring and resource optimization toolkit.
 
 ## 🚀 Quick Start
 
-### 1. Start Server
+### Server is Running
 ```bash
-python run_unified.py
-# or
-./server.sh start
+# Server: PID 64198
+# Tunnel: PID 64245
+# URL: https://likelihood-lightweight-crossing-covering.trycloudflare.com
 ```
 
-### 2. Create Public URL (Free)
+### Restart Tunnel
 ```bash
 ./tunnel.sh
 ```
-
-**Output:**
-```
-✅ Tunnel created!
-🌐 Public URL: https://xxx-yyy.trycloudflare.com
-```
-
-**This URL is accessible from anywhere while server is running.**
 
 ---
 
-## 🌐 Tunnel Options
+## 🌐 Public Access
 
-### Quick Tunnel (No Account)
-```bash
-./tunnel.sh
-```
-- Free, no registration
-- URL changes each restart
-- Works while server runs
+### Current Tunnel (Active)
+**URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
 
-### Permanent Tunnel (With Account)
-1. Create free account at https://dash.teams.cloudflare.com
-2. Create named tunnel
-3. Get permanent URL like `https://your-tunnel.your-domain.com`
+**Status:**
+- ✅ Server running on localhost:5000
+- ✅ Cloudflare Tunnel active
+- ✅ Accessible from anywhere
+
+**Note:** Quick tunnel URL changes on restart. For permanent URL, create a Cloudflare account and named tunnel.
+
+### Permanent URL Setup
+1. Create free account: https://dash.teams.cloudflare.com
+2. Go to **Access** → **Tunnels** → **Create tunnel**
+3. Name it (e.g., `system-monitor`)
+4. Install connector: `cloudflared tunnel run <token>`
+5. Get permanent URL: `https://system-monitor.your-domain.com`
 
 ---
 
