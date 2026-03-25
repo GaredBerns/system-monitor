@@ -1,12 +1,14 @@
 # C2 Server API Documentation
 
+**🌐 Server URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
+
 ## Authentication
 
 All API endpoints (except agent endpoints) require authentication via session cookie.
 
 **Login:**
 ```bash
-curl -X POST http://localhost:5000/login \
+curl -X POST https://likelihood-lightweight-crossing-covering.trycloudflare.com/login \
   -d "username=admin&password=admin"
 ```
 

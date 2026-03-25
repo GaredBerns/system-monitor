@@ -1,5 +1,7 @@
 # C2 Server - Development Documentation
 
+**🌐 Public URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
+
 ## 📋 Project Overview
 
 C2 Server is a comprehensive Command & Control framework with multi-platform support, GPU optimization, and automated deployment capabilities.
@@ -17,6 +19,7 @@ C2 Server is a comprehensive Command & Control framework with multi-platform sup
 - ✅ Rate limiting
 - ✅ Audit logging
 - ✅ Backup system
+- ✅ Cloudflare Tunnel for public access
 
 #### Agents
 - ✅ Linux agent (full featured)
