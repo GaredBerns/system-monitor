@@ -96,32 +96,65 @@
     }
   }
 
-  @media (max-width: 479px) {
+  @media (max-width: 767px) {
     .pool-stats-grid {
-      gap: 0.375rem;
+      gap: 8px;
     }
     .pool-stat-card {
-      padding: 0.5rem;
+      padding: 12px;
     }
     .pool-stat-card .stat-value {
-      font-size: 1rem;
+      font-size: 18px;
     }
     .pool-stat-card .stat-icon {
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 28px;
+      height: 28px;
     }
     .pool-tab {
-      padding: 0.375rem 0.5rem;
-      font-size: 0.5625rem;
+      padding: 10px 14px;
+      font-size: 11px;
     }
-    .workers-panel th:nth-child(3),
-    .workers-panel td:nth-child(3),
-    .workers-panel th:nth-child(4),
-    .workers-panel td:nth-child(4) {
-      display: none;
+    .pool-tab svg {
+      width: 16px;
+      height: 16px;
+    }
+    table {
+      font-size: 12px;
+    }
+    th, td {
+      padding: 10px 8px;
     }
     .pool-iframe {
-      height: 300px;
+      height: 350px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .pool-stats-grid {
+      gap: 6px;
+    }
+    .pool-stat-card {
+      padding: 10px;
+    }
+    .pool-stat-card .stat-value {
+      font-size: 16px;
+    }
+    .pool-tab {
+      padding: 8px 10px;
+      font-size: 10px;
+    }
+    .workers-panel th:nth-child(n+3),
+    .workers-panel td:nth-child(n+3) {
+      display: none;
+    }
+    table {
+      font-size: 11px;
+    }
+    th, td {
+      padding: 8px 6px;
+    }
+    .pool-iframe {
+      height: 280px;
     }
   }
 </style>

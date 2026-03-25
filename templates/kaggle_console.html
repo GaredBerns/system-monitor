@@ -106,30 +106,45 @@
   .kc-poll-bar { height: 2px; background: var(--bg-input); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .kc-poll-fill { height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); width: 0%; transition: width 0.5s linear; }
 
-  /* Mobile Responsive */
+  /* Mobile Responsive - CRITICAL */
   @media (max-width: 991px) {
     .kc-layout {
-      grid-template-columns: 1fr;
-      height: auto;
+      grid-template-columns: 1fr !important;
+      height: auto !important;
     }
     .kc-sidebar {
-      display: none;
+      display: none !important;
+    }
+    .kc-titlebar {
+      padding: 10px 14px;
+    }
+    .kc-body {
+      font-size: 12px;
+      padding: 12px 14px;
+    }
+    .kc-input {
+      font-size: 16px !important;
+      padding: 12px !important;
     }
   }
 
   @media (max-width: 767px) {
     .kc-titlebar {
-      padding: 8px 12px;
+      padding: 10px 14px;
+    }
+    .kc-titlebar h3 {
+      font-size: 12px !important;
     }
     .kc-body {
-      font-size: 11px;
-      padding: 10px 12px;
+      font-size: 12px;
+      padding: 12px 14px;
+      line-height: 1.5;
     }
     .kc-input {
-      font-size: 14px;
+      font-size: 16px !important;
     }
     .kc-prompt-label {
-      font-size: 11px;
+      font-size: 12px;
     }
     .win-chrome {
       display: none;
@@ -137,41 +152,55 @@
     .kc-status-bar {
       flex-wrap: wrap;
       gap: 8px;
-      font-size: 9px;
+      font-size: 10px;
+      padding: 8px 12px;
+    }
+    .kc-status-pill {
+      font-size: 10px;
+      padding: 4px 10px;
+    }
+    .btn.sm {
+      padding: 8px 12px;
+      font-size: 11px;
+      min-height: 36px;
     }
   }
 
   @media (max-width: 479px) {
     .kc-titlebar {
-      padding: 6px 10px;
+      padding: 8px 12px;
+    }
+    .kc-titlebar h3 {
+      font-size: 11px !important;
     }
     .kc-body {
-      font-size: 10px;
-      padding: 8px 10px;
-      line-height: 1.6;
+      font-size: 11px;
+      padding: 10px 12px;
+      line-height: 1.4;
     }
     .kc-input-row {
-      padding: 0 10px;
+      padding: 0 12px;
     }
     .kc-input {
-      font-size: 13px;
-      padding: 8px 0;
+      font-size: 14px !important;
+      padding: 10px !important;
     }
     .kc-prompt-label {
       font-size: 10px;
       padding: 8px 8px 8px 0;
     }
     .kc-status-pill {
-      font-size: 8px;
-      padding: 2px 6px;
+      font-size: 9px;
+      padding: 3px 8px;
     }
     .btn.sm {
-      padding: 3px 8px;
-      font-size: 9px;
+      padding: 6px 10px;
+      font-size: 10px;
+      min-height: 32px;
     }
     .kc-status-bar {
-      font-size: 8px;
-      padding: 4px 10px;
+      font-size: 9px;
+      padding: 6px 12px;
     }
   }
 </style>
