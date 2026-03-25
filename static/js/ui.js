@@ -9,7 +9,7 @@ let _notifQueue = [];
 
 function showNotification(msg, type = 'accent', duration = 4500) {
   const themes = {
-    accent: { bg: 'rgba(0,212,255,.1)',   border: 'rgba(0,212,255,.35)',  color: '#00d4ff', icon: '⚡' },
+    accent: { bg: 'rgba(108,92,231,.1)',   border: 'rgba(108,92,231,.35)',  color: '#6c5ce7', icon: '⚡' },
     green:  { bg: 'rgba(0,245,155,.1)',   border: 'rgba(0,245,155,.35)', color: '#00f59b', icon: '✓' },
     red:    { bg: 'rgba(255,61,90,.1)',   border: 'rgba(255,61,90,.35)', color: '#ff3d5a', icon: '✕' },
     yellow: { bg: 'rgba(255,210,0,.1)',   border: 'rgba(255,210,0,.35)', color: '#ffd200', icon: '⚠' },
@@ -149,7 +149,7 @@ let _cpIdx = 0;
 function _cpHighlight(items) {
   items.forEach((el, i) => {
     const active = i === _cpIdx;
-    el.style.background  = active ? 'rgba(0,212,255,0.08)' : '';
+    el.style.background  = active ? 'rgba(108,92,231,0.08)' : '';
     el.style.color       = active ? 'var(--accent)'        : 'var(--text)';
     el.style.borderLeft  = active ? '2px solid var(--accent)' : '2px solid transparent';
     if (active) el.scrollIntoView({ block: 'nearest' });
@@ -231,7 +231,7 @@ function _renderPalette(query) {
   container.innerHTML = filtered.length
     ? filtered.map((cmd, i) => `
       <div class="cp-item" style="padding:9px 16px 9px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .12s;font-size:13.5px;color:var(--text);border-left:2px solid transparent;user-select:none"
-        onmouseenter="this.style.background='rgba(0,212,255,.06)';this.style.color='var(--accent)';this.style.borderLeft='2px solid var(--accent)'"
+        onmouseenter="this.style.background='rgba(108,92,231,.06)';this.style.color='var(--accent)';this.style.borderLeft='2px solid var(--accent)'"
         onmouseleave="this.style.background='';this.style.color='var(--text)';this.style.borderLeft='2px solid transparent'"
         onclick="_runCmdByIndex(${i}, ${JSON.stringify(q)})">
         <span style="font-size:16px;min-width:24px;text-align:center">${cmd.icon}</span>

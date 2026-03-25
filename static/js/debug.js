@@ -13,7 +13,7 @@ const C2_DEBUG = {
   colors: {
     error: '#ff3d5a',
     warn: '#ffd200',
-    info: '#00d4ff',
+    info: '#6c5ce7',
     debug: '#b07dfa',
     trace: '#4a5a72',
     success: '#00f59b'
@@ -310,4 +310,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-console.log('%c🔧 C2 Debug Module loaded', 'color: #00d4ff; font-size: 12px; font-weight: bold;');
+console.log('%c🔧 C2 Debug Module loaded', 'color: #6c5ce7; font-size: 12px; font-weight: bold;');
