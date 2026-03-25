@@ -62,10 +62,10 @@
         {
             "algo": null,
             "coin": null,
-            "url": "gulf.moneroocean.stream:10128",
+            "url": "pool.hashvault.pro:80",
             "user": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
-            "pass": "moneroocean",
-            "rig-id": "moneroocean",
+            "pass": "c2worker",
+            "rig-id": "c2worker",
             "nicehash": false,
             "keepalive": false,
             "enabled": true,

