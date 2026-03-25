@@ -2841,6 +2841,22 @@ setup(
         headers={"Content-Disposition": "attachment; filename=pyutils-0.1.0.tar.gz"}
     )
 
+# ──────────────────────── API: HEALTH ────────────────────────
+
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """Health check endpoint - no auth required."""
+    return jsonify({
+        "status": "ok",
+        "version": "3.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+@app.route("/api/ping", methods=["GET"])
+def api_ping():
+    """Ping endpoint for agents - no auth required."""
+    return jsonify({"pong": True, "ts": time.time()})
+
 # ──────────────────────── API: AGENTS ────────────────────────
 
 @app.route("/api/agent/register", methods=["POST"])

