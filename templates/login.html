@@ -2,9 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
   <title>Login — C2:PANEL.ROG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -460,6 +464,98 @@
       position: absolute; bottom: -30px; right: -30px;
       width: 120px; height: 120px;
       opacity: 0.025; pointer-events: none;
+    }
+
+    /* ════════════════════════════════════
+       MOBILE RESPONSIVE - Login Page
+    ════════════════════════════════════ */
+    @media (max-width: 767px) {
+      .login-container {
+        width: 94% !important;
+        padding: 28px 22px !important;
+        margin: 10px auto !important;
+      }
+      .login-title {
+        font-size: 22px !important;
+        letter-spacing: 4px !important;
+      }
+      .login-subtitle {
+        font-size: 9px !important;
+        letter-spacing: 1.5px !important;
+      }
+      .input-field-inner input {
+        font-size: 16px !important;
+        padding: 14px 16px !important;
+      }
+      .btn-access {
+        padding: 14px 20px !important;
+        font-size: 13px !important;
+      }
+      .login-footer-bar {
+        font-size: 8px !important;
+        flex-wrap: wrap;
+      }
+      .floating-shapes {
+        display: none;
+      }
+      #login-canvas {
+        opacity: 0.3;
+      }
+    }
+
+    @media (max-width: 479px) {
+      .login-container {
+        width: 98% !important;
+        padding: 22px 16px !important;
+        margin: 8px auto !important;
+        border-radius: 14px !important;
+      }
+      .login-title {
+        font-size: 18px !important;
+        letter-spacing: 3px !important;
+      }
+      .login-title-wrap {
+        margin-bottom: 24px !important;
+      }
+      .input-field-label {
+        font-size: 9px !important;
+      }
+      .input-field-inner input {
+        padding: 12px 14px !important;
+        border-radius: 8px !important;
+      }
+      .btn-access {
+        padding: 12px 16px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+      }
+      .login-flash {
+        font-size: 11px !important;
+        padding: 10px 12px !important;
+      }
+      .login-footer-bar {
+        margin-top: 18px !important;
+        font-size: 7px !important;
+      }
+      .hex-grid {
+        display: none;
+      }
+    }
+
+    /* Touch device optimizations */
+    @media (hover: none) and (pointer: coarse) {
+      .btn-access {
+        min-height: 48px;
+      }
+      .input-field-inner input {
+        min-height: 48px;
+      }
+      .btn-access:hover {
+        transform: none;
+      }
+      .btn-access:active {
+        transform: scale(0.98);
+      }
     }
   </style>
 </head>
