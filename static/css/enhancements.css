@@ -102,7 +102,7 @@ table tbody td {
   transition: background 0.18s ease;
 }
 table tbody tr:hover td {
-  background: rgba(0,212,255,.04);
+  background: rgba(108,92,231,.04);
 }
 
 /* ── Progress bars ── */
@@ -224,8 +224,8 @@ table tbody tr:hover td {
 /* ── Code/mono highlight ── */
 code, .mono {
   font-family: var(--font-mono);
-  background: rgba(0,212,255,0.06);
-  border: 1px solid rgba(0,212,255,0.12);
+  background: rgba(108,92,231,0.06);
+  border: 1px solid rgba(108,92,231,0.12);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 0.9em;
@@ -238,8 +238,8 @@ code, .mono {
   transition: all 0.35s ease;
 }
 .card.glow-card:hover {
-  border-color: rgba(0,212,255,0.25);
-  box-shadow: 0 0 30px rgba(0,212,255,0.06), 0 8px 30px rgba(0,0,0,0.3);
+  border-color: rgba(108,92,231,0.25);
+  box-shadow: 0 0 30px rgba(108,92,231,0.06), 0 8px 30px rgba(0,0,0,0.3);
 }
 
 /* ── Section divider ── */
@@ -336,8 +336,8 @@ code, .mono {
   cursor: default;
 }
 .log-entry:hover {
-  background: rgba(0,212,255,0.04);
-  border-left-color: rgba(0,212,255,0.4);
+  background: rgba(108,92,231,0.04);
+  border-left-color: rgba(108,92,231,0.4);
 }
 .log-entry .ts {
   font-family: var(--font-mono);
@@ -365,7 +365,7 @@ code, .mono {
   margin-left: auto;
   padding: 1px 6px;
   background: var(--accent-glow);
-  border: 1px solid rgba(0,212,255,0.2);
+  border: 1px solid rgba(108,92,231,0.2);
   border-radius: 10px;
   font-size: 9px;
   font-weight: 700;
@@ -451,10 +451,10 @@ code, .mono {
   filter: brightness(1.2);
   z-index: 1;
 }
-.heatmap-cell.level-1 { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.2); }
-.heatmap-cell.level-2 { background: rgba(0,212,255,0.30); border-color: rgba(0,212,255,0.35); }
-.heatmap-cell.level-3 { background: rgba(0,212,255,0.50); border-color: rgba(0,212,255,0.55); }
-.heatmap-cell.level-4 { background: rgba(0,212,255,0.75); border-color: rgba(0,212,255,0.80); box-shadow: 0 0 8px rgba(0,212,255,0.4); }
+.heatmap-cell.level-1 { background: rgba(108,92,231,0.15); border-color: rgba(108,92,231,0.2); }
+.heatmap-cell.level-2 { background: rgba(108,92,231,0.30); border-color: rgba(108,92,231,0.35); }
+.heatmap-cell.level-3 { background: rgba(108,92,231,0.50); border-color: rgba(108,92,231,0.55); }
+.heatmap-cell.level-4 { background: rgba(108,92,231,0.75); border-color: rgba(108,92,231,0.80); box-shadow: 0 0 8px rgba(108,92,231,0.4); }
 
 /* ── Ambient orb backgrounds ── */
 .ambient-orb {
@@ -479,7 +479,7 @@ code, .mono {
   color: #fff;
   font-family: var(--font-mono);
   flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(0,212,255,0.15);
+  box-shadow: 0 0 12px rgba(108,92,231,0.15);
 }
 
 /* ── Enhanced topbar actions ── */
@@ -544,7 +544,7 @@ tr:hover .table-actions {
 
 /* ── Search highlight ── */
 .highlight {
-  background: rgba(0,212,255,0.2);
+  background: rgba(108,92,231,0.2);
   color: var(--accent);
   border-radius: 2px;
   padding: 0 2px;
@@ -831,7 +831,7 @@ tr:hover .table-actions {
 
 /* ── Row flash on live update ── */
 @keyframes rowFlash {
-  0%   { background: rgba(0,212,255,0.15); }
+  0%   { background: rgba(108,92,231,0.15); }
   100% { background: transparent; }
 }
 .row-updated { animation: rowFlash 1.2s ease-out; }
@@ -968,14 +968,14 @@ tr[data-alive="online"]  { opacity: 1;    transition: opacity 0.5s ease; }
   gap: 5px;
   padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(0,212,255,0.06);
-  border: 1px solid rgba(0,212,255,0.15);
+  background: rgba(108,92,231,0.06);
+  border: 1px solid rgba(108,92,231,0.15);
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-dim);
   transition: all 0.2s ease;
 }
-.uptime-badge:hover { border-color: rgba(0,212,255,0.3); color: var(--accent); }
+.uptime-badge:hover { border-color: rgba(108,92,231,0.3); color: var(--accent); }
 
 /* ── Smooth page transitions ── */
 .content {

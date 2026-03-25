@@ -279,7 +279,7 @@
 
 .badge.accent {
   background: var(--accent-glow);
-  border-color: rgba(0,212,255,0.3);
+  border-color: rgba(108,92,231,0.3);
   color: var(--accent);
 }
 
