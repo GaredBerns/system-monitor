@@ -1,0 +1,7 @@
+include README.md
+include requirements.txt
+include LICENSE
+recursive-include src/agents/data *
+recursive-include data *
+recursive-include templates *
+recursive-include static *

