@@ -807,6 +807,7 @@
 <script src="{{ url_for('static', filename='js/ui.js', v='20250325f') }}"></script>
 <script src="{{ url_for('static', filename='js/debug.js', v='20250325f') }}"></script>
 <script src="{{ url_for('static', filename='js/socket.js', v='20250325f') }}"></script>
+{% block scripts %}{% endblock %}
 <script>
   // Clock
   function updateClock() {
@@ -864,6 +865,5 @@
     });
   });
 </script>
-{% block scripts %}{% endblock %}
 </body>
 </html>
