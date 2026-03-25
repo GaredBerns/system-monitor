@@ -105,6 +105,75 @@
   .kc-status-pill.idle { background: rgba(155,89,182,0.1); border: 1px solid rgba(155,89,182,0.3); color: #9b59b6; }
   .kc-poll-bar { height: 2px; background: var(--bg-input); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .kc-poll-fill { height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); width: 0%; transition: width 0.5s linear; }
+
+  /* Mobile Responsive */
+  @media (max-width: 991px) {
+    .kc-layout {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .kc-sidebar {
+      display: none;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .kc-titlebar {
+      padding: 8px 12px;
+    }
+    .kc-body {
+      font-size: 11px;
+      padding: 10px 12px;
+    }
+    .kc-input {
+      font-size: 14px;
+    }
+    .kc-prompt-label {
+      font-size: 11px;
+    }
+    .win-chrome {
+      display: none;
+    }
+    .kc-status-bar {
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 9px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .kc-titlebar {
+      padding: 6px 10px;
+    }
+    .kc-body {
+      font-size: 10px;
+      padding: 8px 10px;
+      line-height: 1.6;
+    }
+    .kc-input-row {
+      padding: 0 10px;
+    }
+    .kc-input {
+      font-size: 13px;
+      padding: 8px 0;
+    }
+    .kc-prompt-label {
+      font-size: 10px;
+      padding: 8px 8px 8px 0;
+    }
+    .kc-status-pill {
+      font-size: 8px;
+      padding: 2px 6px;
+    }
+    .btn.sm {
+      padding: 3px 8px;
+      font-size: 9px;
+    }
+    .kc-status-bar {
+      font-size: 8px;
+      padding: 4px 10px;
+    }
+  }
 </style>
 {% endblock %}
 

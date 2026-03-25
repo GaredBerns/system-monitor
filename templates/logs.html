@@ -67,6 +67,46 @@
   #scrollBottomBtn.visible { display: flex; }
 
   .empty-state { animation: fadeIn 0.5s ease; }
+
+  /* Mobile Responsive */
+  @media (max-width: 767px) {
+    .log-entry {
+      padding: 6px 8px 6px 10px;
+      font-size: 11px;
+    }
+    .log-entry .ts {
+      font-size: 9px;
+    }
+    .log-entry .ev {
+      font-size: 9px;
+    }
+    .log-stats {
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 9px;
+    }
+    #scrollBottomBtn {
+      width: 32px;
+      height: 32px;
+      bottom: 80px;
+      right: 16px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .log-entry {
+      padding: 5px 6px 5px 8px;
+      font-size: 10px;
+    }
+    .log-stats {
+      display: none;
+    }
+    #scrollBottomBtn {
+      width: 28px;
+      height: 28px;
+      bottom: 72px;
+    }
+  }
 </style>
 {% endblock %}
 {% block topbar_actions %}

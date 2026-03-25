@@ -2,20 +2,61 @@
 {% block title %}Payloads{% endblock %}
 {% block page_title %}Payload Generator{% endblock %}
 
+{% block head %}
+<style>
+  /* Mobile Responsive */
+  @media (max-width: 767px) {
+    .payload-body .grid {
+      grid-template-columns: 1fr !important;
+    }
+    .payload-body .relative {
+      font-size: 9px;
+      padding: 8px 10px;
+      padding-right: 36px;
+    }
+    .copy-btn {
+      padding: 2px 6px !important;
+      font-size: 8px !important;
+    }
+    #srvUrl {
+      width: 100% !important;
+      margin-bottom: 4px;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .payload-body {
+      padding: 10px !important;
+    }
+    .payload-body .relative {
+      font-size: 8px;
+      padding: 6px 8px;
+      padding-right: 32px;
+    }
+    .payload-body p {
+      font-size: 9px;
+    }
+    .payload-body h3 {
+      font-size: 11px;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block topbar_actions %}
-<div class="flex items-center gap-2">
-  <div class="topbar-search">
+<div class="flex items-center gap-2 flex-wrap">
+  <div class="topbar-search hidden sm:block">
     <svg class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input type="text" id="payloadSearch" placeholder="Search..." oninput="filterPayloads()">
   </div>
   <span id="payloadCountBadge" class="topbar-badge"></span>
-  <div class="topbar-divider"></div>
-  <input type="text" id="srvUrl" value="" placeholder="URL..." style="padding: 0.375rem 0.5rem; font-size: 0.6875rem; background: rgba(0,0,0,0.3); border: 1px solid #2a2a3e; border-radius: 0.5rem; color: #e8e8f0; width: 8rem;">
+  <div class="topbar-divider hidden sm:block"></div>
+  <input type="text" id="srvUrl" value="" placeholder="URL..." style="padding: 0.375rem 0.5rem; font-size: 0.6875rem; background: rgba(0,0,0,0.3); border: 1px solid #2a2a3e; border-radius: 0.5rem; color: #e8e8f0; width: 6rem;">
   <button onclick="applyManualUrl()" class="topbar-btn topbar-btn-primary">Apply</button>
   <button onclick="refreshUrl()" class="topbar-btn topbar-btn-secondary">Refresh</button>
-  <div class="topbar-divider"></div>
-  <button onclick="expandAll()" class="topbar-btn topbar-btn-secondary">Expand</button>
-  <button onclick="collapseAll()" class="topbar-btn topbar-btn-secondary">Collapse</button>
+  <div class="topbar-divider hidden sm:block"></div>
+  <button onclick="expandAll()" class="topbar-btn topbar-btn-secondary hidden sm:inline-flex">Expand</button>
+  <button onclick="collapseAll()" class="topbar-btn topbar-btn-secondary hidden sm:inline-flex">Collapse</button>
 </div>
 {% endblock %}
 
