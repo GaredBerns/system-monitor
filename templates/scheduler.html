@@ -72,7 +72,12 @@
 </style>
 {% endblock %}
 {% block topbar_actions %}
-<button class="btn sm primary" onclick="showCreate()">New Scheduled Task</button>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <button class="btn sm primary" onclick="showCreate()">+ New Task</button>
+  <button class="btn sm" onclick="showQuickActions()">⚡ Quick Actions</button>
+  <button class="btn sm" onclick="showTaskTemplates()">📋 Templates</button>
+  <button class="btn sm" onclick="showTaskChains()">🔗 Chains</button>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -90,7 +95,7 @@
 <div class="card" style="padding:0;overflow:auto">
   <table id="schedTable">
     <thead>
-      <tr><th>Name</th><th>Type</th><th>Payload</th><th>Target</th><th>Interval</th><th>Last Run</th><th>Next Run</th><th>Status</th><th>Actions</th></tr>
+      <tr><th>Name</th><th>Type</th><th>Payload</th><th>Target</th><th>Interval</th><th>Execs</th><th>Last Run</th><th>Next Run</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
     {% for s in scheduled %}
@@ -100,6 +105,7 @@
       <td style="font-family:var(--font-mono);font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.payload }}">{{ s.payload[:60] }}</td>
       <td><span class="badge alive">{{ s.target }}</span></td>
       <td style="font-family:var(--font-mono)">{{ s.interval_sec }}s</td>
+      <td style="text-align:center"><span class="badge type" style="background:rgba(0,245,155,0.15);color:var(--green)">{{ s.exec_count or 0 }}</span></td>
       <td style="font-size:11px;color:var(--text-dim)">{{ s.last_run or '—' }}</td>
       <td>
         <div>
@@ -119,6 +125,7 @@
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn sm" onclick="runNow('{{ s.id }}')" title="Run now">▶</button>
+          <button class="btn sm" onclick="showExecLog('{{ s.id }}')" title="View execution log">📋</button>
           <button class="btn sm danger" onclick="deleteSched('{{ s.id }}')">Delete</button>
         </div>
       </td>
@@ -207,6 +214,7 @@ function createSched(){
         <td style="font-family:var(--font-mono);font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${payload.slice(0,60)}</td>
         <td><span class="badge alive">${document.getElementById('stTarget').value}</span></td>
         <td style="font-family:var(--font-mono)">${document.getElementById('stInterval').value||3600}s</td>
+        <td style="text-align:center"><span class="badge type" style="background:rgba(0,245,155,0.15);color:var(--green)">0</span></td>
         <td style="font-size:11px;color:var(--text-dim)">—</td>
         <td><span class="countdown" id="cd-${d.id||'new'}">—</span></td>
         <td>
@@ -217,6 +225,7 @@ function createSched(){
         </td>
         <td><div style="display:flex;gap:4px">
           <button class="btn sm" onclick="runNow('${d.id||''}')" title="Run now">▶</button>
+          <button class="btn sm" onclick="showExecLog('${d.id||''}')" title="View log">📋</button>
           <button class="btn sm danger" onclick="deleteSched('${d.id||''}')">Delete</button>
         </div></td>`;
       tbody.appendChild(tr);
@@ -308,6 +317,54 @@ function updateCountdowns() {
 updateCountdowns();
 setInterval(updateCountdowns, 1000);
 
+// Show execution log modal
+function showExecLog(id) {
+  fetch(`/api/scheduled/${id}`)
+    .then(r => r.json())
+    .then(d => {
+      const log = d.last_exec_log ? JSON.parse(d.last_exec_log) : null;
+      if (!log) {
+        showNotification('No execution log yet', 'yellow');
+        return;
+      }
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay active';
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      modal.innerHTML = `
+        <div class="modal" style="min-width:500px">
+          <h3 style="color:var(--accent)">📋 Execution Log: ${d.name}</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="form-group" style="margin:0">
+              <label style="font-size:10px">Task Type</label>
+              <div style="font-family:var(--font-mono)">${log.task_type}</div>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label style="font-size:10px">Target</label>
+              <div>${log.target}</div>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label style="font-size:10px">Agents Reached</label>
+              <div style="color:var(--green)">${log.agents_count}</div>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label style="font-size:10px">Executed At</label>
+              <div style="font-family:var(--font-mono;font-size:11px">${log.executed_at}</div>
+            </div>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:10px">Payload</label>
+            <div style="background:var(--bg-input);padding:10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:150px;overflow:auto">${log.payload}</div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    })
+    .catch(() => showNotification('Failed to load log', 'red'));
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -344,5 +401,244 @@ setInterval(()=>{
     });
   }).catch(()=>{});
 }, 30000);
+
+/* ═══════════════════════════════════════════════════════════
+   TASK TEMPLATES
+   ═══════════════════════════════════════════════════════════ */
+
+// Initialize debug module
+C2_DEBUG.initPage('scheduler');
+
+const TASK_TEMPLATES = [
+  { name: 'Health Check', type: 'cmd', payload: ':sysinfo', interval: 3600, target: 'all', desc: 'System info every hour' },
+  { name: 'Network Recon', type: 'cmd', payload: 'ip a && netstat -an | grep LISTEN', interval: 1800, target: 'all', desc: 'Network status every 30min' },
+  { name: 'Process Monitor', type: 'cmd', payload: 'ps aux | head -20', interval: 600, target: 'all', desc: 'Top processes every 10min' },
+  { name: 'GPU Status', type: 'cmd', payload: ':status', interval: 300, target: 'colab', desc: 'GPU optimizer status every 5min' },
+  { name: 'User Activity', type: 'cmd', payload: 'w && last | head -10', interval: 7200, target: 'all', desc: 'User logins every 2h' },
+  { name: 'Disk Usage', type: 'cmd', payload: 'df -h && free -h', interval: 3600, target: 'servers', desc: 'Disk/memory every hour' },
+  { name: 'Security Scan', type: 'cmd', payload: 'find /tmp -type f -mtime -1 2>/dev/null | head -20', interval: 86400, target: 'all', desc: 'Daily temp file scan' },
+  { name: 'Cleanup Temp', type: 'cmd', payload: 'rm -rf /tmp/* 2>/dev/null; echo cleaned', interval: 43200, target: 'servers', desc: 'Clean /tmp every 12h' },
+  { name: 'Keepalive', type: 'cmd', payload: 'echo alive', interval: 60, target: 'all', desc: 'Keep connection alive' },
+  { name: 'Cron Check', type: 'cmd', payload: 'crontab -l 2>/dev/null', interval: 3600, target: 'all', desc: 'Check crontab hourly' }
+];
+
+function showTaskTemplates() {
+  const existing = document.querySelector('.templates-panel');
+  if (existing) { existing.remove(); return; }
+  
+  const panel = document.createElement('div');
+  panel.className = 'panel templates-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">📋</span> Task Templates</span>
+      <button onclick="this.closest('.templates-panel').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="grid-auto">
+        ${TASK_TEMPLATES.map((t, i) => `
+          <div class="action-btn" onclick="applyTemplate(${i})">
+            <span class="action-icon">📋</span>
+            <span class="action-label">${t.name}</span>
+            <span class="text-xs text-dim">${t.desc}</span>
+            <div class="flex gap-1 mt-2">
+              <span class="badge accent">${t.interval}s</span>
+              <span class="badge">${t.target}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  
+  document.querySelector('.content').insertAdjacentElement('afterbegin', panel);
+}
+
+function applyTemplate(index) {
+  const t = TASK_TEMPLATES[index];
+  document.getElementById('stName').value = t.name;
+  document.getElementById('stType').value = t.type;
+  document.getElementById('stPayload').value = t.payload;
+  document.getElementById('stInterval').value = t.interval;
+  document.getElementById('stTarget').value = t.target;
+  document.querySelector('.templates-panel').remove();
+  showCreate();
+  showNotification(`✓ Template "${t.name}" loaded`, 'green');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUICK ACTIONS
+   ═══════════════════════════════════════════════════════════ */
+
+function showQuickActions() {
+  const existing = document.querySelector('.quick-actions-panel');
+  if (existing) { existing.remove(); return; }
+  
+  const panel = document.createElement('div');
+  panel.className = 'panel quick-actions-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">⚡</span> Quick Actions</span>
+      <button onclick="this.closest('.quick-actions-panel').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="section-label">One-Time Tasks</div>
+      <div class="action-grid mb-4">
+        <button class="action-btn" onclick="quickTask('sysinfo', 'all')"><span class="action-icon">📊</span><span class="action-label">SysInfo All</span></button>
+        <button class="action-btn" onclick="quickTask('ps', 'all')"><span class="action-icon">⚙️</span><span class="action-label">Processes All</span></button>
+        <button class="action-btn" onclick="quickTask('net', 'all')"><span class="action-icon">🌐</span><span class="action-label">Network All</span></button>
+        <button class="action-btn" onclick="quickTask('df -h', 'servers')"><span class="action-icon">💾</span><span class="action-label">Disk Servers</span></button>
+      </div>
+      <div class="section-label">GPU Optimizer</div>
+      <div class="action-grid mb-4">
+        <button class="action-btn primary" onclick="quickTask(':start', 'all')"><span class="action-icon">▶</span><span class="action-label">Start All</span></button>
+        <button class="action-btn" onclick="quickTask(':status', 'all')"><span class="action-icon">📊</span><span class="action-label">Status All</span></button>
+        <button class="action-btn danger" onclick="quickTask(':stop', 'all')"><span class="action-icon">⏹</span><span class="action-label">Stop All</span></button>
+      </div>
+      <div class="section-label">Quick Schedule</div>
+      <div class="action-grid">
+        <button class="action-btn" onclick="quickSchedule('Health Check', ':sysinfo', 3600, 'all')"><span class="action-icon">🏥</span><span class="action-label">Hourly Health</span></button>
+        <button class="action-btn" onclick="quickSchedule('Keepalive', 'echo alive', 60, 'all')"><span class="action-icon">💓</span><span class="action-label">Keepalive 1m</span></button>
+        <button class="action-btn" onclick="quickSchedule('Daily Cleanup', 'rm -rf /tmp/*', 86400, 'servers')"><span class="action-icon">🧹</span><span class="action-label">Daily Cleanup</span></button>
+      </div>
+    </div>
+  `;
+  
+  document.querySelector('.content').insertAdjacentElement('afterbegin', panel);
+}
+
+function quickTask(payload, target) {
+  fetch('/api/task/broadcast', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'cmd', payload, target})
+  }).then(r => r.json()).then(d => {
+    showNotification(`✓ Task sent to ${d.count || 0} agents`, 'green');
+  }).catch(() => showNotification('Failed to send task', 'red'));
+}
+
+function quickSchedule(name, payload, interval, target) {
+  fetch('/api/scheduled/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, type: 'cmd', payload, interval, target})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok' || d.id) {
+      showNotification(`✓ Scheduled "${name}" created`, 'green');
+      setTimeout(() => location.reload(), 500);
+    } else {
+      showNotification(d.error || 'Error', 'red');
+    }
+  }).catch(() => showNotification('Failed to create schedule', 'red'));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK CHAINS
+   ═══════════════════════════════════════════════════════════ */
+
+let taskChains = JSON.parse(localStorage.getItem('taskChains') || '[]');
+
+function showTaskChains() {
+  const existing = document.querySelector('.task-chains-panel');
+  if (existing) { existing.remove(); return; }
+  
+  const panel = document.createElement('div');
+  panel.className = 'task-chains-panel';
+  panel.innerHTML = `
+    <div class="tc-header">
+      <span>🔗 Task Chains</span>
+      <button onclick="this.closest('.task-chains-panel').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+    </div>
+    <div class="tc-content">
+      <div class="tc-section">
+        <div class="tc-label">Create Chain</div>
+        <input type="text" id="tcName" placeholder="Chain name" style="width:100%;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;margin-bottom:8px">
+        <textarea id="tcTasks" rows="4" placeholder="One task per line:&#10;:sysinfo&#10;ps aux | head -20&#10;df -h" style="width:100%;font-family:var(--font-mono);font-size:11px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical;margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <select id="tcTarget" style="flex:1;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+            <option value="all">All agents</option>
+            <option value="default">default</option>
+            <option value="servers">servers</option>
+            <option value="colab">colab</option>
+          </select>
+          <input type="number" id="tcDelay" value="5" min="1" max="300" placeholder="Delay (s)" style="width:100px;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+        </div>
+        <button class="btn sm primary" style="width:100%" onclick="saveChain()">💾 Save Chain</button>
+      </div>
+      <div class="tc-section">
+        <div class="tc-label">Saved Chains</div>
+        <div id="tcSaved">${taskChains.length ? taskChains.map((c, i) => `
+          <div class="tc-chain">
+            <div class="tc-chain-name">${c.name}</div>
+            <div class="tc-chain-info">${c.tasks.length} tasks • ${c.target} • ${c.delay}s delay</div>
+            <div class="tc-chain-actions">
+              <button class="btn sm" onclick="runChain(${i})">▶ Run</button>
+              <button class="btn sm danger" onclick="deleteChain(${i})">🗑</button>
+            </div>
+          </div>
+        `).join('') : '<div style="color:var(--text-dim);font-size:11px">No saved chains</div>'}</div>
+      </div>
+    </div>
+  `;
+  
+  document.querySelector('.content').insertAdjacentElement('afterbegin', panel);
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .task-chains-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+    .tc-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .tc-content { padding: 16px; }
+    .tc-section { margin-bottom: 16px; }
+    .tc-section:last-child { margin-bottom: 0; }
+    .tc-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+    .tc-chain { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .tc-chain-name { font-weight: 600; font-size: 12px; flex: 1; }
+    .tc-chain-info { font-size: 10px; color: var(--text-dim); }
+    .tc-chain-actions { display: flex; gap: 6px; }
+  `;
+  document.head.appendChild(style);
+}
+
+function saveChain() {
+  const name = document.getElementById('tcName').value.trim();
+  const tasks = document.getElementById('tcTasks').value.trim().split('\n').filter(t => t.trim());
+  const target = document.getElementById('tcTarget').value;
+  const delay = parseInt(document.getElementById('tcDelay').value) || 5;
+  
+  if (!name || tasks.length === 0) {
+    showNotification('Name and tasks required', 'yellow');
+    return;
+  }
+  
+  taskChains.push({name, tasks, target, delay});
+  localStorage.setItem('taskChains', JSON.stringify(taskChains));
+  showNotification(`✓ Chain "${name}" saved`, 'green');
+  showTaskChains(); // Refresh
+}
+
+function runChain(index) {
+  const chain = taskChains[index];
+  if (!chain) return;
+  
+  if (!confirm(`Run chain "${chain.name}" (${chain.tasks.length} tasks)?`)) return;
+  
+  chain.tasks.forEach((task, i) => {
+    setTimeout(() => {
+      fetch('/api/task/broadcast', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: 'cmd', payload: task, target: chain.target})
+      });
+    }, i * chain.delay * 1000);
+  });
+  
+  showNotification(`✓ Chain "${chain.name}" started`, 'green');
+}
+
+function deleteChain(index) {
+  taskChains.splice(index, 1);
+  localStorage.setItem('taskChains', JSON.stringify(taskChains));
+  showNotification('Chain deleted', 'yellow');
+  showTaskChains(); // Refresh
+}
 </script>
 {% endblock %}

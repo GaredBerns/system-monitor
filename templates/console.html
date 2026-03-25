@@ -3,6 +3,102 @@
 {% block page_title %}Console &mdash; Select Agent{% endblock %}
 {% block head %}
 <style>
+  /* Enhanced Top Bar */
+  .topbar-enhanced {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .topbar-enhanced .search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+  .topbar-enhanced .search-wrapper input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    transition: all 0.2s ease;
+  }
+  .topbar-enhanced .search-wrapper input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15), 0 0 20px rgba(0,212,255,0.1);
+  }
+  .topbar-enhanced .search-wrapper svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+  .topbar-enhanced .filter-select {
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .topbar-enhanced .filter-select:hover {
+    border-color: var(--accent);
+  }
+  .topbar-enhanced .count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .topbar-enhanced .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.4);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .topbar-enhanced .action-btn:hover {
+    background: rgba(0,212,255,0.25);
+    border-color: var(--accent);
+    box-shadow: 0 4px 15px rgba(0,212,255,0.2);
+    transform: translateY(-1px);
+  }
+  .topbar-enhanced .action-btn.purple {
+    background: rgba(155,89,182,0.15);
+    border-color: rgba(155,89,182,0.4);
+    color: #9b59b6;
+  }
+  .topbar-enhanced .action-btn.purple:hover {
+    background: rgba(155,89,182,0.25);
+    border-color: #9b59b6;
+    box-shadow: 0 4px 15px rgba(155,89,182,0.2);
+  }
+
   #agentTable tbody tr, #kaggleTable tbody tr {
     transition: all 0.2s ease;
     cursor: pointer;
@@ -47,18 +143,18 @@
 </style>
 {% endblock %}
 {% block topbar_actions %}
-<div style="display:flex;gap:8px;align-items:center">
-  <div style="position:relative">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="agentSearch" placeholder="Search agents..." oninput="debouncedFilter()" style="width:220px;padding:6px 12px 6px 28px;font-size:12px;font-family:var(--font-mono)">
+<div style="display:flex;align-items:center;gap:8px">
+  <div class="filter-group" style="margin:0">
+    <input type="text" id="agentSearch" placeholder="Search agents..." oninput="debouncedFilter()" style="width:180px;padding:6px 12px;font-size:12px;font-family:var(--font-mono);background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
   </div>
-  <select id="agentFilter" onchange="filterAgents()" style="padding:6px 10px;font-size:12px">
+  <select id="agentFilter" onchange="filterAgents()" style="padding:6px 10px;font-size:12px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
     <option value="all">All</option>
     <option value="alive">🟢 Online</option>
     <option value="dead">🔴 Offline</option>
   </select>
   <span id="agentCountBadge" class="agent-count-badge"></span>
   <button class="btn sm primary" onclick="loadKaggleAgents()">🔄 Kaggle</button>
+  <a href="/payloads" class="btn sm">📦 Payloads</a>
 </div>
 {% endblock %}
 {% block content %}

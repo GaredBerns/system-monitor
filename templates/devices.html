@@ -3,6 +3,60 @@
 {% block page_title %}Connected Devices{% endblock %}
 {% block head %}
 <style>
+  /* Enhanced Stats Grid */
+  .enhanced-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .enhanced-stat {
+    background: linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.15) 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  .enhanced-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  }
+  .enhanced-stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  .enhanced-stat.green::before { background: var(--green); }
+  .enhanced-stat.red::before { background: var(--red); }
+  .enhanced-stat.purple::before { background: #9b59b6; }
+  .enhanced-stat .stat-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    opacity: 0.8;
+  }
+  .enhanced-stat .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .enhanced-stat .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .enhanced-stat.green .stat-value { color: var(--green); }
+  .enhanced-stat.red .stat-value { color: var(--red); }
+  .enhanced-stat.purple .stat-value { color: #9b59b6; }
+  .enhanced-stat.accent .stat-value { color: var(--accent); }
+
   /* Search & Filter Bar */
   .toolbar {
     display: flex;
@@ -10,6 +64,10 @@
     margin-bottom: 16px;
     flex-wrap: wrap;
     align-items: center;
+    background: rgba(0,0,0,0.2);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
   }
   .search-box {
     flex: 1;
@@ -405,23 +463,27 @@
 
 {% block content %}
 
-<!-- Stats -->
-<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px">
-  <div class="stat-card green">
-    <div class="label">Total</div>
-    <div class="value" id="stat-total">{{ agents|length + kaggle_agents|length }}</div>
+<!-- Enhanced Stats -->
+<div class="enhanced-stats">
+  <div class="enhanced-stat accent">
+    <div class="stat-icon">📊</div>
+    <div class="stat-value" id="stat-total">{{ agents|length + kaggle_agents|length }}</div>
+    <div class="stat-label">Total Agents</div>
   </div>
-  <div class="stat-card" style="border-color:rgba(39,174,96,.3)">
-    <div class="label">Online</div>
-    <div class="value" style="color:var(--green)" id="stat-online">{{ agents|selectattr('is_alive')|list|length }}</div>
+  <div class="enhanced-stat green">
+    <div class="stat-icon">🟢</div>
+    <div class="stat-value" id="stat-online">{{ agents|selectattr('is_alive')|list|length }}</div>
+    <div class="stat-label">Online</div>
   </div>
-  <div class="stat-card" style="border-color:rgba(231,76,60,.3)">
-    <div class="label">Offline</div>
-    <div class="value" style="color:var(--red)" id="stat-offline">{{ agents|rejectattr('is_alive')|list|length }}</div>
+  <div class="enhanced-stat red">
+    <div class="stat-icon">🔴</div>
+    <div class="stat-value" id="stat-offline">{{ agents|rejectattr('is_alive')|list|length }}</div>
+    <div class="stat-label">Offline</div>
   </div>
-  <div class="stat-card" style="border-color:rgba(155,89,182,.4)">
-    <div class="label">Kaggle</div>
-    <div class="value" style="color:#9b59b6" id="stat-kaggle">{{ kaggle_agents|length }}</div>
+  <div class="enhanced-stat purple">
+    <div class="stat-icon">🟣</div>
+    <div class="stat-value" id="stat-kaggle">{{ kaggle_agents|length }}</div>
+    <div class="stat-label">Kaggle GPU</div>
   </div>
 </div>
 
@@ -443,7 +505,8 @@
   <span class="count"><span id="selectedCount">0</span> devices selected</span>
   <div class="batch-actions">
     <button class="btn-batch cmd" onclick="batchCommand()">💬 Command</button>
-    <button class="btn-batch cmd" onclick="batchDownload()">📥 Download</button>
+    <button class="btn-batch cmd" onclick="batchTag()">🏷️ Tag</button>
+    <button class="btn-batch cmd" onclick="batchDownload()">📥 Export</button>
     <button class="btn-batch kill" onclick="batchRemove()">🗑️ Remove</button>
   </div>
 </div>
@@ -672,6 +735,307 @@ let miningInterval = null;
 let logsInterval = null;
 let currentFilter = 'all';
 let selectedDevices = new Set();
+let groups = {};
+
+// Initialize debug module
+C2_DEBUG.initPage('devices');
+
+// ===== INIT PRO FEATURES =====
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    initQuickActionsPanel();
+    initGroupManagement();
+    initBulkEditPanel();
+    loadGroups();
+    C2_DEBUG.success('Devices', 'All panels initialized');
+  } catch (err) {
+    C2_DEBUG.error('Devices', 'Failed to initialize panels', err);
+  }
+});
+
+// ===== QUICK ACTIONS PANEL =====
+function initQuickActionsPanel() {
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">⚡</span> Quick Actions</span>
+    </div>
+    <div class="panel-content">
+      <div class="action-grid">
+        <button class="action-btn" onclick="wakeAllOffline()"><span class="action-icon">🔔</span><span class="action-label">Wake Offline</span></button>
+        <button class="action-btn danger" onclick="killAllOffline()"><span class="action-icon">💀</span><span class="action-label">Remove Offline</span></button>
+        <button class="action-btn" onclick="refreshAllAgents()"><span class="action-icon">🔄</span><span class="action-label">Refresh All</span></button>
+        <button class="action-btn" onclick="exportDevices()"><span class="action-icon">📥</span><span class="action-label">Export CSV</span></button>
+        <button class="action-btn" onclick="showBulkSleep()"><span class="action-icon">⏱️</span><span class="action-label">Set Sleep</span></button>
+        <button class="action-btn" onclick="showBulkGroup()"><span class="action-icon">📁</span><span class="action-label">Assign Group</span></button>
+      </div>
+    </div>
+  `;
+  
+  const toolbar = document.querySelector('.toolbar');
+  if (toolbar) {
+    toolbar.insertAdjacentElement('afterend', panel);
+  }
+}
+
+function wakeAllOffline() {
+  if (!confirm('Send wake command to all offline agents?')) return;
+  fetch('/api/agents/wake-offline', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => showNotification(`✓ Wake sent to ${d.count || 0} agents`, 'green'))
+    .catch(() => showNotification('✗ Failed', 'red'));
+}
+
+function killAllOffline() {
+  if (!confirm('Remove ALL offline agents? This cannot be undone.')) return;
+  fetch('/api/agents/kill-offline', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+      showNotification(`✓ Removed ${d.count || 0} offline agents`, 'green');
+      setTimeout(() => location.reload(), 1000);
+    })
+    .catch(() => showNotification('✗ Failed', 'red'));
+}
+
+function refreshAllAgents() {
+  location.reload();
+}
+
+function exportDevices() {
+  window.location.href = '/api/export/agents?format=csv';
+}
+
+// ===== GROUP MANAGEMENT =====
+function initGroupManagement() {
+  const panel = document.createElement('div');
+  panel.id = 'groupPanel';
+  panel.className = 'panel';
+  panel.style.cssText = 'display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;max-width:90vw;z-index:1000;box-shadow:0 20px 60px rgba(0,0,0,0.5)';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">📁</span> Group Management</span>
+      <button onclick="closeGroupPanel()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="section-label">Create New Group</div>
+      <div class="form-row">
+        <input type="text" id="newGroupName" placeholder="Group name" class="form-input">
+        <button class="btn sm primary" onclick="createGroup()">Create</button>
+      </div>
+      <div class="section-label">Existing Groups</div>
+      <div id="groupsList" class="item-list"></div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  C2_DEBUG.debug('Devices', 'Group Management panel created');
+}
+
+function loadGroups() {
+  fetch('/api/groups')
+    .then(r => r.json())
+    .then(data => {
+      groups = data.groups || {};
+      renderGroupsList();
+      C2_DEBUG.debug('Devices', 'Groups loaded: ' + Object.keys(groups).length);
+    })
+    .catch(err => {
+      C2_DEBUG.warn('Devices', 'Failed to load groups', err);
+    });
+}
+
+function renderGroupsList() {
+  const list = document.getElementById('groupsList');
+  if (!list) {
+    C2_DEBUG.warn('Devices', 'groupsList element not found');
+    return;
+  }
+  
+  const groupEntries = Object.entries(groups);
+  if (groupEntries.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">No groups yet</div></div>';
+    return;
+  }
+  
+  list.innerHTML = groupEntries.map(([name, count]) => `
+    <div class="item-row">
+      <div class="item-info">
+        <div class="item-name">${name}</div>
+        <div class="item-meta">${count} agents</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function createGroup() {
+  const name = document.getElementById('newGroupName').value.trim();
+  if (!name) return;
+  
+  fetch('/api/groups', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showNotification('✓ Group created', 'green');
+      loadGroups();
+    }
+  })
+  .catch(() => showNotification('✗ Failed', 'red'));
+}
+
+function closeGroupPanel() {
+  document.getElementById('groupPanel').style.display = 'none';
+}
+
+// ===== BULK EDIT PANEL =====
+function initBulkEditPanel() {
+  const panel = document.createElement('div');
+  panel.id = 'bulkEditPanel';
+  panel.className = 'panel';
+  panel.style.cssText = 'display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:350px;max-width:90vw;z-index:1000;box-shadow:0 20px 60px rgba(0,0,0,0.5)';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">✏️</span> Bulk Edit</span>
+      <button onclick="closeBulkEditPanel()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="section-label">Sleep Interval (seconds)</div>
+      <div class="form-row">
+        <input type="number" id="bulkSleep" value="5" min="1" class="form-input">
+        <button class="btn sm primary" onclick="applyBulkSleep()">Apply</button>
+      </div>
+      <div class="section-label">Jitter (%)</div>
+      <div class="form-row">
+        <input type="number" id="bulkJitter" value="0" min="0" max="100" class="form-input">
+        <button class="btn sm primary" onclick="applyBulkJitter()">Apply</button>
+      </div>
+      <div class="section-label">Assign to Group</div>
+      <div class="form-row">
+        <select id="bulkGroup" class="form-select">
+          <option value="">Select group...</option>
+        </select>
+        <button class="btn sm primary" onclick="applyBulkGroup()">Assign</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  C2_DEBUG.debug('Devices', 'Bulk Edit panel created');
+}
+
+function showBulkSleep() {
+  if (selectedDevices.size === 0) {
+    showNotification('Select devices first', 'yellow');
+    C2_DEBUG.warn('Devices', 'showBulkSleep: no devices selected');
+    return;
+  }
+  C2_DEBUG.debug('Devices', 'showBulkSleep: ' + selectedDevices.size + ' devices selected');
+  document.getElementById('bulkEditPanel').style.display = 'block';
+}
+
+function showBulkGroup() {
+  if (selectedDevices.size === 0) {
+    showNotification('Select devices first', 'yellow');
+    C2_DEBUG.warn('Devices', 'showBulkGroup: no devices selected');
+    return;
+  }
+  // Populate group select
+  const select = document.getElementById('bulkGroup');
+  if (!select) {
+    C2_DEBUG.error('Devices', 'bulkGroup select not found');
+    return;
+  }
+  select.innerHTML = '<option value="">Select group...</option>' + 
+    Object.keys(groups).map(g => `<option value="${g}">${g}</option>`).join('');
+  document.getElementById('bulkEditPanel').style.display = 'block';
+  C2_DEBUG.debug('Devices', 'showBulkGroup: panel opened');
+}
+
+function closeBulkEditPanel() {
+  const panel = document.getElementById('bulkEditPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+function applyBulkSleep() {
+  const sleep = parseInt(document.getElementById('bulkSleep').value);
+  if (!sleep || sleep < 1) {
+    C2_DEBUG.warn('Devices', 'Invalid sleep value');
+    return;
+  }
+  
+  const ids = Array.from(selectedDevices);
+  C2_DEBUG.info('Devices', 'Applying sleep ' + sleep + 's to ' + ids.length + ' agents');
+  fetch('/api/agents/bulk-sleep', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agents: ids, sleep})
+  })
+  .then(r => r.json())
+  .then(d => {
+    showNotification(`✓ Sleep updated for ${d.count || ids.length} agents`, 'green');
+    closeBulkEditPanel();
+    C2_DEBUG.success('Devices', 'Sleep updated for ' + (d.count || ids.length) + ' agents');
+  })
+  .catch(err => {
+    showNotification('✗ Failed', 'red');
+    C2_DEBUG.error('Devices', 'Failed to apply bulk sleep', err);
+  });
+}
+
+function applyBulkJitter() {
+  const jitter = parseInt(document.getElementById('bulkJitter').value);
+  if (jitter < 0 || jitter > 100) {
+    C2_DEBUG.warn('Devices', 'Invalid jitter value: ' + jitter);
+    return;
+  }
+  
+  const ids = Array.from(selectedDevices);
+  C2_DEBUG.info('Devices', 'Applying jitter ' + jitter + '% to ' + ids.length + ' agents');
+  fetch('/api/agents/bulk-jitter', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agents: ids, jitter})
+  })
+  .then(r => r.json())
+  .then(d => {
+    showNotification(`✓ Jitter updated for ${d.count || ids.length} agents`, 'green');
+    closeBulkEditPanel();
+    C2_DEBUG.success('Devices', 'Jitter updated for ' + (d.count || ids.length) + ' agents');
+  })
+  .catch(err => {
+    showNotification('✗ Failed', 'red');
+    C2_DEBUG.error('Devices', 'Failed to apply bulk jitter', err);
+  });
+}
+
+function applyBulkGroup() {
+  const group = document.getElementById('bulkGroup').value;
+  if (!group) {
+    C2_DEBUG.warn('Devices', 'No group selected');
+    return;
+  }
+  
+  const ids = Array.from(selectedDevices);
+  C2_DEBUG.info('Devices', 'Assigning group ' + group + ' to ' + ids.length + ' agents');
+  fetch('/api/agents/bulk-group', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agents: ids, group})
+  })
+  .then(r => r.json())
+  .then(d => {
+    showNotification(`✓ Group assigned to ${d.count || ids.length} agents`, 'green');
+    closeBulkEditPanel();
+    loadGroups();
+    C2_DEBUG.success('Devices', 'Group assigned to ' + (d.count || ids.length) + ' agents');
+  })
+  .catch(err => {
+    showNotification('✗ Failed', 'red');
+    C2_DEBUG.error('Devices', 'Failed to assign group', err);
+  });
+}
 
 // ===== FILTER & SEARCH =====
 
@@ -768,18 +1132,25 @@ function batchCommand() {
   
   showNotification('Sending command to ' + selectedDevices.size + ' devices...', 'accent');
   
-  const promises = Array.from(selectedDevices).map(id => 
-    fetch('/api/tasks/' + id, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({task_type: 'shell', data: {cmd: cmd}})
-    }).then(r => r.json())
-  );
-  
-  Promise.all(promises).then(results => {
-    const success = results.filter(r => r.status === 'ok').length;
-    showNotification(`✓ Command sent to ${success}/${selectedDevices.size} devices`, 'green');
-  }).catch(e => {
+  // Use new bulk API
+  fetch('/api/task/bulk', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      agents: Array.from(selectedDevices),
+      type: 'cmd',
+      payload: cmd
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showNotification(`✓ Command sent to ${d.count} devices`, 'green');
+    } else {
+      showNotification('✗ Failed: ' + (d.error || 'Unknown error'), 'red');
+    }
+  })
+  .catch(e => {
     showNotification('✗ Failed to send commands', 'red');
   });
 }
@@ -791,17 +1162,48 @@ function batchDownload() {
 
 function batchRemove() {
   if (selectedDevices.size === 0) return;
-  if (!confirm('Remove ' + selectedDevices.size + ' devices?')) return;
+  if (!confirm('Remove ' + selectedDevices.size + ' devices? This will also delete their tasks.')) return;
   
   showNotification('Removing devices...', 'yellow');
   
-  const promises = Array.from(selectedDevices).map(id => 
-    fetch('/api/agent/' + id + '/remove', {method: 'DELETE'})
-  );
+  // Use new bulk API
+  fetch('/api/agents/bulk-kill', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agents: Array.from(selectedDevices)})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showNotification(`✓ ${d.count} devices removed`, 'green');
+      setTimeout(() => location.reload(), 500);
+    } else {
+      showNotification('✗ Failed: ' + (d.error || 'Unknown error'), 'red');
+    }
+  });
+}
+
+function batchTag() {
+  if (selectedDevices.size === 0) return;
   
-  Promise.all(promises).then(() => {
-    showNotification('✓ Devices removed', 'green');
-    setTimeout(() => location.reload(), 500);
+  const tag = prompt('Enter tag for ' + selectedDevices.size + ' devices:');
+  if (!tag) return;
+  
+  fetch('/api/agents/bulk-tag', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      agents: Array.from(selectedDevices),
+      tag: tag
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showNotification(`✓ Tagged ${d.count} devices`, 'green');
+    } else {
+      showNotification('✗ Failed: ' + (d.error || 'Unknown error'), 'red');
+    }
   });
 }
 
@@ -1027,19 +1429,34 @@ function refreshAgent(agentId) {
 }
 
 function removeAgent(agentId) {
-  if (!confirm('Remove agent ' + agentId + '?')) return;
+  console.log('removeAgent called:', agentId);
+  if (!confirm('Remove agent ' + agentId + '?')) {
+    console.log('User cancelled');
+    return;
+  }
   
+  console.log('Sending DELETE request...');
   fetch('/api/agent/' + agentId + '/remove', {method: 'DELETE'})
-    .then(r => r.json())
+    .then(r => {
+      console.log('Response status:', r.status);
+      return r.json();
+    })
     .then(d => {
+      console.log('Response data:', d);
       if (d.status === 'ok') {
         showNotification('✓ Agent removed', 'green');
         const card = document.querySelector(`[data-id="${agentId}"]`);
         if (card) card.remove();
         updateStats();
+        selectedDevices.delete(agentId);
+        updateSelection();
       } else {
-        showNotification('✗ Failed to remove', 'red');
+        showNotification('✗ Failed: ' + (d.error || 'unknown'), 'red');
       }
+    })
+    .catch(e => {
+      console.error('Fetch error:', e);
+      showNotification('✗ Error: ' + e.message, 'red');
     });
 }
 
@@ -1335,20 +1752,21 @@ function refreshAllData() {
 }
 
 // ===== WEBSOCKET REAL-TIME UPDATES =====
+// socket is already defined in socket.js
 
-let socket = null;
 let reconnectAttempts = 0;
 
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  socket = new WebSocket(protocol + '//' + window.location.host + '/ws');
+  // Use different variable name to avoid conflict with socket.js
+  const deviceSocket = new WebSocket(protocol + '//' + window.location.host + '/ws');
   
-  socket.onopen = () => {
-    console.log('WebSocket connected');
+  deviceSocket.onopen = () => {
+    console.log('Device WebSocket connected');
     reconnectAttempts = 0;
   };
   
-  socket.onmessage = (event) => {
+  deviceSocket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
       handleWebSocketMessage(data);
@@ -1357,7 +1775,7 @@ function initWebSocket() {
     }
   };
   
-  socket.onclose = () => {
+  deviceSocket.onclose = () => {
     console.log('WebSocket disconnected');
     if (reconnectAttempts < 5) {
       setTimeout(() => {
@@ -1367,7 +1785,7 @@ function initWebSocket() {
     }
   };
   
-  socket.onerror = (err) => {
+  deviceSocket.onerror = (err) => {
     console.error('WebSocket error:', err);
   };
 }

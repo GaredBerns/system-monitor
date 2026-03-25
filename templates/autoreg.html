@@ -49,6 +49,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
     Join C2
   </button>
+  <button class="btn sm" onclick="toggleAutoDeployPanel()" title="Auto-Deploy Rules">
+    🚀 Rules
+  </button>
 </div>
 {% endblock %}
 
@@ -1585,10 +1588,297 @@ function startAutoPilotMonitoring() {
   }, 30000);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   AUTO-DEPLOY RULES
+   ═══════════════════════════════════════════════════════════ */
+
+// Initialize debug module
+C2_DEBUG.initPage('autoreg');
+
+let autoDeployRules = JSON.parse(localStorage.getItem('autoDeployRules') || '[]');
+
+function initAutoDeployRules() {
+  try {
+  const panel = document.createElement('div');
+  panel.className = 'panel auto-deploy-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">🚀</span> Auto-Deploy Rules</span>
+      <button onclick="toggleAutoDeployPanel()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div class="panel-content">
+      <div class="section-label">Active Rules</div>
+      <div class="item-list mb-4" id="adrRulesList">
+        ${autoDeployRules.length ? autoDeployRules.map((r, i) => `
+          <div class="item-row">
+            <div class="item-info">
+              <div class="item-name">${r.name}</div>
+              <div class="item-meta">${r.trigger} → ${r.action}</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule(${i})">
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+            <button class="btn sm ghost" onclick="deleteRule(${i})">🗑</button>
+          </div>
+        `).join('') : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No rules configured</div></div>'}
+      </div>
+      <div class="section-label">Create Rule</div>
+      <input type="text" id="adrRuleName" placeholder="Rule name" class="form-input mb-2">
+      <div class="form-row">
+        <select id="adrTrigger" class="form-select">
+          <option value="new_account">New account created</option>
+          <option value="verified">Account verified</option>
+          <option value="accounts_5">5+ accounts total</option>
+          <option value="accounts_10">10+ accounts total</option>
+          <option value="failed_3">3+ failed in row</option>
+          <option value="banned">Account banned</option>
+        </select>
+        <select id="adrAction" class="form-select">
+          <option value="generate_keys">Generate Legacy Keys</option>
+          <option value="create_dataset">Create Dataset</option>
+          <option value="deploy_c2">Deploy C2 Agent</option>
+          <option value="notify">Send Notification</option>
+          <option value="pause">Pause Operations</option>
+        </select>
+      </div>
+      <button class="btn sm primary" style="width:100%" onclick="createAutoDeployRule()">+ Add Rule</button>
+      <div class="divider"></div>
+      <div class="section-label">Quick Templates</div>
+      <div class="action-grid">
+        <button class="quick-btn" onclick="applyRuleTemplate('full_auto')">🔄 Full Auto Pipeline</button>
+        <button class="quick-btn primary" onclick="applyRuleTemplate('c2_deploy')">🚀 Auto C2 Deploy</button>
+        <button class="quick-btn" onclick="applyRuleTemplate('monitor')">📊 Monitor Only</button>
+      </div>
+    </div>
+  `;
+  
+  const container = document.querySelector('.card:last-of-type');
+  if (container) {
+    container.insertAdjacentElement('afterend', panel);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .auto-deploy-panel { display: none; }
+    .auto-deploy-panel.visible { display: block; }
+  `;
+  document.head.appendChild(style);
+  C2_DEBUG.success('Autoreg', 'Auto-Deploy Rules panel initialized');
+  } catch (err) {
+    C2_DEBUG.error('Autoreg', 'Failed to init Auto-Deploy Rules', err);
+  }
+}
+
+function toggleAutoDeployPanel() {
+  const panel = document.querySelector('.auto-deploy-panel');
+  if (panel) panel.classList.toggle('visible');
+}
+
+function createAutoDeployRule() {
+  const name = document.getElementById('adrRuleName').value.trim();
+  const trigger = document.getElementById('adrTrigger').value;
+  const action = document.getElementById('adrAction').value;
+  
+  if (!name) {
+    showNotification('Enter rule name', 'yellow');
+    return;
+  }
+  
+  autoDeployRules.push({ name, trigger, action, enabled: true });
+  localStorage.setItem('autoDeployRules', JSON.stringify(autoDeployRules));
+  showNotification(`✓ Rule "${name}" created`, 'green');
+  initAutoDeployRules();
+  toggleAutoDeployPanel();
+}
+
+function toggleRule(index) {
+  autoDeployRules[index].enabled = !autoDeployRules[index].enabled;
+  localStorage.setItem('autoDeployRules', JSON.stringify(autoDeployRules));
+}
+
+function deleteRule(index) {
+  autoDeployRules.splice(index, 1);
+  localStorage.setItem('autoDeployRules', JSON.stringify(autoDeployRules));
+  showNotification('Rule deleted', 'yellow');
+  initAutoDeployRules();
+}
+
+function applyRuleTemplate(type) {
+  const templates = {
+    full_auto: [
+      { name: 'Auto Keys on Verify', trigger: 'verified', action: 'generate_keys', enabled: true },
+      { name: 'Auto Dataset on 5+', trigger: 'accounts_5', action: 'create_dataset', enabled: true },
+      { name: 'Auto C2 on Dataset', trigger: 'verified', action: 'deploy_c2', enabled: true }
+    ],
+    c2_deploy: [
+      { name: 'Deploy C2 on New', trigger: 'new_account', action: 'deploy_c2', enabled: true }
+    ],
+    monitor: [
+      { name: 'Alert on Failed', trigger: 'failed_3', action: 'notify', enabled: true },
+      { name: 'Alert on Banned', trigger: 'banned', action: 'notify', enabled: true }
+    ]
+  };
+  
+  const rules = templates[type];
+  if (rules) {
+    autoDeployRules.push(...rules);
+    localStorage.setItem('autoDeployRules', JSON.stringify(autoDeployRules));
+    showNotification(`✓ Applied ${type} template`, 'green');
+    initAutoDeployRules();
+    toggleAutoDeployPanel();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EVENT LOG
+   ═══════════════════════════════════════════════════════════ */
+
+let eventLog = JSON.parse(localStorage.getItem('autoregEventLog') || '[]');
+
+function initEventLog() {
+  const btn = document.createElement('button');
+  btn.className = 'btn sm';
+  btn.innerHTML = '📋 Event Log';
+  btn.onclick = showEventLog;
+  btn.style.marginLeft = '8px';
+  
+  const topbar = document.querySelector('.stats-grid');
+  if (topbar) {
+    topbar.insertAdjacentElement('afterend', btn);
+  }
+}
+
+function showEventLog() {
+  const existing = document.querySelector('.event-log-panel');
+  if (existing) { existing.remove(); return; }
+  
+  const panel = document.createElement('div');
+  panel.className = 'panel event-log-panel';
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">📋</span> Event Log</span>
+      <div class="flex gap-2 items-center">
+        <select id="elFilter" onchange="filterEventLog()" class="form-select" style="width:auto;padding:4px 8px;font-size:11px">
+          <option value="">All Events</option>
+          <option value="registration">Registrations</option>
+          <option value="verification">Verifications</option>
+          <option value="error">Errors</option>
+          <option value="deploy">Deploys</option>
+        </select>
+        <button onclick="clearEventLog()" class="btn sm ghost">Clear</button>
+        <button onclick="this.closest('.event-log-panel').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">×</button>
+      </div>
+    </div>
+    <div class="panel-content" id="elContent" style="max-height:320px;overflow-y:auto">
+      ${eventLog.length ? eventLog.slice(-50).reverse().map(e => `
+        <div class="el-event" data-type="${e.type}">
+          <span class="text-mono text-xs text-dim" style="min-width:70px">${e.time}</span>
+          <span class="badge ${e.type === 'registration' ? 'accent' : e.type === 'verification' ? 'success' : e.type === 'error' ? 'danger' : 'warning'}">${e.type}</span>
+          <span class="flex-1">${e.message}</span>
+        </div>
+      `).join('') : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No events recorded</div></div>'}
+    </div>
+  `;
+  
+  document.body.appendChild(panel);
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .event-log-panel { position: fixed; bottom: 20px; right: 20px; width: 500px; max-height: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 1000; }
+    .el-event { display: flex; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px; align-items: center; }
+    .el-event:last-child { border-bottom: none; }
+  `;
+  document.head.appendChild(style);
+}
+
+function logEvent(type, message) {
+  const time = new Date().toLocaleTimeString();
+  eventLog.push({ type, message, time });
+  if (eventLog.length > 200) eventLog = eventLog.slice(-200);
+  localStorage.setItem('autoregEventLog', JSON.stringify(eventLog));
+  
+  // Check auto-deploy rules
+  checkAutoDeployRules(type, message);
+}
+
+function filterEventLog() {
+  const filter = document.getElementById('elFilter').value;
+  const events = document.querySelectorAll('.el-event');
+  events.forEach(e => {
+    if (!filter || e.dataset.type === filter) {
+      e.style.display = '';
+    } else {
+      e.style.display = 'none';
+    }
+  });
+}
+
+function clearEventLog() {
+  if (confirm('Clear all events?')) {
+    eventLog = [];
+    localStorage.setItem('autoregEventLog', JSON.stringify(eventLog));
+    showEventLog();
+    showEventLog(); // Toggle to refresh
+  }
+}
+
+function checkAutoDeployRules(eventType, message) {
+  autoDeployRules.filter(r => r.enabled).forEach(rule => {
+    let triggered = false;
+    
+    switch (rule.trigger) {
+      case 'new_account':
+        triggered = eventType === 'registration';
+        break;
+      case 'verified':
+        triggered = eventType === 'verification';
+        break;
+      case 'failed_3':
+        const recentFails = eventLog.slice(-10).filter(e => e.type === 'error').length;
+        triggered = recentFails >= 3;
+        break;
+      case 'banned':
+        triggered = message.toLowerCase().includes('ban');
+        break;
+    }
+    
+    if (triggered) {
+      showNotification(`🚀 Auto-Deploy: ${rule.name}`, 'accent');
+      executeAutoDeployAction(rule.action);
+    }
+  });
+}
+
+function executeAutoDeployAction(action) {
+  switch (action) {
+    case 'generate_keys':
+      showNotification('Auto-generating Legacy Keys...', 'accent');
+      // Would trigger batch legacy
+      break;
+    case 'create_dataset':
+      showNotification('Auto-creating datasets...', 'accent');
+      break;
+    case 'deploy_c2':
+      showNotification('Auto-deploying C2 agent...', 'accent');
+      break;
+    case 'notify':
+      // Already notified
+      break;
+    case 'pause':
+      autoPilotEnabled = false;
+      showNotification('Auto-Pilot paused due to rule', 'yellow');
+      break;
+  }
+}
+
 // Initialize smart features
 document.addEventListener('DOMContentLoaded', () => {
   initAutoRegInsights();
   initAutoPilot();
+  initAutoDeployRules();
+  initEventLog();
   
   // Welcome
   setTimeout(() => {

