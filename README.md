@@ -3,28 +3,50 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Live Demo:** Deploy on Render.com (free)
+**🌐 Public Access:** Use Cloudflare Tunnel (free, no account needed)
 
 Cross-platform system monitoring and resource optimization toolkit.
 
 ---
 
-## 🚀 Deploy to Render (Free)
+## 🚀 Quick Start
 
-### Quick Deploy
-1. Fork this repo
-2. Go to [render.com](https://render.com) → Sign up with GitHub
-3. New → Web Service → Connect repo
-4. Render auto-detects `render.yaml`
-5. Deploy → Get permanent URL like `https://system-monitor-xxx.onrender.com`
-
-### Manual Setup
+### 1. Start Server
 ```bash
-# Create account at render.com
-# New Web Service → Build from GitHub repo
-# Build Command: pip install -r requirements.txt
-# Start Command: python run_unified.py
+python run_unified.py
+# or
+./server.sh start
 ```
+
+### 2. Create Public URL (Free)
+```bash
+./tunnel.sh
+```
+
+**Output:**
+```
+✅ Tunnel created!
+🌐 Public URL: https://xxx-yyy.trycloudflare.com
+```
+
+**This URL is accessible from anywhere while server is running.**
+
+---
+
+## 🌐 Tunnel Options
+
+### Quick Tunnel (No Account)
+```bash
+./tunnel.sh
+```
+- Free, no registration
+- URL changes each restart
+- Works while server runs
+
+### Permanent Tunnel (With Account)
+1. Create free account at https://dash.teams.cloudflare.com
+2. Create named tunnel
+3. Get permanent URL like `https://your-tunnel.your-domain.com`
 
 ---
 
