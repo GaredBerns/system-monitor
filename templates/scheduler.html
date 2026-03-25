@@ -83,11 +83,11 @@
     }
     #schedTable th, #schedTable td {
       padding: 6px 8px;
-      font-size: 10px;
+      font-size:11px;
     }
     .btn.sm {
       padding: 5px 8px;
-      font-size: 9px;
+      font-size:11px;
     }
     .toggle-switch {
       width: 32px;
@@ -101,7 +101,7 @@
       transform: translateX(14px);
     }
     .countdown {
-      font-size: 9px;
+      font-size:11px;
     }
   }
 
@@ -120,7 +120,7 @@
     }
     #schedTable th, #schedTable td {
       padding: 4px 6px;
-      font-size: 9px;
+      font-size:11px;
     }
     .btn.sm {
       padding: 4px 6px;
@@ -150,8 +150,9 @@
   </div>
 </div>
 
-<div class="card" style="padding:0;overflow:auto">
-  <table id="schedTable">
+<div class="card" style="padding:0">
+  <div class="table-container">
+    <table id="schedTable">
     <thead>
       <tr><th>Name</th><th>Type</th><th>Payload</th><th>Target</th><th>Interval</th><th>Execs</th><th>Last Run</th><th>Next Run</th><th>Status</th><th>Actions</th></tr>
     </thead>
@@ -394,24 +395,24 @@ function showExecLog(id) {
           <h3 style="color:var(--accent)">📋 Execution Log: ${d.name}</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
             <div class="form-group" style="margin:0">
-              <label style="font-size:10px">Task Type</label>
+              <label style="font-size:11px">Task Type</label>
               <div style="font-family:var(--font-mono)">${log.task_type}</div>
             </div>
             <div class="form-group" style="margin:0">
-              <label style="font-size:10px">Target</label>
+              <label style="font-size:11px">Target</label>
               <div>${log.target}</div>
             </div>
             <div class="form-group" style="margin:0">
-              <label style="font-size:10px">Agents Reached</label>
+              <label style="font-size:11px">Agents Reached</label>
               <div style="color:var(--green)">${log.agents_count}</div>
             </div>
             <div class="form-group" style="margin:0">
-              <label style="font-size:10px">Executed At</label>
+              <label style="font-size:11px">Executed At</label>
               <div style="font-family:var(--font-mono;font-size:11px">${log.executed_at}</div>
             </div>
           </div>
           <div class="form-group" style="margin:0">
-            <label style="font-size:10px">Payload</label>
+            <label style="font-size:11px">Payload</label>
             <div style="background:var(--bg-input);padding:10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:150px;overflow:auto">${log.payload}</div>
           </div>
           <div class="modal-actions">
@@ -647,10 +648,10 @@ function showTaskChains() {
     .tc-content { padding: 16px; }
     .tc-section { margin-bottom: 16px; }
     .tc-section:last-child { margin-bottom: 0; }
-    .tc-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+    .tc-label { font-size:11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
     .tc-chain { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
     .tc-chain-name { font-weight: 600; font-size: 12px; flex: 1; }
-    .tc-chain-info { font-size: 10px; color: var(--text-dim); }
+    .tc-chain-info { font-size:11px; color: var(--text-dim); }
     .tc-chain-actions { display: flex; gap: 6px; }
   `;
   document.head.appendChild(style);

@@ -236,13 +236,13 @@
   .ac-item:hover, .ac-item.selected {
     background: var(--accent-glow); color: var(--accent);
   }
-  .ac-item .ac-desc { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+  .ac-item .ac-desc { font-size:11px; color: var(--text-muted); margin-left: auto; }
 
   /* Copy button on result blocks */
   .result-block { position: relative; }
   .result-copy-btn {
     position: absolute; top: 4px; right: 6px;
-    padding: 2px 7px; font-size: 9px; border-radius: 4px;
+    padding: 2px 7px; font-size:11px; border-radius: 4px;
     background: var(--bg-card); border: 1px solid var(--border);
     color: var(--text-dim); cursor: pointer; opacity: 0;
     transition: opacity 0.2s;
@@ -255,7 +255,7 @@
     outline: none;
     color: var(--text-muted) !important;
     font-family: var(--font-mono) !important;
-    font-size: 10px;
+    font-size:11px;
     padding: 0 4px;
     width: auto !important;
     cursor: pointer;
@@ -263,16 +263,16 @@
   }
   .sidebar-cards { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
   .sidebar-cards .card { margin-bottom: 0; }
-  .card h2.small { font-size: 10px; letter-spacing: 1px; color: var(--text-muted); }
+  .card h2.small { font-size:11px; letter-spacing: 1px; color: var(--text-muted); }
   .info-table td { padding: 5px 8px; font-size: 11.5px; border-bottom: 1px solid rgba(22,32,56,0.4); }
-  .info-table td:first-child { color: var(--text-dim); width: 80px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-table td:first-child { color: var(--text-dim); width: 80px; font-size:11px; text-transform: uppercase; letter-spacing: 0.5px; }
   .info-table tr:last-child td { border-bottom: none; }
   .quick-btn {
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text-dim);
-    font-size: 10px;
+    font-size:11px;
     font-family: var(--font-mono);
     padding: 4px 8px;
     cursor: pointer;
@@ -308,7 +308,7 @@
     gap: 5px;
     padding: 2px 9px;
     border-radius: 20px;
-    font-size: 10px;
+    font-size:11px;
     font-weight: 700;
     letter-spacing: 0.5px;
     font-family: var(--font-mono);
@@ -392,11 +392,11 @@
     .console-topbar .os-badge,
     .console-topbar .platform-badge {
       padding: 5px 8px;
-      font-size: 10px;
+      font-size:11px;
     }
     .console-topbar .status-pill {
       padding: 5px 10px;
-      font-size: 10px;
+      font-size:11px;
     }
     .terminal-titlebar {
       padding: 8px 12px;
@@ -492,7 +492,7 @@
 <span class="info">──────────────────────────────────────────────
 </span>
 {% for t in tasks|reverse %}
-<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:10px">[{{ t.task_type }}]</span> <span class="output">{{ t.payload }}</span></span>
+<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:11px">[{{ t.task_type }}]</span> <span class="output">{{ t.payload }}</span></span>
 {% if t.status == 'completed' %}<span class="result-block">{{ t.result }}</span>
 {% elif t.status == 'sent' %}<span class="info">  ↳ awaiting result…</span>
 {% else %}<span class="info">  ↳ queued</span>
@@ -531,16 +531,17 @@
       <div style="padding:10px 14px;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--border)">
         <h2 class="small" style="margin:0;padding:0;border:0">Agent Info</h2>
       </div>
-      <table class="info-table" style="width:100%">
-        <tr><td>ID</td><td style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);word-break:break-all">{{ agent.id[:16] }}…</td></tr>
+      <div class="table-container">
+        <table class="info-table" style="width:100%">
+        <tr><td>ID</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);word-break:break-all">{{ agent.id[:16] }}…</td></tr>
         <tr><td>Host</td><td style="font-weight:600;color:var(--text-bright)">{{ agent.hostname }}</td></tr>
         <tr><td>User</td><td>{{ agent.username or '—' }}</td></tr>
         <tr><td>OS</td><td>{{ agent.os or '—' }}</td></tr>
-        <tr><td>Arch</td><td style="font-family:var(--font-mono);font-size:10px">{{ agent.arch or '—' }}</td></tr>
+        <tr><td>Arch</td><td style="font-family:var(--font-mono);font-size:11px">{{ agent.arch or '—' }}</td></tr>
         <tr><td>Ext IP</td><td style="font-family:var(--font-mono);color:var(--accent)">{{ agent.ip_external or '—' }}</td></tr>
         <tr><td>Int IP</td><td style="font-family:var(--font-mono);color:var(--text-dim)">{{ agent.ip_internal or '—' }}</td></tr>
-        <tr><td>Group</td><td><span class="badge type" style="font-size:9px">{{ agent.group_name or 'default' }}</span></td></tr>
-        <tr><td>First</td><td style="color:var(--text-muted);font-size:10px">{{ agent.first_seen or '—' }}</td></tr>
+        <tr><td>Group</td><td><span class="badge type" style="font-size:11px">{{ agent.group_name or 'default' }}</span></td></tr>
+        <tr><td>First</td><td style="color:var(--text-muted);font-size:11px">{{ agent.first_seen or '—' }}</td></tr>
         <tr><td>Sleep</td><td style="font-family:var(--font-mono);color:var(--text-dim)">{{ agent.sleep_interval }}s ±{{ agent.jitter }}%</td></tr>
       </table>
     </div>
@@ -615,14 +616,14 @@
         <option value="privilege">👑 Privilege Escalation</option>
         <option value="cleanup">🧹 Cleanup</option>
       </select>
-      <div id="templatePreview" style="background:rgba(0,0,0,.3);border-radius:6px;padding:8px;font-family:var(--font-mono);font-size:10px;max-height:120px;overflow-y:auto;display:none"></div>
+      <div id="templatePreview" style="background:rgba(0,0,0,.3);border-radius:6px;padding:8px;font-family:var(--font-mono);font-size:11px;max-height:120px;overflow-y:auto;display:none"></div>
       <button class="btn sm primary" style="width:100%;margin-top:8px" onclick="executeTemplate()" id="templateRunBtn" disabled>Run Template</button>
     </div>
 
     <!-- Script Runner -->
     <div class="card">
       <h2 class="small" style="color:var(--yellow)">📜 Script Runner</h2>
-      <textarea id="scriptInput" rows="6" style="width:100%;font-family:var(--font-mono);font-size:10px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical" placeholder="# Enter multi-line script&#10;whoami&#10;id&#10;uname -a"></textarea>
+      <textarea id="scriptInput" rows="6" style="width:100%;font-family:var(--font-mono);font-size:11px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical" placeholder="# Enter multi-line script&#10;whoami&#10;id&#10;uname -a"></textarea>
       <div style="display:flex;gap:6px;margin-top:8px">
         <button class="btn sm" style="flex:1" onclick="runScript('bash')">▶ Bash</button>
         <button class="btn sm" style="flex:1" onclick="runScript('python')">🐍 Python</button>
@@ -765,7 +766,7 @@ function execFromBtn() {
 
 function sendCmd(cmd) {
   const type = document.getElementById('taskType').value;
-  appendLine(`<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:10px">[${type}]</span> <span class="output">${escapeHtml(cmd)}</span></span>`);
+  appendLine(`<span class="cmd-line"><span class="prompt">{{ agent.hostname }}$</span> <span style="color:var(--text-dim);font-size:11px">[${type}]</span> <span class="output">${escapeHtml(cmd)}</span></span>`);
   if (statusLbl) { statusLbl.textContent = 'sending…'; statusLbl.style.color = 'var(--yellow)'; }
 
   fetch('/api/task/create', {

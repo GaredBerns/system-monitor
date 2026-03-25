@@ -15,7 +15,7 @@
   .stat-card:hover .sc-icon { opacity: 0.85; transform: translateY(-50%) scale(1.08); }
   .stat-card .sc-icon svg { width: 22px; height: 22px; }
   .stat-card .sc-delta {
-    font-size: 10px; font-weight: 600;
+    font-size:11px; font-weight: 600;
     display: flex; align-items: center; gap: 3px;
     margin-top: 6px; opacity: 0.7;
   }
@@ -176,7 +176,7 @@
     }
     .live-indicator {
       padding: 4px 10px;
-      font-size: 9px;
+      font-size:11px;
     }
     .refresh-btn {
       padding: 8px 12px;
@@ -217,7 +217,7 @@
   .card h2 svg { display: inline; vertical-align: -3px; margin-right: 8px; opacity: 0.7; }
   .card h2 .card-extra {
     margin-left: auto; display: flex; gap: 6px; align-items: center;
-    font-size: 10px; color: var(--text-muted);
+    font-size:11px; color: var(--text-muted);
     text-transform: none; letter-spacing: 0; font-weight: 400;
   }
 
@@ -226,7 +226,7 @@
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 20px;
     background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15);
-    font-size: 10px; font-family: var(--font-mono); color: var(--text-dim);
+    font-size:11px; font-family: var(--font-mono); color: var(--text-dim);
   }
 
   /* Agent row online indicator */
@@ -487,11 +487,12 @@
     </svg>
     Active Listeners
     <span class="card-extra">
-      <a href="/settings" style="color:var(--accent);font-size:10px">Manage →</a>
+      <a href="/settings" style="color:var(--accent);font-size:11px">Manage →</a>
     </span>
   </h2>
-  <table>
-    <thead>
+  <div class="table-container">
+    <table>
+      <thead>
       <tr>
         <th>ID</th><th>Name</th><th>Protocol</th><th>Host</th><th>Port</th><th>Status</th>
       </tr>
@@ -537,11 +538,12 @@
     </svg>
     Recent Agents
     <span class="card-extra">
-      <a href="/devices" style="color:var(--accent);font-size:10px">View all →</a>
+      <a href="/devices" style="color:var(--accent);font-size:11px">View all →</a>
     </span>
   </h2>
-  <table id="dashAgentsTable">
-    <thead>
+  <div class="table-container">
+    <table id="dashAgentsTable">
+      <thead>
       <tr>
         <th style="width:28px"></th>
         <th>Hostname</th><th>OS</th><th>External IP</th><th>Type</th><th>Last Seen</th>
@@ -591,7 +593,7 @@
     </svg>
     Activity Log
     <span class="card-extra">
-      <a href="/logs" style="color:var(--accent);font-size:10px">Full log →</a>
+      <a href="/logs" style="color:var(--accent);font-size:11px">Full log →</a>
     </span>
   </h2>
   <div class="log-list" id="dashActivityLog">

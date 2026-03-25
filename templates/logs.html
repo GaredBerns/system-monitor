@@ -75,15 +75,15 @@
       font-size: 11px;
     }
     .log-entry .ts {
-      font-size: 9px;
+      font-size:11px;
     }
     .log-entry .ev {
-      font-size: 10px;
+      font-size:11px;
     }
     .log-stats {
       flex-wrap: wrap;
       gap: 10px;
-      font-size: 10px;
+      font-size:11px;
     }
     #scrollBottomBtn {
       width: 40px;
@@ -166,7 +166,7 @@
 <div class="card">
   <h2 style="display:flex;align-items:center;justify-content:space-between">
     Event Log
-    <span id="liveIndicator" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--green);font-weight:400;text-transform:none;letter-spacing:0">
+    <span id="liveIndicator" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:400;text-transform:none;letter-spacing:0">
       <span style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite"></span>
       live
     </span>
@@ -207,7 +207,7 @@ function renderLogs(logs) {
   const statsEl = document.getElementById('logStats');
   if (statsEl) {
     statsEl.innerHTML = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v]) =>
-      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:10px">${v}</span></span>`
+      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:11px">${v}</span></span>`
     ).join('');
   }
 
@@ -294,7 +294,7 @@ socket.on('new_log', entry => {
   const statsEl = document.getElementById('logStats');
   if (statsEl) {
     statsEl.innerHTML = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v]) =>
-      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:10px">${v}</span></span>`
+      `<span class="log-stat-item"><span class="log-stat-dot" style="background:${EVENT_COLORS[k]||'var(--text-dim)'}"></span><span style="color:var(--text-dim)">${k}</span><span style="font-family:var(--font-mono);color:var(--text-bright);font-size:11px">${v}</span></span>`
     ).join('');
   }
   _logHash = '';

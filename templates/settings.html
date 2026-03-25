@@ -41,7 +41,7 @@
   @media (max-width: 479px) {
     .settings-tab {
       padding: 8px 6px !important;
-      font-size: 10px !important;
+      font-size:11px !important;
     }
     .settings-tab span {
       display: none;
@@ -100,7 +100,8 @@
     <div>
       <div class="card">
         <h2>Listeners</h2>
-        <table>
+        <div class="table-container">
+          <table>
           <thead><tr><th>Name</th><th>Protocol</th><th>Bind</th><th>Port</th><th></th></tr></thead>
           <tbody>
           {% for l in listeners %}
@@ -190,7 +191,8 @@
     <div>
       <div class="card">
         <h2>User Management</h2>
-        <table>
+        <div class="table-container">
+          <table>
           <thead><tr><th>Username</th><th>Role</th><th>Created</th><th></th></tr></thead>
           <tbody>
           {% for u in users %}

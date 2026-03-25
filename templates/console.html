@@ -132,7 +132,7 @@
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 20px;
     background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
-    font-size: 10px; font-family: var(--font-mono); color: var(--accent);
+    font-size:11px; font-family: var(--font-mono); color: var(--accent);
   }
 
   /* Online/offline row highlight */
@@ -173,7 +173,7 @@
       min-height: 36px;
     }
     .agent-count-badge {
-      font-size: 10px;
+      font-size:11px;
       padding: 4px 8px;
     }
   }
@@ -193,7 +193,7 @@
       display: none;
     }
     #agentTable th, #kaggleTable th {
-      font-size: 10px;
+      font-size:11px;
       padding: 8px 6px;
     }
     #agentTable td, #kaggleTable td {
@@ -202,11 +202,11 @@
     }
     .btn.sm {
       padding: 6px 10px;
-      font-size: 10px;
+      font-size:11px;
       min-height: 32px;
     }
     .agent-count-badge {
-      font-size: 9px;
+      font-size:11px;
       padding: 3px 6px;
     }
   }
@@ -237,7 +237,8 @@
     <span style="font-weight:600;color:var(--accent)">Kaggle Agents (API Transport)</span>
     <span style="font-size:11px;color:var(--text-muted);margin-left:8px">No internet required</span>
   </div>
-  <table id="kaggleTable">
+  <div class="table-container">
+    <table id="kaggleTable">
     <thead><tr><th>Username</th><th>Dataset</th><th>Status</th><th>Quick Command</th><th>Actions</th></tr></thead>
     <tbody id="kaggleBody"></tbody>
   </table>
@@ -253,7 +254,7 @@
       <td style="font-weight:500">{{ a.hostname or a.id[:12] }}</td>
       <td><span class="badge os-{{ (a.os or 'unknown').split()[0]|lower }}">{{ a.os or '?' }}</span></td>
       <td style="font-family:var(--font-mono);font-size:12px">{{ a.ip_external }}</td>
-      <td><span class="badge type" style="font-size:10px">{{ a.group_name or 'default' }}</span></td>
+      <td><span class="badge type" style="font-size:11px">{{ a.group_name or 'default' }}</span></td>
       <td><a href="/console/{{ a.id }}" class="btn sm primary">Open Console</a></td>
     </tr>
     {% else %}
@@ -348,7 +349,7 @@ function initCommandTemplates() {
     .cmd-history { padding: 12px 16px; border-top: 1px solid var(--border); }
     .recent-cmd-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; margin-bottom: 4px; font-family: var(--font-mono); font-size: 11px; }
     .recent-cmd-item:hover { background: rgba(0,212,255,0.1); }
-    .recent-cmd-item button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 10px; }
+    .recent-cmd-item button { background: none; border: none; color: var(--accent); cursor: pointer; font-size:11px; }
     @media (max-width: 768px) { .templates-list { grid-template-columns: repeat(2, 1fr); } }
   `;
   document.head.appendChild(style);
@@ -400,7 +401,7 @@ function renderRecentCommands() {
   if (!list) return;
   
   if (recentCommands.length === 0) {
-    list.innerHTML = '<div style="color:var(--text-dim);font-size:10px">No recent commands</div>';
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:11px">No recent commands</div>';
     return;
   }
   
@@ -439,7 +440,7 @@ function initSmartSuggestions() {
     .ss-item.success { border-left-color: var(--green); }
     .ss-icon { font-size: 18px; }
     .ss-text { flex: 1; font-size: 12px; }
-    .ss-action { background: rgba(0,212,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
+    .ss-action { background: rgba(0,212,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size:11px; cursor: pointer; }
   `;
   document.head.appendChild(style);
   
@@ -525,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td style="font-weight:500">${data.hostname || data.id?.slice(0,12) || '?'}</td>
           <td><span class="badge os-${(data.os||'unknown').split(' ')[0].toLowerCase()}">${data.os||'?'}</span></td>
           <td style="font-family:var(--font-mono);font-size:12px">${data.ip_external||'—'}</td>
-          <td><span class="badge type" style="font-size:10px">${data.group_name||'default'}</span></td>
+          <td><span class="badge type" style="font-size:11px">${data.group_name||'default'}</span></td>
           <td><a href="/console/${data.id}" class="btn sm primary">Open Console</a></td>`;
         tbody.prepend(tr);
         filterAgents();

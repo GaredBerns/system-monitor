@@ -50,7 +50,7 @@
   }
   .kc-result-copy {
     position: absolute; top: 4px; right: 6px;
-    padding: 2px 7px; font-size: 9px; border-radius: 4px;
+    padding: 2px 7px; font-size:11px; border-radius: 4px;
     background: var(--bg-card); border: 1px solid var(--border);
     color: var(--text-dim); cursor: pointer; opacity: 0; transition: opacity 0.2s;
   }
@@ -78,25 +78,25 @@
     display: flex; align-items: center; gap: 12px;
     padding: 5px 16px; background: rgba(0,0,0,0.15);
     border-top: 1px solid var(--border); flex-shrink: 0;
-    font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);
+    font-size:11px; font-family: var(--font-mono); color: var(--text-muted);
   }
   .kc-status-bar .csb-item { display: flex; align-items: center; gap: 4px; }
   .kc-sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
   .kc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-  .kc-card-header { padding: 10px 14px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .kc-card-header { padding: 10px 14px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-size:11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
   .kc-info-table td { padding: 5px 10px; font-size: 11px; border-bottom: 1px solid rgba(22,32,56,0.4); }
-  .kc-info-table td:first-child { color: var(--text-dim); width: 70px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kc-info-table td:first-child { color: var(--text-dim); width: 70px; font-size:11px; text-transform: uppercase; letter-spacing: 0.5px; }
   .kc-info-table tr:last-child td { border-bottom: none; }
   .kc-quick-btn {
     background: var(--bg-input); border: 1px solid var(--border); border-radius: 5px;
-    color: var(--text-dim); font-size: 10px; font-family: var(--font-mono);
+    color: var(--text-dim); font-size:11px; font-family: var(--font-mono);
     padding: 4px 8px; cursor: pointer; transition: all 0.18s ease;
     text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .kc-quick-btn:hover { background: rgba(155,89,182,0.15); border-color: rgba(155,89,182,0.5); color: #9b59b6; }
   .kc-status-pill {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    padding: 2px 9px; border-radius: 20px; font-size:11px; font-weight: 700;
     letter-spacing: 0.5px; font-family: var(--font-mono);
   }
   .kc-status-pill.running { background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.3); color: #f1c40f; }
@@ -152,11 +152,11 @@
     .kc-status-bar {
       flex-wrap: wrap;
       gap: 8px;
-      font-size: 10px;
+      font-size:11px;
       padding: 8px 12px;
     }
     .kc-status-pill {
-      font-size: 10px;
+      font-size:11px;
       padding: 4px 10px;
     }
     .btn.sm {
@@ -186,20 +186,20 @@
       padding: 10px !important;
     }
     .kc-prompt-label {
-      font-size: 10px;
+      font-size:11px;
       padding: 8px 8px 8px 0;
     }
     .kc-status-pill {
-      font-size: 9px;
+      font-size:11px;
       padding: 3px 8px;
     }
     .btn.sm {
       padding: 6px 10px;
-      font-size: 10px;
+      font-size:11px;
       min-height: 32px;
     }
     .kc-status-bar {
-      font-size: 9px;
+      font-size:11px;
       padding: 6px 12px;
     }
   }
@@ -237,8 +237,8 @@
         </span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)" id="pollCountdown"></span>
-        <button class="btn sm ghost" onclick="clearTerm()" style="padding:2px 8px;font-size:10px">Clear</button>
+        <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)" id="pollCountdown"></span>
+        <button class="btn sm ghost" onclick="clearTerm()" style="padding:6px 12px;font-size:11px">Clear</button>
       </div>
     </div>
 
@@ -284,12 +284,13 @@
     <!-- Kernel Info -->
     <div class="kc-card">
       <div class="kc-card-header">Kernel Info</div>
-      <table class="kc-info-table" style="width:100%">
-        <tr><td>Slug</td><td style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);word-break:break-all">{{ kernel_slug }}</td></tr>
+      <div class="table-container">
+        <table class="kc-info-table" style="width:100%">
+        <tr><td>Slug</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);word-break:break-all">{{ kernel_slug }}</td></tr>
         <tr><td>Account</td><td style="font-weight:600;color:#9b59b6">{{ username }}</td></tr>
         <tr><td>Kernel#</td><td style="font-family:var(--font-mono)">{{ kernel_num }}</td></tr>
         <tr><td>Status</td><td id="sidebarStatus"><span style="color:var(--text-dim)">—</span></td></tr>
-        <tr><td>Last Run</td><td id="sidebarLastRun" style="color:var(--text-muted);font-size:10px">—</td></tr>
+        <tr><td>Last Run</td><td id="sidebarLastRun" style="color:var(--text-muted);font-size:11px">—</td></tr>
       </table>
     </div>
 
@@ -297,9 +298,9 @@
     <div class="kc-card" id="pollCard" style="display:none">
       <div class="kc-card-header">Waiting for result</div>
       <div style="padding:10px 14px">
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px" id="pollMsg">Kernel running...</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px" id="pollMsg">Kernel running...</div>
         <div class="kc-poll-bar"><div class="kc-poll-fill" id="pollFill"></div></div>
-        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)" id="pollTimer">0s</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)" id="pollTimer">0s</div>
       </div>
     </div>
 
@@ -338,7 +339,7 @@
       <div class="kc-card-header">Notes</div>
       <div style="padding:8px">
         <textarea id="kcNote" rows="4" style="font-size:11px;resize:vertical;width:100%" placeholder="Notes about this kernel..."></textarea>
-        <button class="btn sm" style="margin-top:6px;width:100%;font-size:10px" onclick="saveNote()">Save Note</button>
+        <button class="btn sm" style="margin-top:6px;width:100%;font-size:11px" onclick="saveNote()">Save Note</button>
       </div>
     </div>
 
