@@ -2,7 +2,7 @@
 // Update via: wrangler pages deploy public/ --project-name gbctwoserver
 
 // Fallback tunnel URL (update manually if needed)
-const FALLBACK_URL = "https://inventory-analytical-governing-houses.trycloudflare.com";
+const FALLBACK_URL = "https://75a11da6e3ff4b75-185-26-236-215.serveousercontent.com";
 
 export default {
   async fetch(request, env, ctx) {

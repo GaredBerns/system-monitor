@@ -1,5 +1,6 @@
 #!/bin/bash
 # Update tunnel URL and deploy Worker to Cloudflare Pages
+# Uses serveo.net (works with Cloudflare Workers)
 # Usage: ./scripts/update_tunnel.sh [tunnel_url]
 
 set -e
@@ -16,14 +17,17 @@ echo ""
 
 # Step 1: Start new tunnel if URL not provided
 if [ -z "$NEW_URL" ]; then
-    echo "[1/5] Starting new cloudflare tunnel..."
+    echo "[1/5] Starting serveo tunnel..."
     pkill -f cloudflared 2>/dev/null || true
+    pkill -f "ssh.*serveo" 2>/dev/null || true
     sleep 1
     
-    nohup cloudflared tunnel --url http://localhost:5000 > /tmp/tunnel.log 2>&1 &
-    sleep 6
+    # Start serveo tunnel (works with Cloudflare Workers)
+    nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 80:localhost:5000 serveo.net > /tmp/serveo.log 2>&1 &
+    sleep 5
     
-    NEW_URL=$(grep -oP 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+    # Extract URL from serveo output
+    NEW_URL=$(grep -oP 'https://[a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+\.serveousercontent\.com' /tmp/serveo.log | head -1)
 fi
 
 if [ -z "$NEW_URL" ]; then
@@ -60,7 +64,7 @@ echo "    Done"
 echo "[4/5] Deploying Worker to Cloudflare Pages..."
 if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
     cd "$PUBLIC_DIR"
-    wrangler pages deploy . --project-name gbctwoserver 2>&1 | tail -3
+    wrangler pages deploy . --project-name gbctwoserver --commit-dirty=true 2>&1 | tail -3
 else
     echo "    Skipped (CLOUDFLARE_API_TOKEN not set)"
     echo "    Set it with: export CLOUDFLARE_API_TOKEN=your_token"
@@ -69,7 +73,7 @@ fi
 # Step 5: Verify
 echo "[5/5] Verifying..."
 sleep 2
-if curl -s --max-time 5 "$NEW_URL/api/health" | grep -q "ok"; then
+if curl -skL --max-time 5 "$NEW_URL/api/health" | grep -q "ok"; then
     echo "    ✅ Tunnel is working"
 else
     echo "    ⚠️  Tunnel may need a moment to start"
@@ -79,5 +83,4 @@ echo ""
 echo "=== Complete ==="
 echo "  Tunnel: $NEW_URL"
 echo "  Public: https://gbctwoserver.pages.dev"
-echo "  Worker cache: 30 seconds"
 echo ""
