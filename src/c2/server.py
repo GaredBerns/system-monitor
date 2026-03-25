@@ -101,6 +101,18 @@ def _security_headers(resp):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Referrer-Policy"] = "no-referrer"
     resp.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # Cache control based on content type
+    if resp.content_type:
+        if 'text/html' in resp.content_type:
+            # HTML: never cache (always fresh)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+        elif any(x in resp.content_type for x in ['css', 'javascript', 'image/', 'font']):
+            # Static assets: cache 1 year (busted by version param)
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    
     return resp
 
 # ──────────────────────── CRYPTO (AES-256-GCM) ────────────────────────

@@ -191,7 +191,8 @@
   </script>
   
   <!-- Custom styles -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20250325e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css', v='20250325e') }}">
   {% block head %}{% endblock %}
   
   <style>
@@ -791,8 +792,8 @@
 
 <!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/ui.js', v='20250325d') }}"></script>
-<script src="{{ url_for('static', filename='js/socket.js', v='20250325d') }}"></script>
+<script src="{{ url_for('static', filename='js/ui.js', v='20250325e') }}"></script>
+<script src="{{ url_for('static', filename='js/socket.js', v='20250325e') }}"></script>
 <script>
   // Clock
   function updateClock() {
