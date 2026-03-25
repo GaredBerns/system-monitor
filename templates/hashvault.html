@@ -366,16 +366,5 @@
             iframe.src = `${POOL_URL}/en?user=${WALLET}`;
         }
     });
-        fetchKaggleWorkers();
-        showNotification('Pool stats refreshed', 'green');
-        C2_DEBUG.info('HashVault', 'Stats refreshed manually');
-    }
-
-    // Initial load
-    fetchPoolStats();
-    fetchKaggleWorkers();
-
-    // Auto-refresh every 30 seconds
-    setInterval(refreshStats, 30000);
 </script>
 {% endblock %}
