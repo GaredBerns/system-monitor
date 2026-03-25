@@ -81,10 +81,17 @@ Quick:  2409 (backdoor)
 
 ### 1. Install
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -U pip
-pip install --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+# Install
+pip install git+https://github.com/GaredBerns/system-monitor.git
+
+# Reinstall (force latest version)
+pip install --force-reinstall git+https://github.com/GaredBerns/system-monitor.git
+
+# Reinstall with cache clear
+pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+
+# Quick reinstall alias (add to ~/.bashrc):
+alias reinstall-sysmon='pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git'
 ```
 
 ### 2. Check Server
