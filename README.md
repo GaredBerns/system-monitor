@@ -3,30 +3,23 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Domain:** [systemmonitor.net](https://systemmonitor.net)
+**🌐 Website:** [https://garedberns.github.io/system-monitor](https://garedberns.github.io/system-monitor)
 
 Cross-platform system monitoring and resource optimization toolkit.
 
 ---
 
-## 🌐 Domain Configuration
+## 🌐 GitHub Pages
 
-### GitHub Pages Setup
-This project uses GitHub Pages with custom domain `systemmonitor.net`.
+This project is hosted on GitHub Pages (free):
 
-**DNS Configuration:**
-```
-A Record: @ → 185.199.108.153
-A Record: @ → 185.199.109.153
-A Record: @ → 185.199.110.153
-A Record: @ → 185.199.111.153
-CNAME: www → GaredBerns.github.io
-```
+**URL:** `https://garedberns.github.io/system-monitor`
 
-**Verification TXT Record:**
-```
-_github-pages-challenge-GaredBerns.systemmonitor.net → 0f8567eae972d3660e149ecf1d07f7
-```
+**Setup:**
+1. Go to Settings → Pages
+2. Source: Deploy from branch
+3. Branch: `main` / `root`
+4. Save
 
 ---
 
