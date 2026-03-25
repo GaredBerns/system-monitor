@@ -70,7 +70,12 @@ app = Flask(
 # Add ngrok-skip-browser-warning header to bypass ngrok warning page
 @app.after_request
 def add_ngrok_header(response):
+    # Ngrok bypass header
     response.headers['ngrok-skip-browser-warning'] = 'true'
+    # Anti-cache headers for development
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 _secret_path = BASE_DIR / "data" / ".secret_key"
