@@ -919,6 +919,26 @@ input[type="checkbox"] {
   margin: 4px 0;
 }
 
+/* Mobile dropdown */
+@media (max-width: 767px) {
+  .dropdown-menu {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 80px;
+    top: auto;
+    width: auto;
+    border-radius: 12px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+  }
+  
+  .dropdown-item {
+    padding: 14px 16px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+}
+
 /* ══════════════════════════════════════════
    TOOLTIP
 ══════════════════════════════════════════ */
@@ -2006,12 +2026,36 @@ input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
   /* Modals */
   .modal {
     padding: 16px;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: 85vh !important;
+    overflow-y: auto;
+  }
+  
+  .modal h3 {
+    font-size: 14px;
   }
   
   .modal-content {
     padding: 16px;
     margin: 10px;
     max-width: calc(100% - 20px);
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
   
   /* Progress bars */
@@ -2308,6 +2352,11 @@ input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 /* Improve tap highlight on mobile */
 * {
   -webkit-tap-highlight-color: rgba(0, 212, 255, 0.1);
+}
+
+/* Touch action for better scroll/zoom */
+.btn, .nav-link, .dropdown-item, .modal-close {
+  touch-action: manipulation;
 }
 
 /* Prevent text selection on interactive elements */

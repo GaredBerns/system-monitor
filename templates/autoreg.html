@@ -26,33 +26,37 @@
   .cred-copy-icon { width: 11px; height: 11px; opacity: .5; flex-shrink: 0; }
   .cred-copy:hover .cred-copy-icon { opacity: 1; }
 
-  /* Mobile Responsive */
+  /* Mobile Responsive - CRITICAL */
   @media (max-width: 767px) {
     .stats-grid {
       grid-template-columns: repeat(2, 1fr) !important;
       gap: 8px !important;
     }
     .stat-card {
-      padding: 10px 12px !important;
+      padding: 12px 14px !important;
     }
     .stat-card .value {
-      font-size: 20px;
+      font-size: 22px;
     }
     .stat-card .label {
-      font-size: 9px;
+      font-size: 11px;
     }
     table {
-      font-size: 10px;
+      font-size: 12px;
     }
     th, td {
-      padding: 6px 8px;
+      padding: 10px 8px;
     }
     .btn.sm {
-      padding: 5px 8px;
-      font-size: 9px;
+      padding: 8px 12px;
+      font-size: 11px;
+      min-height: 36px;
     }
     .job-card {
-      padding: 10px;
+      padding: 12px;
+    }
+    input, select, textarea {
+      font-size: 16px !important;
     }
   }
 
@@ -61,27 +65,28 @@
       gap: 6px !important;
     }
     .stat-card {
-      padding: 8px 10px !important;
+      padding: 10px 12px !important;
     }
     .stat-card .value {
-      font-size: 16px;
+      font-size: 18px;
     }
     table {
-      font-size: 9px;
+      font-size: 11px;
     }
     th, td {
-      padding: 4px 6px;
+      padding: 8px 6px;
     }
     .btn.sm {
-      padding: 4px 6px;
-      font-size: 8px;
+      padding: 6px 10px;
+      font-size: 10px;
+      min-height: 32px;
     }
     .job-card {
-      padding: 8px;
+      padding: 10px;
     }
     .platform-btn {
-      padding: 4px 8px;
-      font-size: 9px;
+      padding: 6px 10px;
+      font-size: 10px;
     }
   }
 </style>
