@@ -1,5 +1,10 @@
 #!/bin/bash
 # Update tunnel URL in GitHub and restart tunnel
+# Usage: ./scripts/update_tunnel.sh [tunnel_url]
+
+# Get project root (parent of scripts dir)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 NEW_URL="${1:-}"
 
@@ -19,8 +24,7 @@ fi
 echo "New tunnel URL: $NEW_URL"
 
 # Update tunnel.json
-cd /mnt/F/C2_server-main
-cat > public/tunnel.json << EOF
+cat > "$PROJECT_ROOT/public/tunnel.json" << EOF
 {
   "tunnel_url": "$NEW_URL",
   "updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -28,6 +32,7 @@ cat > public/tunnel.json << EOF
 EOF
 
 # Push to GitHub
+cd "$PROJECT_ROOT"
 git add public/tunnel.json
 git commit -m "Update tunnel URL: $NEW_URL"
 git push origin main
