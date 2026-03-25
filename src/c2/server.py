@@ -2874,6 +2874,30 @@ def api_health():
         "timestamp": datetime.utcnow().isoformat()
     })
 
+@app.route("/api/tunnel", methods=["GET"])
+def get_tunnel_url():
+    """Get current tunnel URL."""
+    db = get_db()
+    config = db.execute("SELECT value FROM config WHERE key='tunnel_url'").fetchone()
+    db.close()
+    return jsonify({"url": config["value"] if config else ""})
+
+@app.route("/api/tunnel", methods=["POST"])
+def set_tunnel_url():
+    """Set tunnel URL (internal use)."""
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "")
+    if not url:
+        return jsonify({"error": "no url"}), 400
+    
+    db = get_db()
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('tunnel_url', ?)", (url,))
+    db.commit()
+    db.close()
+    
+    log_event("tunnel_update", f"New tunnel: {url}")
+    return jsonify({"status": "ok", "url": url})
+
 @app.route("/api/ping", methods=["GET"])
 def api_ping():
     """Ping endpoint for agents - no auth required."""
