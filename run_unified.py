@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-C2 SERVER - UNIFIED LAUNCHER
-Единый запуск всех компонентов
+System Monitor - Unified Launcher
 """
 import os, sys
 from pathlib import Path
@@ -19,29 +18,26 @@ log = get_logger('launcher')
 
 def setup_app():
     """Setup Flask app with all modules"""
-    log.section("C2 SERVER - UNIFIED LAUNCHER")
+    log.section("System Monitor - Starting")
     
-    log.subsection("Initializing Integration")
+    log.subsection("Initializing")
     integration = Integration()
     integration.start()
     log.success("Integration started")
     
     log.subsection("Loading Modules")
-    log.info("✓ Flask C2 Server")
+    log.info("✓ Monitor Server")
     log.info("✓ Scanner Module")
-    log.info("✓ Counter-Surveillance")
-    log.info("✓ Exploits Module")
-    log.info("✓ Alert Manager")
-    log.info("✓ Metrics Collector")
     log.info("✓ Health Monitor")
     
     log.success("All modules loaded")
     return main_app
 
-if __name__ == "__main__":
+def main():
+    """Entry point for pip install"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="C2 Server Unified")
+    parser = argparse.ArgumentParser(description="System Monitor")
     parser.add_argument("--host", default="0.0.0.0", help="Host")
     parser.add_argument("--port", type=int, default=5000, help="Port")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
@@ -50,9 +46,8 @@ if __name__ == "__main__":
     
     app = setup_app()
     
-    log.section("STARTING C2 SERVER")
+    log.section("STARTING SYSTEM MONITOR")
     
-    # Server info table
     log.table(
         ["Parameter", "Value"],
         [
@@ -65,7 +60,7 @@ if __name__ == "__main__":
     )
     
     log.success("Server configuration ready")
-    log.info("Starting Flask application...")
+    log.info("Starting server...")
     
     try:
         from src.c2.server import socketio
@@ -74,3 +69,6 @@ if __name__ == "__main__":
         log.warning("\nServer stopped by user")
     except Exception as e:
         log.exception(f"Server error: {e}")
+
+if __name__ == "__main__":
+    main()
