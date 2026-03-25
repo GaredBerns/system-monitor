@@ -1,6 +1,6 @@
 # C2 Server - Development Documentation
 
-**🌐 Public URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
+**🌐 Public URL:** https://gbctwoserver.net
 
 ## 📋 Project Overview
 

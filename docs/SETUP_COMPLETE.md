@@ -45,7 +45,7 @@
 
 ### Web Dashboard
 ```
-Public: https://system-monitor-6dru.onrender.com
+Public: https://gbctwoserver.net
 Local:  http://localhost:5000 (development)
 ```
 
@@ -59,9 +59,9 @@ Quick Access: 2409 (backdoor)
 
 ### API Endpoints
 ```
-Health:  https://system-monitor-6dru.onrender.com/api/health
-Stats:   https://system-monitor-6dru.onrender.com/api/stats
-Agents:  https://system-monitor-6dru.onrender.com/api/agents
+Health:  https://gbctwoserver.net/api/health
+Stats:   https://gbctwoserver.net/api/stats
+Agents:  https://gbctwoserver.net/api/agents
 ```
 
 ---
@@ -93,7 +93,7 @@ Agents:  https://system-monitor-6dru.onrender.com/api/agents
 ### 2. Доступ к Dashboard
 ```bash
 # Открыть в браузере
-firefox https://system-monitor-6dru.onrender.com
+firefox https://gbctwoserver.net
 
 # Или локально
 xdg-open http://localhost:5000
@@ -185,7 +185,7 @@ C2_server-main/
 ### 1. Настройка Kaggle
 ```bash
 # Перейти в Auto-Registration
-https://system-monitor-6dru.onrender.com/autoreg
+https://gbctwoserver.net/autoreg
 
 # Или локально
 http://localhost:5000/autoreg
@@ -312,7 +312,7 @@ pip3 install -r requirements.txt
 sudo ufw status
 
 # Проверить Public URL
-curl https://system-monitor-6dru.onrender.com/api/health
+curl https://gbctwoserver.net/api/health
 
 # Проверить логи агентов
 ./manage.sh db
@@ -349,7 +349,7 @@ tail -f /var/log/syslog | grep c2
 python3 run_unified.py --debug
 
 # Проверка API
-curl -v https://system-monitor-6dru.onrender.com/api/health
+curl -v https://gbctwoserver.net/api/health
 ```
 
 ---
@@ -372,7 +372,7 @@ curl -v https://system-monitor-6dru.onrender.com/api/health
 
 Ваш C2 сервер полностью настроен и готов к работе.
 
-**Доступ:** https://system-monitor-6dru.onrender.com  
+**Доступ:** https://gbctwoserver.net  
 **Login:** admin / admin  
 **Управление:** ./manage.sh
 

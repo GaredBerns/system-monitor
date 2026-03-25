@@ -1,6 +1,6 @@
 # C2 Server API Documentation
 
-**🌐 Server URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
+**🌐 Server URL:** https://gbctwoserver.net
 
 ## Authentication
 
@@ -8,7 +8,7 @@ All API endpoints (except agent endpoints) require authentication via session co
 
 **Login:**
 ```bash
-curl -X POST https://likelihood-lightweight-crossing-covering.trycloudflare.com/login \
+curl -X POST https://gbctwoserver.net/login \
   -d "username=admin&password=admin"
 ```
 
