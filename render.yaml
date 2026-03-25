@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: system-monitor
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run_unified.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+    healthCheckPath: /api/health
+    autoDeploy: true

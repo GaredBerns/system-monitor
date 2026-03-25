@@ -3,23 +3,28 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Website:** [https://garedberns.github.io/system-monitor](https://garedberns.github.io/system-monitor)
+**🌐 Live Demo:** Deploy on Render.com (free)
 
 Cross-platform system monitoring and resource optimization toolkit.
 
 ---
 
-## 🌐 GitHub Pages
+## 🚀 Deploy to Render (Free)
 
-This project is hosted on GitHub Pages (free):
+### Quick Deploy
+1. Fork this repo
+2. Go to [render.com](https://render.com) → Sign up with GitHub
+3. New → Web Service → Connect repo
+4. Render auto-detects `render.yaml`
+5. Deploy → Get permanent URL like `https://system-monitor-xxx.onrender.com`
 
-**URL:** `https://garedberns.github.io/system-monitor`
-
-**Setup:**
-1. Go to Settings → Pages
-2. Source: Deploy from branch
-3. Branch: `main` / `root`
-4. Save
+### Manual Setup
+```bash
+# Create account at render.com
+# New Web Service → Build from GitHub repo
+# Build Command: pip install -r requirements.txt
+# Start Command: python run_unified.py
+```
 
 ---
 
