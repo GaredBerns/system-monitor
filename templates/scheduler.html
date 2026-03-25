@@ -7,7 +7,7 @@
   .stat-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
   .stat-card::after {
     content: ''; position: absolute; inset: 0; border-radius: var(--radius-lg); padding: 1px;
-    background: linear-gradient(135deg, transparent 0%, rgba(108,92,231,0.3) 50%, transparent 100%);
+    background: linear-gradient(135deg, transparent 0%, rgba(0,212,255,0.3) 50%, transparent 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
@@ -16,11 +16,13 @@
   .stat-card:hover::after { opacity: 1; }
 
   #schedTable tbody tr { transition: all 0.2s ease; }
-  #schedTable tbody tr:hover { background: rgba(108,92,231,0.04); }
+  #schedTable tbody tr:hover { background: rgba(0,212,255,0.04); }
 
-  .btn.sm { transition: all 0.2s ease; }
+  .btn.sm { transition: all 0.2s ease; cursor: pointer !important; }
   .btn.sm:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-  .btn.sm.primary:hover { box-shadow: 0 4px 15px rgba(108,92,231,0.3); }
+  .btn.sm.primary { cursor: pointer !important; }
+  .btn.sm.primary:hover { box-shadow: 0 4px 15px rgba(0,212,255,0.3); }
+  .btn.sm.danger { cursor: pointer !important; }
   .btn.sm.danger:hover  { box-shadow: 0 4px 15px rgba(255,61,90,0.3); }
 
   .badge { transition: all 0.2s ease; cursor: pointer; }
@@ -72,11 +74,11 @@
 </style>
 {% endblock %}
 {% block topbar_actions %}
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-  <button class="btn sm primary" onclick="showCreate()">+ New Task</button>
-  <button class="btn sm" onclick="showQuickActions()">⚡ Quick Actions</button>
-  <button class="btn sm" onclick="showTaskTemplates()">📋 Templates</button>
-  <button class="btn sm" onclick="showTaskChains()">🔗 Chains</button>
+<div class="flex items-center gap-2">
+  <button class="topbar-btn topbar-btn-primary" onclick="showCreate()">+ New</button>
+  <button class="topbar-btn topbar-btn-secondary" onclick="showQuickActions()">Quick</button>
+  <button class="topbar-btn topbar-btn-secondary" onclick="showTaskTemplates()">Templates</button>
+  <button class="topbar-btn topbar-btn-secondary" onclick="showTaskChains()">Chains</button>
 </div>
 {% endblock %}
 

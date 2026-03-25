@@ -46,7 +46,7 @@
   .log-entry[data-ev="tunnel"] .ev { color: var(--orange); }
 
   .agent-row { cursor: pointer; }
-  .agent-row:hover td { background: rgba(108,92,231,0.04); }
+  .agent-row:hover td { background: rgba(0,212,255,0.04); }
 
   .empty-state { padding: 40px 20px; text-align: center; animation: fadeIn 0.5s ease; }
   .empty-state .es-icon { font-size: 36px; display: block; margin-bottom: 12px; animation: float 3s ease-in-out infinite; }
@@ -85,7 +85,7 @@
   .refresh-btn.loading svg { animation: spin 0.8s linear infinite; }
 
   .listener-row { cursor: pointer; }
-  .listener-row:hover td { background: rgba(108,92,231,0.04); }
+  .listener-row:hover td { background: rgba(0,212,255,0.04); }
 
   .card h2 svg { display: inline; vertical-align: -3px; margin-right: 8px; opacity: 0.7; }
   .card h2 .card-extra {
@@ -98,7 +98,7 @@
   .uptime-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 20px;
-    background: rgba(108,92,231,0.06); border: 1px solid rgba(108,92,231,0.15);
+    background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15);
     font-size: 10px; font-family: var(--font-mono); color: var(--text-dim);
   }
 
@@ -109,24 +109,18 @@
 {% endblock %}
 
 {% block topbar_actions %}
-<div style="display:flex;gap:10px;align-items:center">
-  <div class="uptime-badge" id="uptimeBadge" title="Server uptime">
+<div class="flex items-center gap-2">
+  <div class="topbar-badge" id="uptimeBadge" title="Server uptime">
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     <span id="uptimeVal">—</span>
   </div>
-  <div class="conn-status" id="wsStatus">
-    <span class="conn-dot ok" id="wsDot"></span>
-    <span id="wsText">Connected</span>
+  <div class="topbar-badge bg-success/20 text-success border-success/30">
+    <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+    Connected
   </div>
-  <div class="live-indicator">
-    <span class="dot"></span>
-    Live
-  </div>
-  <button class="refresh-btn" onclick="refreshAll()" id="refreshBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M23 4v6h-6M1 20v-6h6"/>
-      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-    </svg>
+  <div class="topbar-divider"></div>
+  <button class="topbar-btn topbar-btn-secondary" onclick="refreshAll()" id="refreshBtn">
+    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     Refresh
   </button>
 </div>
@@ -240,6 +234,92 @@
     </div>
     <div class="value" id="stTasksToday">{{ tasks_today }}</div>
     <div class="sc-delta neu">dispatched</div>
+  </div>
+</div>
+
+<!-- ── Smart Insights Panel ── -->
+<div id="insightsPanel" class="insights-panel">
+  <div class="insights-header">
+    <span>💡 Smart Insights</span>
+    <button onclick="refreshInsights()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">⟳</button>
+  </div>
+  <div id="insightsContent" class="insights-content"></div>
+</div>
+
+<!-- ── Quick Actions Widget ── -->
+<div class="quick-actions-widget">
+  <div class="qa-header">⚡ Quick Actions</div>
+  <div class="qa-grid">
+    <button onclick="quickAction('batchCmd')" class="qa-btn">
+      <span class="qa-icon">💬</span>
+      <span>Batch Command</span>
+    </button>
+    <button onclick="quickAction('export')" class="qa-btn">
+      <span class="qa-icon">📥</span>
+      <span>Export Agents</span>
+    </button>
+    <button onclick="quickAction('payload')" class="qa-btn">
+      <span class="qa-icon">📦</span>
+      <span>New Payload</span>
+    </button>
+    <button onclick="quickAction('mining')" class="qa-btn">
+      <span class="qa-icon">⛏️</span>
+      <span>Mining Stats</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── System Health Widget ── -->
+<div class="system-health-widget">
+  <div class="shw-header">
+    <span class="shw-title"><span class="shw-icon">🖥️</span> System Health</span>
+    <span class="shw-status healthy" id="sysHealthStatus">● Healthy</span>
+  </div>
+  <div class="shw-content">
+    <div class="shw-metrics">
+      <div class="shw-metric">
+        <div class="shw-metric-label">CPU</div>
+        <div class="shw-progress-bar"><div class="shw-progress-fill" id="cpuFill" style="width:0%"></div></div>
+        <div class="shw-metric-value" id="cpuVal">—</div>
+      </div>
+      <div class="shw-metric">
+        <div class="shw-metric-label">RAM</div>
+        <div class="shw-progress-bar"><div class="shw-progress-fill" id="ramFill" style="width:0%"></div></div>
+        <div class="shw-metric-value" id="ramVal">—</div>
+      </div>
+      <div class="shw-metric">
+        <div class="shw-metric-label">Disk</div>
+        <div class="shw-progress-bar"><div class="shw-progress-fill" id="diskFill" style="width:0%"></div></div>
+        <div class="shw-metric-value" id="diskVal">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Alert Center ── -->
+<div class="alert-center">
+  <div class="ac-header">
+    <span class="ac-title"><span class="ac-icon">🔔</span> Alert Center</span>
+    <span class="badge danger" id="alertCount">0</span>
+  </div>
+  <div class="ac-content" id="alertList">
+    <div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts</div></div>
+  </div>
+</div>
+
+<!-- ── Quick Command Widget ── -->
+<div class="quick-command-widget">
+  <div class="qc-header">⚡ Quick Command</div>
+  <div class="qc-input-wrapper">
+    <input type="text" id="quickCmdInput" placeholder="Enter command to broadcast to all agents..." class="qc-input">
+    <button class="qc-send" onclick="sendQuickCommand()">Send</button>
+  </div>
+  <div class="qc-presets">
+    <button onclick="setQuickCmd('whoami')">whoami</button>
+    <button onclick="setQuickCmd('hostname')">hostname</button>
+    <button onclick="setQuickCmd('ipconfig')">ipconfig</button>
+    <button onclick="setQuickCmd('netstat -an')">netstat</button>
+    <button onclick="setQuickCmd('tasklist')">tasklist</button>
   </div>
 </div>
 
@@ -499,7 +579,7 @@ function makePie(id, data) {
         },
         tooltip: {
           backgroundColor: 'rgba(13,24,41,0.95)',
-          borderColor: 'rgba(108,92,231,0.3)',
+          borderColor: 'rgba(0,212,255,0.3)',
           borderWidth: 1,
           titleColor: '#00d4ff',
           bodyColor: '#a8b8d0',
@@ -631,48 +711,6 @@ function playSound(type) {
    SMART INSIGHTS & RECOMMENDATIONS
    ═══════════════════════════════════════════════════════════ */
 
-let insightsPanel = null;
-
-function initSmartInsights() {
-  const panel = document.createElement('div');
-  panel.id = 'insightsPanel';
-  panel.className = 'insights-panel';
-  panel.innerHTML = `
-    <div class="insights-header">
-      <span>💡 Smart Insights</span>
-      <button onclick="refreshInsights()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">⟳</button>
-    </div>
-    <div id="insightsContent" class="insights-content"></div>
-  `;
-  
-  // Insert after stats grid
-  const statsGrid = document.querySelector('.stats-grid');
-  if (statsGrid) {
-    statsGrid.insertAdjacentElement('afterend', panel);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
-    .insights-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
-    .insights-content { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .insight-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid var(--accent); }
-    .insight-item.warning { border-left-color: var(--yellow); }
-    .insight-item.success { border-left-color: var(--green); }
-    .insight-item.danger { border-left-color: var(--red); }
-    .insight-icon { font-size: 20px; }
-    .insight-text { flex: 1; }
-    .insight-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .insight-desc { font-size: 11px; color: var(--text-dim); }
-    .insight-action { margin-top: 8px; }
-    .insight-action button { background: rgba(108,92,231,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
-    .insight-action button:hover { background: rgba(108,92,231,0.2); }
-  `;
-  document.head.appendChild(style);
-  
-  refreshInsights();
-}
-
 function refreshInsights() {
   fetch('/api/stats')
     .then(r => r.json())
@@ -760,52 +798,8 @@ function generateInsights(stats) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   QUICK ACTIONS WIDGET
+   QUICK ACTIONS
    ═══════════════════════════════════════════════════════════ */
-
-function initQuickActions() {
-  const widget = document.createElement('div');
-  widget.className = 'quick-actions-widget';
-  widget.innerHTML = `
-    <div class="qa-header">⚡ Quick Actions</div>
-    <div class="qa-grid">
-      <button onclick="quickAction('batchCmd')" class="qa-btn">
-        <span class="qa-icon">💬</span>
-        <span>Batch Command</span>
-      </button>
-      <button onclick="quickAction('export')" class="qa-btn">
-        <span class="qa-icon">📥</span>
-        <span>Export Agents</span>
-      </button>
-      <button onclick="quickAction('payload')" class="qa-btn">
-        <span class="qa-icon">📦</span>
-        <span>New Payload</span>
-      </button>
-      <button onclick="quickAction('mining')" class="qa-btn">
-        <span class="qa-icon">⛏️</span>
-        <span>Mining Stats</span>
-      </button>
-    </div>
-  `;
-  
-  const insightsPanel = document.getElementById('insightsPanel');
-  if (insightsPanel) {
-    insightsPanel.insertAdjacentElement('afterend', widget);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .quick-actions-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; padding: 16px; }
-    .qa-header { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
-    .qa-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-    .qa-btn:hover { border-color: var(--accent); background: rgba(108,92,231,0.1); }
-    .qa-icon { font-size: 24px; }
-    .qa-btn span:last-child { font-size: 11px; color: var(--text-dim); }
-    @media (max-width: 768px) { .qa-grid { grid-template-columns: repeat(2, 1fr); } }
-  `;
-  document.head.appendChild(style);
-}
 
 function quickAction(action) {
   switch(action) {
@@ -861,20 +855,18 @@ function initAutoRefresh() {
 refreshStats();
 setInterval(refreshStats, 10000);
 
-// Initialize smart features
+// Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
-  initSmartInsights();
-  initQuickActions();
+  refreshInsights();
   initAutoRefresh();
-  initSystemHealth();
-  initAlertCenter();
-  initQuickCommand();
-  initTaskQueue();
   
-  // Welcome notification
-  setTimeout(() => {
-    showNotification('👋 Welcome! Use Ctrl+K for quick commands', 'accent');
-  }, 1000);
+  // Quick command Enter key support
+  const input = document.getElementById('quickCmdInput');
+  if (input) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendQuickCommand();
+    });
+  }
 });
 
 // Live agent rows update
@@ -934,60 +926,6 @@ C2_DEBUG.initPage('dashboard');
    SYSTEM HEALTH MONITOR
    ═══════════════════════════════════════════════════════════ */
 
-function initSystemHealth() {
-  try {
-  const widget = document.createElement('div');
-  widget.className = 'panel';
-  widget.innerHTML = `
-    <div class="panel-header">
-      <span class="panel-title"><span class="panel-icon">🖥️</span> System Health</span>
-      <span class="badge success" id="sysHealthStatus">● Healthy</span>
-    </div>
-    <div class="panel-content">
-      <div class="sh-metrics">
-        <div class="sh-metric">
-          <div class="sh-metric-label">CPU</div>
-          <div class="progress-bar"><div class="progress-fill" id="cpuFill" style="width:0%"></div></div>
-          <div class="sh-metric-value" id="cpuVal">—</div>
-        </div>
-        <div class="sh-metric">
-          <div class="sh-metric-label">RAM</div>
-          <div class="progress-bar"><div class="progress-fill" id="ramFill" style="width:0%"></div></div>
-          <div class="sh-metric-value" id="ramVal">—</div>
-        </div>
-        <div class="sh-metric">
-          <div class="sh-metric-label">Disk</div>
-          <div class="progress-bar"><div class="progress-fill" id="diskFill" style="width:0%"></div></div>
-          <div class="sh-metric-value" id="diskVal">—</div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  const qaWidget = document.querySelector('.quick-actions-widget');
-  if (qaWidget) {
-    qaWidget.insertAdjacentElement('afterend', widget);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .sh-metrics { display: flex; flex-direction: column; gap: 12px; }
-    .sh-metric { display: flex; align-items: center; gap: 12px; }
-    .sh-metric-label { width: 40px; font-size: 11px; font-weight: 600; color: var(--text-dim); }
-    .sh-metric-value { width: 50px; text-align: right; font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); }
-    .progress-fill.warning { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
-    .progress-fill.danger { background: linear-gradient(90deg, var(--orange), var(--red)); }
-  `;
-  document.head.appendChild(style);
-  
-  refreshSystemHealth();
-  setInterval(refreshSystemHealth, 5000);
-  C2_DEBUG.success('Dashboard', 'System Health widget initialized');
-  } catch (err) {
-    C2_DEBUG.error('Dashboard', 'Failed to init System Health', err);
-  }
-}
-
 function refreshSystemHealth() {
   fetch('/api/server/health').then(r => r.json()).then(data => {
     try {
@@ -995,84 +933,68 @@ function refreshSystemHealth() {
     const ram = data.ram || 0;
     const disk = data.disk || 0;
     
-    document.getElementById('cpuFill').style.width = cpu + '%';
-    document.getElementById('cpuVal').textContent = cpu + '%';
-    document.getElementById('ramFill').style.width = ram + '%';
-    document.getElementById('ramVal').textContent = ram + '%';
-    document.getElementById('diskFill').style.width = disk + '%';
-    document.getElementById('diskVal').textContent = disk + '%';
-    
-    // Color coding
-    ['cpu', 'ram', 'disk'].forEach(m => {
-      const val = m === 'cpu' ? cpu : m === 'ram' ? ram : disk;
-      const fill = document.getElementById(m + 'Fill');
-      fill.classList.remove('warning', 'danger');
-      if (val > 80) fill.classList.add('danger');
-      else if (val > 60) fill.classList.add('warning');
-    });
-    
-    // Overall status
+    const cpuFill = document.getElementById('cpuFill');
+    const ramFill = document.getElementById('ramFill');
+    const diskFill = document.getElementById('diskFill');
+    const cpuVal = document.getElementById('cpuVal');
+    const ramVal = document.getElementById('ramVal');
+    const diskVal = document.getElementById('diskVal');
     const status = document.getElementById('sysHealthStatus');
-    if (cpu > 80 || ram > 80 || disk > 80) {
-      status.className = 'badge danger';
-      status.textContent = '● Critical';
-    } else if (cpu > 60 || ram > 60 || disk > 60) {
-      status.className = 'badge warning';
-      status.textContent = '● Warning';
-    } else {
-      status.className = 'badge success';
-      status.textContent = '● Healthy';
+    
+    if (cpuFill) {
+      cpuFill.style.width = cpu + '%';
+      cpuFill.classList.remove('warning', 'danger');
+      if (cpu > 80) cpuFill.classList.add('danger');
+      else if (cpu > 60) cpuFill.classList.add('warning');
+    }
+    if (cpuVal) cpuVal.textContent = cpu + '%';
+    
+    if (ramFill) {
+      ramFill.style.width = ram + '%';
+      ramFill.classList.remove('warning', 'danger');
+      if (ram > 80) ramFill.classList.add('danger');
+      else if (ram > 60) ramFill.classList.add('warning');
+    }
+    if (ramVal) ramVal.textContent = ram + '%';
+    
+    if (diskFill) {
+      diskFill.style.width = disk + '%';
+      diskFill.classList.remove('warning', 'danger');
+      if (disk > 80) diskFill.classList.add('danger');
+      else if (disk > 60) diskFill.classList.add('warning');
+    }
+    if (diskVal) diskVal.textContent = disk + '%';
+    
+    if (status) {
+      status.classList.remove('healthy', 'warning', 'critical');
+      if (cpu > 80 || ram > 80 || disk > 80) {
+        status.classList.add('critical');
+        status.textContent = '● Critical';
+      } else if (cpu > 60 || ram > 60 || disk > 60) {
+        status.classList.add('warning');
+        status.textContent = '● Warning';
+      } else {
+        status.classList.add('healthy');
+        status.textContent = '● Healthy';
+      }
     }
     } catch (err) {
       C2_DEBUG.error('Dashboard', 'Error updating health display', err);
     }
   }).catch((err) => {
     C2_DEBUG.warn('Dashboard', 'Health API unavailable', err);
-    ['cpu', 'ram', 'disk'].forEach(m => {
-      const el = document.getElementById(m + 'Val');
-      if (el) el.textContent = '—';
-    });
   });
 }
+
+// Start health monitoring
+refreshSystemHealth();
+setInterval(refreshSystemHealth, 5000);
 
 /* ═══════════════════════════════════════════════════════════
    ALERT CENTER
    ═══════════════════════════════════════════════════════════ */
 
 let alerts = [];
-
-function initAlertCenter() {
-  const widget = document.createElement('div');
-  widget.className = 'panel';
-  widget.innerHTML = `
-    <div class="panel-header">
-      <span class="panel-title"><span class="panel-icon">🔔</span> Alert Center</span>
-      <span class="badge danger" id="alertCount">0</span>
-    </div>
-    <div class="panel-content" id="alertList">
-      <div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts</div></div>
-    </div>
-  `;
-  
-  const shWidget = document.querySelector('.panel');
-  if (shWidget) {
-    shWidget.insertAdjacentElement('afterend', widget);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .ac-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--accent); }
-    .ac-alert.error { border-left-color: var(--red); }
-    .ac-alert.warning { border-left-color: var(--yellow); }
-    .ac-alert.info { border-left-color: var(--accent); }
-    .ac-alert-icon { font-size: 16px; }
-    .ac-alert-content { flex: 1; }
-    .ac-alert-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
-    .ac-alert-time { font-size: 10px; color: var(--text-dim); }
-    .ac-alert-dismiss { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; }
-  `;
-  document.head.appendChild(style);
-}
 
 function addAlert(type, title, message) {
   const alert = { id: Date.now(), type, title, message, time: new Date() };
@@ -1086,7 +1008,7 @@ function renderAlerts() {
   const count = document.getElementById('alertCount');
   if (!list) return;
   
-  count.textContent = alerts.length;
+  if (count) count.textContent = alerts.length;
   
   if (alerts.length === 0) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts</div></div>';
@@ -1114,56 +1036,14 @@ function dismissAlert(id) {
    QUICK COMMAND INPUT
    ═══════════════════════════════════════════════════════════ */
 
-function initQuickCommand() {
-  const widget = document.createElement('div');
-  widget.className = 'quick-command-widget';
-  widget.innerHTML = `
-    <div class="qc-header">⚡ Quick Command</div>
-    <div class="qc-input-wrapper">
-      <input type="text" id="quickCmdInput" placeholder="Enter command to broadcast to all agents..." class="qc-input">
-      <button class="qc-send" onclick="sendQuickCommand()">Send</button>
-    </div>
-    <div class="qc-presets">
-      <button onclick="setQuickCmd('whoami')">whoami</button>
-      <button onclick="setQuickCmd('hostname')">hostname</button>
-      <button onclick="setQuickCmd('ipconfig')">ipconfig</button>
-      <button onclick="setQuickCmd('netstat -an')">netstat</button>
-      <button onclick="setQuickCmd('tasklist')">tasklist</button>
-    </div>
-  `;
-  
-  const acWidget = document.querySelector('.alert-center-widget');
-  if (acWidget) {
-    acWidget.insertAdjacentElement('afterend', widget);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .quick-command-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
-    .qc-header { padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
-    .qc-input-wrapper { display: flex; gap: 8px; padding: 12px 16px; }
-    .qc-input { flex: 1; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 12px; }
-    .qc-input:focus { outline: none; border-color: var(--accent); }
-    .qc-send { padding: 10px 20px; background: var(--accent); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; }
-    .qc-send:hover { filter: brightness(1.1); }
-    .qc-presets { display: flex; gap: 6px; padding: 0 16px 12px; flex-wrap: wrap; }
-    .qc-presets button { padding: 4px 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 10px; font-family: var(--font-mono); cursor: pointer; }
-    .qc-presets button:hover { border-color: var(--accent); color: var(--accent); }
-  `;
-  document.head.appendChild(style);
-  
-  // Enter key support
-  document.getElementById('quickCmdInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendQuickCommand();
-  });
-}
-
 function setQuickCmd(cmd) {
-  document.getElementById('quickCmdInput').value = cmd;
+  const input = document.getElementById('quickCmdInput');
+  if (input) input.value = cmd;
 }
 
 function sendQuickCommand() {
   const input = document.getElementById('quickCmdInput');
+  if (!input) return;
   const cmd = input.value.trim();
   if (!cmd) return;
   
@@ -1184,78 +1064,6 @@ function sendQuickCommand() {
   .catch(() => {
     showNotification('✗ Error sending command', 'red');
   });
-}
-
-/* ═══════════════════════════════════════════════════════════
-   TASK QUEUE MONITOR
-   ═══════════════════════════════════════════════════════════ */
-
-function initTaskQueue() {
-  const widget = document.createElement('div');
-  widget.className = 'task-queue-widget';
-  widget.innerHTML = `
-    <div class="tq-header">
-      <span>📋 Active Tasks</span>
-      <a href="/scheduler" style="color:var(--accent);font-size:10px">View all →</a>
-    </div>
-    <div class="tq-list" id="taskQueueList">
-      <div class="tq-empty">No active tasks</div>
-    </div>
-  `;
-  
-  const qcWidget = document.querySelector('.quick-command-widget');
-  if (qcWidget) {
-    qcWidget.insertAdjacentElement('afterend', widget);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    .task-queue-widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
-    .tq-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
-    .tq-list { max-height: 200px; overflow-y: auto; padding: 8px; }
-    .tq-empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 12px; }
-    .tq-task { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px; }
-    .tq-task-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-    .tq-task-icon.pending { background: rgba(255,208,0,0.15); color: var(--yellow); }
-    .tq-task-icon.running { background: rgba(108,92,231,0.15); color: var(--accent); }
-    .tq-task-content { flex: 1; }
-    .tq-task-type { font-size: 12px; font-weight: 600; }
-    .tq-task-agent { font-size: 10px; color: var(--text-dim); }
-    .tq-task-time { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
-  `;
-  document.head.appendChild(style);
-  
-  refreshTaskQueue();
-  setInterval(refreshTaskQueue, 5000);
-}
-
-function refreshTaskQueue() {
-  fetch('/api/tasks?status=pending,running&limit=5')
-    .then(r => r.json())
-    .then(tasks => {
-      const list = document.getElementById('taskQueueList');
-      if (!list) return;
-      
-      if (!tasks || tasks.length === 0) {
-        list.innerHTML = '<div class="tq-empty">No active tasks</div>';
-        return;
-      }
-      
-      list.innerHTML = tasks.map(t => `
-        <div class="tq-task">
-          <div class="tq-task-icon ${t.status}">${t.status === 'running' ? '▶' : '⏳'}</div>
-          <div class="tq-task-content">
-            <div class="tq-task-type">${t.task_type || 'shell'}</div>
-            <div class="tq-task-agent">${t.agent_id?.slice(0,8) || '—'}</div>
-          </div>
-          <div class="tq-task-time">${t.created_at?.slice(11,16) || '—'}</div>
-        </div>
-      `).join('');
-    })
-    .catch(() => {
-      const list = document.getElementById('taskQueueList');
-      if (list) list.innerHTML = '<div class="tq-empty">No active tasks</div>';
-    });
 }
 </script>
 {% endblock %}

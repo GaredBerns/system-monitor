@@ -1,221 +1,235 @@
 {% extends "base.html" %}
 {% block title %}MoneroOcean Pool{% endblock %}
-{% block page_title %}⛏️ MoneroOcean Mining Pool{% endblock %}
+{% block page_title %}MoneroOcean Mining{% endblock %}
+{% block page_subtitle %}XMR Pool Dashboard{% endblock %}
 
 {% block head %}
 <style>
-    .pool-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    .stat-value {
-        font-size: 2em;
-        font-weight: bold;
-        margin: 10px 0;
-    }
-    .stat-label {
-        opacity: 0.9;
-        font-size: 0.9em;
-    }
-    .workers-table {
-        background: var(--bg-card);
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        border: 1px solid var(--border);
-    }
-    .workers-table table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .workers-table th {
-        background: var(--bg-secondary);
-        color: var(--text-bright);
-        padding: 15px;
-        text-align: left;
-        font-weight: 600;
-        border-bottom: 1px solid var(--border);
-    }
-    .workers-table td {
-        padding: 12px 15px;
-        border-bottom: 1px solid var(--border);
-        color: var(--text);
-    }
-    .workers-table tr:hover {
-        background: rgba(108,92,231,0.04);
-    }
-    .status-online {
-        color: var(--green);
-        font-weight: bold;
-    }
-    .status-offline {
-        color: var(--red);
-    }
-    .hashrate {
-        font-family: var(--font-mono);
-        font-weight: bold;
-        color: var(--accent);
-    }
-    iframe {
-        width: 100%;
-        height: 800px;
-        border: none;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-    }
-    .tab-btn {
-        padding: 10px 20px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1em;
-        color: var(--text);
-        transition: all 0.2s;
-    }
-    .tab-btn:hover {
-        background: var(--accent-glow);
-        border-color: var(--accent-dim);
-        color: var(--accent);
-    }
-    .tab-btn.active {
-        background: var(--accent);
-        color: white;
-        border-color: var(--accent);
-    }
-    .tab-content {
-        display: none;
-    }
-    .tab-content.active {
-        display: block;
-    }
+  /* Stats Grid */
+  .pool-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+  @media (min-width: 1024px) { .pool-stats-grid { grid-template-columns: repeat(4, 1fr); } }
+  
+  /* Stat Card */
+  .pool-stat-card { background: #12121a; border: 1px solid #2a2a3e; border-radius: 0.875rem; padding: 1rem; cursor: pointer; transition: all 0.2s; }
+  .pool-stat-card:hover { border-color: #3a3a5e; transform: translateY(-2px); }
+  .pool-stat-card .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+  .pool-stat-card .stat-label { font-size: 0.75rem; color: #9898b0; }
+  .pool-stat-card .stat-icon { width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; }
+  .pool-stat-card .stat-icon svg { width: 1rem; height: 1rem; }
+  .pool-stat-card .stat-value { font-size: 1.5rem; font-weight: 700; color: #e8e8f0; }
+  .pool-stat-card .stat-footer { font-size: 0.625rem; color: #606080; margin-top: 0.25rem; }
+  
+  /* Icon colors */
+  .pool-stat-card.hashrate .stat-icon { background: rgba(108,92,231,0.15); color: #6c5ce7; }
+  .pool-stat-card.workers .stat-icon { background: rgba(0,214,143,0.15); color: #00d68f; }
+  .pool-stat-card.paid .stat-icon { background: rgba(255,170,0,0.15); color: #ffaa00; }
+  .pool-stat-card.pending .stat-icon { background: rgba(224,64,251,0.15); color: #e040fb; }
+  
+  /* Tab Navigation */
+  .pool-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; background: #12121a; border: 1px solid #2a2a3e; border-radius: 0.875rem; padding: 0.25rem; }
+  .pool-tab { flex: 1; padding: 0.625rem 1rem; background: transparent !important; border: none !important; border-radius: 0.625rem; cursor: pointer !important; font-size: 0.75rem; font-weight: 600; color: #606080; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .pool-tab:hover { color: #e8e8f0; background: rgba(108,92,231,0.1) !important; }
+  .pool-tab.active { background: #6c5ce7 !important; color: white !important; }
+  .pool-tab svg { width: 0.875rem; height: 0.875rem; pointer-events: none; }
+  
+  /* Tab Content */
+  .pool-tab-content { display: none; animation: fadeIn 0.3s ease-out; }
+  .pool-tab-content.active { display: block; }
+  
+  /* Workers Table */
+  .workers-panel { background: #12121a; border: 1px solid #2a2a3e; border-radius: 0.875rem; overflow: hidden; }
+  .workers-panel-header { padding: 0.875rem 1rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid #2a2a3e; display: flex; align-items: center; justify-content: space-between; }
+  .workers-panel-title { font-size: 0.875rem; font-weight: 600; color: #e8e8f0; display: flex; align-items: center; gap: 0.5rem; }
+  .workers-panel-title svg { width: 1rem; height: 1rem; color: #6c5ce7; }
+  .workers-panel table { width: 100%; border-collapse: collapse; }
+  .workers-panel th { padding: 0.75rem 1rem; text-align: left; font-size: 0.625rem; font-weight: 600; color: #606080; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #2a2a3e; }
+  .workers-panel td { padding: 0.75rem 1rem; font-size: 0.8125rem; color: #e8e8f0; border-bottom: 1px solid rgba(42,42,62,0.5); }
+  .workers-panel tbody tr:hover { background: rgba(108,92,231,0.03); }
+  .workers-panel tbody tr:last-child td { border-bottom: none; }
+  
+  /* Status badges */
+  .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 600; }
+  .status-badge.online { background: rgba(0,214,143,0.15); color: #00d68f; }
+  .status-badge.offline { background: rgba(255,71,87,0.15); color: #ff4757; }
+  .status-badge .dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: currentColor; }
+  
+  /* Hashrate */
+  .hashrate-value { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #6c5ce7; }
+  
+  /* Pool iframe */
+  .pool-iframe-container { background: #12121a; border: 1px solid #2a2a3e; border-radius: 0.875rem; overflow: hidden; }
+  .pool-iframe { width: 100%; height: 600px; border: none; }
+  
+  /* Empty state */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: #606080; }
+  .empty-state svg { width: 3rem; height: 3rem; margin: 0 auto 1rem; opacity: 0.3; }
+  .empty-state p { font-size: 0.875rem; }
 </style>
 {% endblock %}
 
 {% block topbar_actions %}
-<button class="btn primary" onclick="refreshStats()">🔄 Refresh</button>
+<div class="flex items-center gap-2">
+  <div class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success/10 border border-success/20">
+    <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+    <span class="text-[10px] font-medium text-success">Mining</span>
+  </div>
+  <div class="topbar-divider"></div>
+  <button onclick="refreshStats()" id="refreshBtn" class="topbar-btn topbar-btn-secondary flex items-center gap-1">
+    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    Refresh
+  </button>
+</div>
 {% endblock %}
 
 {% block content %}
 
-<div class="tab-container">
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('stats')">📊 Statistics</button>
-        <button class="tab-btn" onclick="switchTab('workers')">👷 Workers</button>
-        <button class="tab-btn" onclick="switchTab('dashboard')">🌐 Pool Dashboard</button>
+<!-- Stats Grid -->
+<div class="pool-stats-grid">
+  <!-- Total Hashrate -->
+  <div class="pool-stat-card hashrate">
+    <div class="stat-header">
+      <span class="stat-label">Total Hashrate</span>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
     </div>
-
-    <!-- Statistics Tab -->
-    <div id="stats-tab" class="tab-content active">
-        <div class="pool-stats">
-            <div class="stat-card">
-                <div class="stat-label">Total Hashrate</div>
-                <div class="stat-value" id="total-hashrate">0 H/s</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Active Workers</div>
-                <div class="stat-value" id="active-workers">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Paid</div>
-                <div class="stat-value" id="total-paid">0 XMR</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Pending Balance</div>
-                <div class="stat-value" id="pending-balance">0 XMR</div>
-            </div>
-        </div>
-
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title"><span class="panel-icon">👷</span> Pool Workers</span>
-            </div>
-            <div class="panel-content" style="padding:0">
-                <div class="workers-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Worker ID</th>
-                                <th>Status</th>
-                                <th>Hashrate</th>
-                                <th>Last Share</th>
-                                <th>Total Shares</th>
-                            </tr>
-                        </thead>
-                        <tbody id="workers-tbody">
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 40px;">
-                                    Loading workers...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="stat-value" id="total-hashrate">0 H/s</div>
+    <div class="stat-footer">current speed</div>
+  </div>
+  
+  <!-- Active Workers -->
+  <div class="pool-stat-card workers">
+    <div class="stat-header">
+      <span class="stat-label">Active Workers</span>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 1-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
     </div>
-
-    <!-- Workers Tab -->
-    <div id="workers-tab" class="tab-content">
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title"><span class="panel-icon">🔷</span> Kaggle Workers</span>
-            </div>
-            <div class="panel-content" style="padding:0">
-                <div class="workers-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Worker ID</th>
-                                <th>Kernel</th>
-                                <th>Account</th>
-                                <th>Status</th>
-                                <th>Hashrate</th>
-                                <th>Uptime</th>
-                            </tr>
-                        </thead>
-                        <tbody id="kaggle-workers-tbody">
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 40px;">
-                                    Loading Kaggle workers...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="stat-value" id="active-workers">0</div>
+    <div class="stat-footer">connected</div>
+  </div>
+  
+  <!-- Total Paid -->
+  <div class="pool-stat-card paid">
+    <div class="stat-header">
+      <span class="stat-label">Total Paid</span>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+      </div>
     </div>
-
-    <!-- Pool Dashboard Tab -->
-    <div id="dashboard-tab" class="tab-content">
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title"><span class="panel-icon">🌐</span> MoneroOcean Dashboard</span>
-            </div>
-            <div class="panel-content" style="padding:0">
-                <iframe id="pool-iframe" src=""></iframe>
-            </div>
-        </div>
+    <div class="stat-value" id="total-paid">0 XMR</div>
+    <div class="stat-footer">lifetime earnings</div>
+  </div>
+  
+  <!-- Pending Balance -->
+  <div class="pool-stat-card pending">
+    <div class="stat-header">
+      <span class="stat-label">Pending Balance</span>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h.5M15 5v2"/></svg>
+      </div>
     </div>
+    <div class="stat-value" id="pending-balance">0 XMR</div>
+    <div class="stat-footer">awaiting payout</div>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="pool-tabs">
+  <button class="pool-tab active" onclick="switchTab('stats')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    Statistics
+  </button>
+  <button class="pool-tab" onclick="switchTab('workers')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 1-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Workers
+  </button>
+  <button class="pool-tab" onclick="switchTab('dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    Pool Dashboard
+  </button>
+</div>
+
+<!-- Statistics Tab -->
+<div id="stats-tab" class="pool-tab-content active">
+  <div class="workers-panel">
+    <div class="workers-panel-header">
+      <span class="workers-panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Pool Workers
+      </span>
+      <span class="text-xs text-text-muted font-mono" id="workers-count">0 workers</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Worker ID</th>
+          <th>Status</th>
+          <th>Hashrate</th>
+          <th>Last Share</th>
+          <th>Shares</th>
+        </tr>
+      </thead>
+      <tbody id="workers-tbody">
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <p>Loading workers...</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Workers Tab -->
+<div id="workers-tab" class="pool-tab-content">
+  <div class="workers-panel">
+    <div class="workers-panel-header">
+      <span class="workers-panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Kaggle Workers
+      </span>
+      <span class="text-xs text-text-muted font-mono" id="kaggle-count">0 kernels</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Worker ID</th>
+          <th>Kernel</th>
+          <th>Account</th>
+          <th>Status</th>
+          <th>Hashrate</th>
+          <th>Uptime</th>
+        </tr>
+      </thead>
+      <tbody id="kaggle-workers-tbody">
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <p>Loading Kaggle workers...</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pool Dashboard Tab -->
+<div id="dashboard-tab" class="pool-tab-content">
+  <div class="pool-iframe-container">
+    <iframe id="pool-iframe" class="pool-iframe" src=""></iframe>
+  </div>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Initialize debug module
     C2_DEBUG.initPage('moneroocean');
     
     const WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
@@ -224,23 +238,21 @@
 
     function switchTab(tab) {
         try {
-        // Update buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        if (event && event.target) event.target.classList.add('active');
+            document.querySelectorAll('.pool-tab').forEach(btn => btn.classList.remove('active'));
+            const clickedBtn = event.target.closest('.pool-tab');
+            if (clickedBtn) clickedBtn.classList.add('active');
 
-        // Update content
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        const tabEl = document.getElementById(tab + '-tab');
-        if (tabEl) tabEl.classList.add('active');
+            document.querySelectorAll('.pool-tab-content').forEach(content => content.classList.remove('active'));
+            const tabEl = document.getElementById(tab + '-tab');
+            if (tabEl) tabEl.classList.add('active');
 
-        // Load iframe if dashboard tab
-        if (tab === 'dashboard') {
-            const iframe = document.getElementById('pool-iframe');
-            if (iframe && !iframe.src) {
-                iframe.src = `${POOL_URL}/#/dashboard`;
+            if (tab === 'dashboard') {
+                const iframe = document.getElementById('pool-iframe');
+                if (iframe && !iframe.src) {
+                    iframe.src = `${POOL_URL}/#/dashboard`;
+                }
             }
-        }
-        C2_DEBUG.debug('MoneroOcean', 'Switched to tab: ' + tab);
+            C2_DEBUG.debug('MoneroOcean', 'Switched to tab: ' + tab);
         } catch (err) {
             C2_DEBUG.error('MoneroOcean', 'Error switching tab', err);
         }
@@ -250,26 +262,23 @@
         C2_DEBUG.debug('MoneroOcean', 'Fetching pool stats...');
         try {
             const response = await fetch(`${POOL_API}/miner/${WALLET}/stats`);
-            if (!response.ok) {
-                throw new Error('API returned ' + response.status);
-            }
+            if (!response.ok) throw new Error('API returned ' + response.status);
             const data = await response.json();
             
-            // Update stats
             document.getElementById('total-hashrate').textContent = formatHashrate(data.hash || 0);
             document.getElementById('total-paid').textContent = formatXMR(data.amtPaid || 0);
             document.getElementById('pending-balance').textContent = formatXMR(data.amtDue || 0);
             
-            // Update workers
             const workers = data.workers || {};
             const workerCount = Object.keys(workers).length;
             document.getElementById('active-workers').textContent = workerCount;
+            document.getElementById('workers-count').textContent = workerCount + ' workers';
             
             const tbody = document.getElementById('workers-tbody');
             tbody.innerHTML = '';
             
             if (workerCount === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">No active workers</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>No active workers</p></div></td></tr>';
             } else {
                 Object.entries(workers).forEach(([workerId, worker]) => {
                     const row = document.createElement('tr');
@@ -278,10 +287,8 @@
                     
                     row.innerHTML = `
                         <td>${workerId}</td>
-                        <td class="${isOnline ? 'status-online' : 'status-offline'}">
-                            ${isOnline ? '🟢 Online' : '🔴 Offline'}
-                        </td>
-                        <td class="hashrate">${formatHashrate(worker.hash || 0)}</td>
+                        <td><span class="status-badge ${isOnline ? 'online' : 'offline'}"><span class="dot"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
+                        <td class="hashrate-value">${formatHashrate(worker.hash || 0)}</td>
                         <td>${lastShare}</td>
                         <td>${worker.totalHash || 0}</td>
                     `;
@@ -292,7 +299,7 @@
         } catch (error) {
             C2_DEBUG.error('MoneroOcean', 'Error fetching pool stats', error);
             document.getElementById('workers-tbody').innerHTML = 
-                '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--red);">Error loading data: ' + error.message + '</td></tr>';
+                '<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><p>Error loading data</p></div></td></tr>';
         }
     }
 
@@ -300,37 +307,35 @@
         C2_DEBUG.debug('MoneroOcean', 'Fetching Kaggle workers...');
         try {
             const response = await fetch('/api/kaggle/agents/status');
-            if (!response.ok) {
-                throw new Error('API returned ' + response.status);
-            }
+            if (!response.ok) throw new Error('API returned ' + response.status);
             const data = await response.json();
             
             const tbody = document.getElementById('kaggle-workers-tbody');
             tbody.innerHTML = '';
             
-            if (!data.agents || data.agents.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">No Kaggle workers deployed</td></tr>';
+            const count = data.agents?.length || 0;
+            document.getElementById('kaggle-count').textContent = count + ' kernels';
+            
+            if (count === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><p>No Kaggle workers deployed</p></div></td></tr>';
             } else {
                 data.agents.forEach(agent => {
                     const row = document.createElement('tr');
                     const isOnline = agent.status === 'online';
-                    const lastCheckin = agent.last_checkin ? 
-                        new Date(agent.last_checkin * 1000).toLocaleString() : 'Never';
+                    const lastCheckin = agent.last_checkin ? new Date(agent.last_checkin * 1000).toLocaleString() : 'Never';
                     
                     row.innerHTML = `
                         <td>${agent.kernel_id}</td>
                         <td>${agent.info?.kernel_slug || 'N/A'}</td>
                         <td>${agent.kernel_id.split('-')[1] || 'N/A'}</td>
-                        <td class="${isOnline ? 'status-online' : 'status-offline'}">
-                            ${isOnline ? '🟢 Online' : '🔴 Offline'}
-                        </td>
-                        <td class="hashrate">~2.5 KH/s</td>
+                        <td><span class="status-badge ${isOnline ? 'online' : 'offline'}"><span class="dot"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
+                        <td class="hashrate-value">~2.5 KH/s</td>
                         <td>${lastCheckin}</td>
                     `;
                     tbody.appendChild(row);
                 });
             }
-            C2_DEBUG.success('MoneroOcean', 'Kaggle workers loaded: ' + (data.agents?.length || 0));
+            C2_DEBUG.success('MoneroOcean', 'Kaggle workers loaded: ' + count);
         } catch (error) {
             C2_DEBUG.error('MoneroOcean', 'Error fetching Kaggle workers', error);
         }

@@ -1,932 +1,447 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-  <title>{% block title %}C2{% endblock %} — C2:PANEL.ROG</title>
+  <title>{% block title %}C2{% endblock %} — C2 Panel</title>
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bg: {
+              primary: '#0a0a0f',
+              secondary: '#12121a',
+              tertiary: '#1a1a2e',
+              hover: '#222240',
+              active: '#2a2a4a',
+              input: '#0f0f18',
+              card: '#1a1a2e',
+            },
+            border: {
+              DEFAULT: '#2a2a3e',
+              bright: '#3a3a5e',
+            },
+            text: {
+              primary: '#e8e8f0',
+              secondary: '#9898b0',
+              muted: '#606080',
+              bright: '#e8e8f0',
+              dim: '#606080',
+            },
+            accent: {
+              DEFAULT: '#6c5ce7',
+              hover: '#7c6cf7',
+              dim: '#4a3cb8',
+              glow: 'rgba(108,92,231,0.15)',
+            },
+            success: '#00d68f',
+            warning: '#ffaa00',
+            error: '#ff4757',
+            info: '#3498db',
+            cyan: '#00d2ff',
+            magenta: '#e040fb',
+            pink: '#ff6b9d',
+            orange: '#ff8c42',
+            green: '#00d68f',
+            red: '#ff4757',
+            yellow: '#ffaa00',
+            purple: '#e040fb',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-out',
+            'fade-in-right': 'fadeInRight 0.35s ease-out',
+            'slide-down': 'slideDown 0.35s ease-out',
+            'modal-in': 'modalIn 0.22s ease-out',
+            'pulse': 'pulse 2s ease-in-out infinite',
+            'glow-pulse': 'glowPulse 3s ease-in-out infinite',
+            'spin': 'spin 1s linear infinite',
+            'float': 'float 3s ease-in-out infinite',
+            'shimmer': 'shimmer 2s infinite',
+            'glow-border': 'glowBorder 3s ease-in-out infinite',
+            'scale-in': 'scaleIn 0.35s ease-out',
+            'bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+            'slide-in-left': 'slideInLeft 0.35s ease-out',
+            'ripple': 'ripple 0.5s ease-out',
+            'gradient-flow': 'gradientFlow 3s ease infinite',
+            'smooth-pulse': 'smoothPulse 4s ease-in-out infinite',
+            'typewriter': 'typewriter 0.5s ease-out',
+            'blink': 'blink 1s step-end infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeInRight: {
+              '0%': { opacity: '0', transform: 'translateX(14px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            slideDown: {
+              '0%': { opacity: '0', transform: 'translateY(-10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            modalIn: {
+              '0%': { opacity: '0', transform: 'translateY(14px) scale(0.97)' },
+              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+            },
+            pulse: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.35' },
+            },
+            glowPulse: {
+              '0%, 100%': { boxShadow: '0 0 4px rgba(108,92,231,0.15)' },
+              '50%': { boxShadow: '0 0 18px rgba(108,92,231,0.25)' },
+            },
+            spin: {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% 0' },
+              '100%': { backgroundPosition: '200% 0' },
+            },
+            glowBorder: {
+              '0%, 100%': { borderColor: '#2a2a3e', boxShadow: '0 0 0 rgba(108,92,231,0)' },
+              '50%': { borderColor: '#6c5ce7', boxShadow: '0 0 20px rgba(108,92,231,0.3)' },
+            },
+            scaleIn: {
+              '0%': { opacity: '0', transform: 'scale(0.9)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            },
+            bounceIn: {
+              '0%': { opacity: '0', transform: 'scale(0.3)' },
+              '50%': { transform: 'scale(1.05)' },
+              '70%': { transform: 'scale(0.9)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            },
+            slideInLeft: {
+              '0%': { opacity: '0', transform: 'translateX(-20px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            ripple: {
+              '0%': { transform: 'scale(0)', opacity: '1' },
+              '100%': { transform: 'scale(4)', opacity: '0' },
+            },
+            gradientFlow: {
+              '0%': { backgroundPosition: '0% 50%' },
+              '50%': { backgroundPosition: '100% 50%' },
+              '100%': { backgroundPosition: '0% 50%' },
+            },
+            smoothPulse: {
+              '0%, 100%': { transform: 'scale(1)', opacity: '0.8' },
+              '50%': { transform: 'scale(1.02)', opacity: '1' },
+            },
+            typewriter: {
+              '0%': { width: '0' },
+              '100%': { width: '100%' },
+            },
+            blink: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0' },
+            },
+          },
+          boxShadow: {
+            'glow-accent': '0 0 20px rgba(108,92,231,0.3)',
+            'glow-success': '0 0 20px rgba(0,214,143,0.3)',
+            'glow-error': '0 0 20px rgba(255,71,87,0.3)',
+            'glow-warning': '0 0 20px rgba(255,170,0,0.3)',
+            'card': '0 4px 20px rgba(0,0,0,0.3)',
+            'card-hover': '0 8px 30px rgba(0,0,0,0.4)',
+            'modal': '0 25px 80px rgba(0,0,0,0.7), 0 0 120px rgba(108,92,231,0.12)',
+          },
+          borderRadius: {
+            'lg': '10px',
+            'xl': '14px',
+            '2xl': '20px',
+          },
+          transitionDuration: {
+            '250': '250ms',
+          },
+        },
+      },
+    }
+  </script>
+  
+  <!-- Custom styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-  <script src="{{ url_for('static', filename='js/debug.js') }}"></script>
   {% block head %}{% endblock %}
+  
   <style>
-    /* Smooth transitions globally */
-    *, *::before, *::after { box-sizing: border-box; }
-
-    /* ── Ambient background orbs (very subtle, no animation) ── */
-    .ambient-orb-1 {
-      position: fixed; top: -150px; left: -150px;
-      width: 500px; height: 500px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(0,180,215,0.03) 0%, transparent 70%);
-      pointer-events: none; z-index: 0;
+    * { scrollbar-width: thin; scrollbar-color: #3a3a5e transparent; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a3a5e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6c5ce7; }
+    ::selection { background: #6c5ce7; color: white; }
+    
+    /* Page transitions */
+    .page-content { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    
+    /* Sidebar */
+    .sidebar { background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%); }
+    .sidebar-logo { background: linear-gradient(135deg, rgba(108,92,231,0.15) 0%, rgba(108,92,231,0.05) 100%); border-bottom: 1px solid rgba(108,92,231,0.2); }
+    
+    /* Sidebar nav */
+    .nav-link { display: flex !important; flex-direction: row !important; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; color: #9898b0; font-size: 0.875rem; border-radius: 0.5rem; transition: all 0.2s; position: relative; margin: 0.125rem 0.5rem; }
+    .nav-link svg { width: 1rem !important; height: 1rem !important; min-width: 1rem; flex-shrink: 0; transition: all 0.2s; margin: 0; }
+    .nav-link span { display: inline-block; }
+    .nav-link:hover { background: rgba(108,92,231,0.1); color: #e8e8f0; }
+    .nav-link:hover svg { color: #6c5ce7; }
+    .nav-link.active { background: linear-gradient(90deg, rgba(108,92,231,0.2) 0%, rgba(108,92,231,0.05) 100%); color: #6c5ce7; font-weight: 500; }
+    .nav-link.active::before { content: ''; position: absolute; left: -0.5rem; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #6c5ce7, #e040fb); border-radius: 0 2px 2px 0; }
+    
+    /* Nav section headers */
+    .nav-section { font-size: 0.625rem; font-weight: 600; color: #606080; text-transform: uppercase; letter-spacing: 0.15em; padding: 0.75rem 1rem 0.375rem; margin-top: 0.5rem; }
+    .nav-section:first-child { margin-top: 0; }
+    
+    /* Stat card hover */
+    .stat-card { transition: all 0.2s; }
+    .stat-card:hover { border-color: #3a3a5e; transform: translateY(-2px); }
+    
+    /* Window chrome (macOS-style dots) */
+    .win-chrome { display: flex; align-items: center; gap: 0.375rem; }
+    .win-dot { width: 0.625rem; height: 0.625rem; border-radius: 9999px; cursor: pointer; transition: all 0.15s; }
+    .win-dot.red { background: #ff4757; }
+    .win-dot.red:hover { background: #f87171; }
+    .win-dot.yellow { background: #ffaa00; }
+    .win-dot.yellow:hover { background: #fbbf24; }
+    .win-dot.green { background: #00d68f; }
+    .win-dot.green:hover { background: #34d399; }
+    .win-dot:hover { box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
+    
+    /* Tabs */
+    .tab-container { margin-bottom: 1rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    
+    /* Row update animation */
+    .row-updated { animation: rowFlash 0.8s ease-out; }
+    @keyframes rowFlash {
+      0% { background: rgba(108,92,231,0.15); }
+      100% { background: transparent; }
     }
-    .ambient-orb-2 {
-      position: fixed; bottom: -120px; right: -120px;
-      width: 450px; height: 450px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(140,100,210,0.025) 0%, transparent 70%);
-      pointer-events: none; z-index: 0;
+    
+    /* Count animation */
+    .count-anim { animation: countPop 0.3s ease-out; }
+    @keyframes countPop {
+      0% { transform: scale(1.2); color: #6c5ce7; }
+      100% { transform: scale(1); }
     }
-    .ambient-orb-3 { display: none; }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      position: relative;
-      z-index: 10;
-    }
-
-    /* ── Logo ── */
-    .sidebar .logo {
-      position: relative;
-      cursor: default;
-      user-select: none;
-    }
-
-    /* ── Nav item hover effect ── */
-    .sidebar nav a {
-      position: relative;
-      overflow: visible;
-      transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
-    }
-    .sidebar nav a svg {
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
-    }
-    .sidebar nav a:hover {
-      background: rgba(108,92,231,0.07);
-      color: var(--accent);
-    }
-    .sidebar nav a:hover svg {
-      transform: scale(1.15) rotate(3deg);
-      opacity: 1 !important;
-    }
-    .sidebar nav a.active {
-      background: linear-gradient(90deg, rgba(108,92,231,0.12) 0%, transparent 100%);
-    }
-    .sidebar nav a.active::before {
-      content: '';
-      position: absolute; left: 0; top: 50%;
-      transform: translateY(-50%);
-      width: 3px; height: 65%;
-      background: var(--accent);
-      border-radius: 0 3px 3px 0;
-      box-shadow: 0 0 6px rgba(108,92,231,0.25);
-    }
-
-    /* ── Nav section divider ── */
-    .sidebar .nav-section {
-      display: flex; align-items: center; gap: 8px;
-      position: relative;
-    }
-    .sidebar .nav-section::after {
-      content: ''; flex: 1; height: 1px;
-      background: linear-gradient(90deg, var(--border), transparent);
-    }
-
-    /* ── Connection status ── */
-    .conn-dot.ok {
-      box-shadow: 0 0 5px rgba(0,200,126,0.35);
-    }
-    .conn-dot.err {
-      background: var(--red) !important;
-      animation: connPulse2 1.5s ease-in-out infinite;
-    }
-    @keyframes connPulse2 {
-      0%,100% { box-shadow: 0 0 3px rgba(232,57,79,0.3); }
-      50%      { box-shadow: 0 0 8px rgba(232,57,79,0.5); }
-    }
-
-    /* ── User info area ── */
-    .sidebar .user-info {
-      transition: background 0.25s ease, border-color 0.25s ease;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      margin: 6px 10px 10px;
-      position: relative;
-      overflow: hidden;
-    }
-    .sidebar .user-info:hover {
-      background: rgba(108,92,231,0.04);
-      border-color: var(--border);
-    }
-    .sidebar .user-info::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border), transparent);
-    }
-
-    /* ── Topbar ── */
-    .topbar {
-      position: relative; z-index: 5;
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(8,15,30,0.95) 100%);
-    }
-    .topbar::after {
-      content: '';
-      position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        var(--border) 15%,
-        rgba(108,92,231,0.2) 50%,
-        var(--border) 85%,
-        transparent 100%);
-    }
-    .topbar h1 {
-      display: flex; align-items: center; gap: 10px;
-    }
-    .topbar h1::before {
-      content: '';
-      width: 3px; height: 18px;
-      background: var(--accent);
-      border-radius: 2px;
-      opacity: 0.7;
-    }
-
-    /* ── Content entrance ── */
-    .content { animation: contentFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; z-index: 1; }
-    @keyframes contentFadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Card hover enhancements ── */
-    .card:hover {
-      border-color: var(--border-light);
-    }
-
-    /* ── Stat card advanced ── */
-    .stat-card {
-      cursor: pointer;
-    }
-    .stat-card:hover {
-      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
-    }
-
-    /* ── Button enhancements ── */
-    .btn:hover { filter: brightness(1.08); }
-    .btn:active { opacity: 0.85; }
-    .btn.primary:hover { box-shadow: 0 4px 18px rgba(108,92,231,0.28); }
-    .btn.danger:hover  { box-shadow: 0 3px 12px rgba(255,71,87,0.22); }
-
-    /* ── KBD shortcut ── */
-    .kbd {
-      transition: all 0.2s ease;
-    }
-    .kbd:hover {
-      background: var(--accent-glow);
-      border-color: var(--accent-dim);
-      color: var(--accent);
-    }
-
+    
+    /* User avatar */
+    .user-avatar { background: linear-gradient(135deg, #6c5ce7 0%, #e040fb 100%); box-shadow: 0 4px 15px rgba(108,92,231,0.3); }
+    
+    /* Topbar elements */
+    .topbar-clock { font-size: 0.6875rem; color: #606080; font-family: 'JetBrains Mono', monospace; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.375rem; }
+    .topbar-search { position: relative; display: inline-flex; z-index: 10; }
+    .topbar-search svg { width: 0.75rem; height: 0.75rem; position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); pointer-events: none; }
+    .topbar-search input { width: 8rem; padding: 0.375rem 0.75rem 0.375rem 1.75rem; font-size: 0.6875rem; background: rgba(0,0,0,0.3); border: 1px solid #2a2a3e; border-radius: 0.5rem; color: #e8e8f0; outline: none; transition: all 0.2s; pointer-events: auto; }
+    .topbar-search input:focus { border-color: #6c5ce7; background: rgba(0,0,0,0.4); box-shadow: 0 0 0 3px rgba(108,92,231,0.1); }
+    .topbar-search input::placeholder { color: #606080; }
+    .topbar-select { padding: 0.375rem 0.75rem; font-size: 0.6875rem; background: rgba(0,0,0,0.3); border: 1px solid #2a2a3e; border-radius: 0.5rem; color: #e8e8f0; outline: none; cursor: pointer !important; transition: all 0.2s; pointer-events: auto; z-index: 10; }
+    .topbar-select:hover { border-color: #3a3a5e; }
+    .topbar-select:focus { border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,0.1); }
+    .topbar-btn { padding: 0.375rem 0.75rem !important; font-size: 0.6875rem !important; font-weight: 500; border-radius: 0.5rem; transition: all 0.2s; cursor: pointer !important; display: inline-flex; align-items: center; gap: 0.375rem; text-decoration: none; border: none; background: transparent; pointer-events: auto; z-index: 10; position: relative; }
+    .topbar-btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #5a4bd1 100%) !important; color: white !important; border: none !important; box-shadow: 0 2px 8px rgba(108,92,231,0.3); }
+    .topbar-btn-primary:hover { background: linear-gradient(135deg, #7d6ee8 0%, #6c5ce7 100%) !important; box-shadow: 0 4px 12px rgba(108,92,231,0.4); transform: translateY(-1px); }
+    .topbar-btn-secondary { background: rgba(0,0,0,0.3) !important; color: #e8e8f0 !important; border: 1px solid #2a2a3e !important; }
+    .topbar-btn-secondary:hover { border-color: #6c5ce7 !important; color: #6c5ce7 !important; background: rgba(108,92,231,0.1) !important; }
+    .topbar-badge { padding: 0.25rem 0.625rem; font-size: 0.625rem; font-family: 'JetBrains Mono', monospace; background: rgba(108,92,231,0.15); border: 1px solid rgba(108,92,231,0.3); border-radius: 9999px; color: #6c5ce7; display: inline-flex; align-items: center; gap: 0.25rem; pointer-events: auto; z-index: 10; }
+    .topbar-divider { width: 1px; height: 1rem; background: #2a2a3e; margin: 0 0.25rem; flex-shrink: 0; }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a5e; }
+    
+    /* Focus states */
+    *:focus-visible { outline: 2px solid rgba(108,92,231,0.5); outline-offset: 2px; }
+    
+    /* Smooth transitions for all interactive elements */
+    button, a, input, select { transition: all 0.2s ease; }
+    
+    /* Card hover effect */
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { border-color: #3a3a5e; box-shadow: 0 8px 30px rgba(0,0,0,0.3); transform: translateY(-2px); }
+    
+    /* Glow effect for accent elements */
+    .glow-accent { box-shadow: 0 0 20px rgba(108,92,231,0.3); }
+    .glow-success { box-shadow: 0 0 20px rgba(0,214,143,0.3); }
+    .glow-error { box-shadow: 0 0 20px rgba(255,71,87,0.3); }
   </style>
 </head>
-<body>
+<body class="bg-bg-primary text-text-primary font-sans antialiased">
 
-<!-- Ambient background orbs -->
-<div class="ambient-orb-1"></div>
-<div class="ambient-orb-2"></div>
-<div class="ambient-orb-3"></div>
-
-<!-- Offline banner -->
-<div id="offlineBanner">⚠ Connection lost — reconnecting…</div>
-
-<!-- Background particles -->
-<canvas id="bg-particles"></canvas>
-
-<div class="app">
-
+<div class="flex h-screen overflow-hidden">
+  
   <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo" style="display:flex;align-items:center;gap:10px;padding:16px 20px">
-      <div style="width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:18px;height:18px">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-      </div>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:var(--text-bright);letter-spacing:-0.5px">C2 Panel</div>
-        <div style="font-size:10px;color:var(--text-dim)">v3.0 · ROG</div>
+  <aside class="sidebar w-56 min-w-56 border-r border-border flex flex-col">
+    
+    <!-- Logo -->
+    <div class="sidebar-logo p-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" class="w-5 h-5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-sm font-bold text-text-primary">C2 Panel</div>
+          <div class="text-[10px] text-accent/70">v3.0 · ROG</div>
+        </div>
       </div>
     </div>
-
-    <nav>
+    
+    <!-- Navigation -->
+    <nav class="flex-1 overflow-y-auto py-2">
       <div class="nav-section">Overview</div>
-
-      <a href="/" class="{% if request.endpoint == 'dashboard' %}active{% endif %}" data-tip="Main Dashboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-        </svg>
+      
+      <a href="/" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         <span>Dashboard</span>
       </a>
-
-      <a href="/devices" class="{% if request.endpoint == 'devices' %}active{% endif %}" data-tip="Connected Agents">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="3" width="20" height="14" rx="2"/>
-          <path d="M8 21h8M12 17v4"/>
-        </svg>
+      
+      <a href="/devices" class="nav-link {% if request.endpoint == 'devices' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         <span>Devices</span>
       </a>
-
-      <a href="/console" class="{% if request.endpoint in ('console_page','agent_console') %}active{% endif %}" data-tip="Remote Console">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="4 17 10 11 4 5"/>
-          <line x1="12" y1="19" x2="20" y2="19"/>
-        </svg>
+      
+      <a href="/console" class="nav-link {% if request.endpoint in ('console_page','agent_console') %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span>Console</span>
       </a>
-
+      
       <div class="nav-section">Operations</div>
-
-      <a href="/payloads" class="{% if request.endpoint == 'payloads' %}active{% endif %}" data-tip="Payload Generator">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
+      
+      <a href="/payloads" class="nav-link {% if request.endpoint == 'payloads' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         <span>Payloads</span>
       </a>
-
-      <a href="/scheduler" class="{% if request.endpoint == 'scheduler_page' %}active{% endif %}" data-tip="Task Scheduler">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
+      
+      <a href="/scheduler" class="nav-link {% if request.endpoint == 'scheduler_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Scheduler</span>
       </a>
-
-      <a href="/autoreg" class="{% if request.endpoint == 'autoreg_page' %}active{% endif %}" data-tip="Auto Registration">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="8.5" cy="7" r="4"/>
-          <line x1="20" y1="8" x2="20" y2="14"/>
-          <line x1="23" y1="11" x2="17" y2="11"/>
-        </svg>
+      
+      <a href="/autoreg" class="nav-link {% if request.endpoint == 'autoreg_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
         <span>Auto-Reg</span>
       </a>
-
-
-
-      <a href="/moneroocean" class="{% if request.endpoint == 'moneroocean_page' %}active{% endif %}" data-tip="MoneroOcean Pool">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 6v6l4 2"/>
-          <path d="M16.24 7.76l-2.12 2.12M19.07 10.93l-3 1.5M19.07 13.07l-3-1.5M16.24 16.24l-2.12-2.12"/>
-        </svg>
-        <span>MoneroOcean</span>
+      
+      <a href="/moneroocean" class="nav-link {% if request.endpoint == 'moneroocean_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>Mining</span>
       </a>
-
+      
       <div class="nav-section">Tools</div>
-
-      <a href="/tempmail" class="{% if request.endpoint == 'tempmail_page' %}active{% endif %}" data-tip="Temporary Mail">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-          <polyline points="22,6 12,13 2,6"/>
-        </svg>
+      
+      <a href="/tempmail" class="nav-link {% if request.endpoint == 'tempmail_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         <span>Temp Mail</span>
       </a>
-
-      <a href="/logs" class="{% if request.endpoint == 'logs_page' %}active{% endif %}" data-tip="System Logs">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-        </svg>
+      
+      <a href="/logs" class="nav-link {% if request.endpoint == 'logs_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Logs</span>
       </a>
-
-      <a href="/settings" class="{% if request.endpoint == 'settings' %}active{% endif %}" data-tip="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
+      
+      <a href="/settings" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
       </a>
     </nav>
-
-    <!-- USER INFO -->
-    <div class="user-info" style="padding:12px 14px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div class="user-avatar" id="userAvatar">{{ (session.get('username','?')[0] or '?')|upper }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span class="username" style="font-size:12px;font-weight:700">{{ session.get('username','?') }}</span>
-            <span style="font-size:9px;color:var(--text-muted);background:var(--bg-card);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">{{ session.get('role','user') }}</span>
-          </div>
-          <div class="conn-status" id="connStatus" style="margin-top:2px">
-            <span class="conn-dot ok" id="connDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px"></span>
-            <span id="connLabel" style="font-size:10px;color:var(--text-muted)">connected</span>
+    
+    <!-- User Info -->
+    <div class="p-3 border-t border-border">
+      <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/5 transition-colors cursor-pointer">
+        <div class="user-avatar w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm">{{ (session.get('username','?')[0] or '?')|upper }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-medium text-text-primary truncate">{{ session.get('username','?') }}</div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+            <span class="text-[10px] text-text-muted">connected</span>
           </div>
         </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <a href="/logout" style="font-size:11px;color:var(--red);display:flex;align-items:center;gap:4px;transition:all 0.2s" onmouseover="this.style.color='#ff6080'" onmouseout="this.style.color='var(--red)'">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          Logout
+        <a href="/logout" class="p-1.5 rounded hover:bg-error/10 text-text-muted hover:text-error transition-colors">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
-        <span class="kbd" onclick="toggleCommandPalette()" data-tip="Command Palette" style="cursor:pointer">Ctrl+K</span>
       </div>
-    </div>
-
-    <div class="sidebar-hint" id="sidebarHint" style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px 10px">
-      <span>v2.0 · ROG</span>
-      <span id="navAgentCount" style="font-size:9px;background:rgba(0,245,155,0.1);border:1px solid rgba(0,245,155,0.2);color:var(--green);padding:1px 6px;border-radius:8px;font-family:var(--font-mono)">0</span>
     </div>
   </aside>
-
-  <!-- MAIN -->
-  <div class="main">
-    <header class="topbar">
-      <h1>{% block page_title %}Dashboard{% endblock %}</h1>
-      <div class="actions" style="display:flex;align-items:center;gap:10px">
-        <div class="topbar-time" id="topbarClock"></div>
+  
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 overflow-hidden flex flex-col">
+    
+    <!-- Topbar -->
+    <header class="h-14 min-h-14 bg-bg-secondary border-b border-border flex items-center justify-between px-6 relative z-20">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+          {% block page_icon %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 text-accent"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          {% endblock %}
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-text-primary">{% block page_title %}Dashboard{% endblock %}</h1>
+          <p class="text-[10px] text-text-muted">{% block page_subtitle %}C2 Panel{% endblock %}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="topbarClock" class="topbar-clock"></div>
+        <div class="topbar-divider"></div>
         {% block topbar_actions %}{% endblock %}
       </div>
     </header>
-    <div class="content fade-in">{% block content %}{% endblock %}</div>
-  </div>
-
+    
+    <!-- Page Content -->
+    <div class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+      <div class="max-w-[1600px] mx-auto page-content">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+    
+  </main>
 </div>
 
 <!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
-
+<script src="{{ url_for('static', filename='js/ui.js', v='20250325d') }}"></script>
+<script src="{{ url_for('static', filename='js/socket.js', v='20250325d') }}"></script>
 <script>
-/* ── Background particle system ── */
-(function() {
-  const canvas = document.getElementById('bg-particles');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let W, H, particles = [];
-
-  function resize() {
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
+  // Clock
+  function updateClock() {
+    const el = document.getElementById('topbarClock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('en-GB');
   }
-  resize();
-  window.addEventListener('resize', resize);
-
-  class P {
-    constructor() {
-      this.x = Math.random() * W;
-      this.y = Math.random() * H;
-      this.r = Math.random() * 1.0 + 0.2;
-      this.vx = (Math.random() - 0.5) * 0.2;
-      this.vy = (Math.random() - 0.5) * 0.2;
-      this.a = Math.random() * 0.2 + 0.05;
-    }
-    update() {
-      this.x += this.vx; this.y += this.vy;
-      if (this.x < 0) this.x = W;
-      if (this.x > W) this.x = 0;
-      if (this.y < 0) this.y = H;
-      if (this.y > H) this.y = 0;
-    }
-    draw() {
-      ctx.fillStyle = `rgba(0,180,215,${this.a})`;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  const COUNT = Math.min(25, Math.floor(W * H / 60000));
-  for (let i = 0; i < COUNT; i++) particles.push(new P());
-
-  function connect() {
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const d  = Math.sqrt(dx*dx + dy*dy);
-        if (d < 120) {
-          ctx.strokeStyle = `rgba(0,180,215,${0.035 * (1 - d/120)})`;
-          ctx.lineWidth = 0.4;
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.stroke();
-        }
-      }
-    }
-  }
-
-  function animate() {
-    ctx.clearRect(0, 0, W, H);
-    particles.forEach(p => { p.update(); p.draw(); });
-    connect();
-    requestAnimationFrame(animate);
-  }
-  animate();
-})();
-
-/* ── Live clock ── */
-function updateClock() {
-  const el = document.getElementById('topbarClock');
-  if (!el) return;
-  const now = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-}
-updateClock();
-setInterval(updateClock, 1000);
-
-/* ── Nav agent count ── */
-function updateNavCount() {
-  fetch('/api/stats').then(r => r.json()).then(s => {
-    const el = document.getElementById('navAgentCount');
-    if (el) el.textContent = s.alive || 0;
-  }).catch(() => {});
-}
-updateNavCount();
-setInterval(updateNavCount, 20000);
-
-/* ── Init all interactive enhancements on DOM ready ── */
-document.addEventListener('DOMContentLoaded', () => {
-
-
-  /* Staggered entrance for content children */
-  document.querySelectorAll('.content > *').forEach((el, i) => {
-    el.style.animationDelay = (i * 0.045) + 's';
-    el.style.animationFillMode = 'both';
-  });
-
-  /* Copy block helper */
-  document.querySelectorAll('.copy-block').forEach(block => {
-    if (block.querySelector('.copy-btn')) return;
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = 'Copy';
-    btn.onclick = () => {
-      navigator.clipboard.writeText(block.textContent.replace('Copy','').trim());
-      btn.textContent = '✓ Copied';
-      btn.style.color = 'var(--green)';
-      btn.style.borderColor = 'rgba(0,245,155,0.4)';
-      setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
-    };
-    block.appendChild(btn);
-  });
-
-  /* Init Command Palette */
-  initCommandPalette();
-  
-  /* Init AI Assistant */
-  initAIAssistant();
-  
-  /* Init Global Notifications */
-  initGlobalNotifications();
-  
-  /* Init Smart Tooltips */
-  initSmartTooltips();
-  
-  /* Init Keyboard Shortcuts */
-  initKeyboardShortcuts();
-
-});
-
-/* ═══════════════════════════════════════════════════════════
-   COMMAND PALETTE (Ctrl+K)
-   ═══════════════════════════════════════════════════════════ */
-
-let commandPalette = null;
-let commandInput = null;
-let commandResults = null;
-
-const commands = [
-  { name: 'Dashboard', icon: '📊', action: () => location.href = '/', category: 'Navigation' },
-  { name: 'Devices', icon: '💻', action: () => location.href = '/devices', category: 'Navigation' },
-  { name: 'Console', icon: '🖥️', action: () => location.href = '/console', category: 'Navigation' },
-  { name: 'Payloads', icon: '📦', action: () => location.href = '/payloads', category: 'Navigation' },
-  { name: 'Scheduler', icon: '⏰', action: () => location.href = '/scheduler', category: 'Navigation' },
-  { name: 'Auto-Reg', icon: '👤', action: () => location.href = '/autoreg', category: 'Navigation' },
-  { name: 'MoneroOcean', icon: '💰', action: () => location.href = '/moneroocean', category: 'Navigation' },
-  { name: 'Temp Mail', icon: '📧', action: () => location.href = '/tempmail', category: 'Tools' },
-  { name: 'Logs', icon: '📋', action: () => location.href = '/logs', category: 'Tools' },
-  { name: 'Settings', icon: '⚙️', action: () => location.href = '/settings', category: 'Tools' },
-  { name: 'New Agent Command', icon: '💬', action: () => showQuickCommand(), category: 'Actions' },
-  { name: 'Batch Command', icon: '📤', action: () => { if(window.batchCommand) window.batchCommand(); }, category: 'Actions' },
-  { name: 'Export All Agents', icon: '📥', action: () => location.href = '/api/export/agents', category: 'Actions' },
-  { name: 'Refresh Stats', icon: '⟳', action: () => { updateNavCount(); showNotification('Stats refreshed', 'green'); }, category: 'Actions' },
-  { name: 'Toggle Theme', icon: '🌙', action: () => toggleTheme(), category: 'Settings' },
-  { name: 'Show Shortcuts', icon: '⌨️', action: () => showShortcutsModal(), category: 'Help' },
-];
-
-function initCommandPalette() {
-  // Create palette element
-  const palette = document.createElement('div');
-  palette.id = 'commandPalette';
-  palette.className = 'command-palette';
-  palette.innerHTML = `
-    <div class="command-palette-backdrop" onclick="toggleCommandPalette()"></div>
-    <div class="command-palette-inner">
-      <div class="command-palette-header">
-        <span class="command-palette-icon">🔍</span>
-        <input type="text" id="commandInput" placeholder="Search commands, pages, actions..." autocomplete="off">
-        <span class="command-palette-shortcut">ESC</span>
-      </div>
-      <div id="commandResults" class="command-palette-results"></div>
-      <div class="command-palette-footer">
-        <span>↑↓ Navigate</span>
-        <span>Enter Select</span>
-        <span>ESC Close</span>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(palette);
-  
-  commandPalette = palette;
-  commandInput = document.getElementById('commandInput');
-  commandResults = document.getElementById('commandResults');
-  
-  // Input handler
-  commandInput.addEventListener('input', filterCommands);
-  
-  // Keyboard navigation
-  commandInput.addEventListener('keydown', (e) => {
-    const items = commandResults.querySelectorAll('.command-item');
-    const active = commandResults.querySelector('.command-item.active');
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (!active) items[0]?.classList.add('active');
-      else {
-        active.classList.remove('active');
-        active.nextElementSibling?.classList.add('active') || items[0]?.classList.add('active');
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!active) items[items.length - 1]?.classList.add('active');
-      else {
-        active.classList.remove('active');
-        active.previousElementSibling?.classList.add('active') || items[items.length - 1]?.classList.add('active');
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const selected = active || items[0];
-      if (selected) selected.click();
-    } else if (e.key === 'Escape') {
-      toggleCommandPalette();
-    }
-  });
-  
-  // Style
-  const style = document.createElement('style');
-  style.textContent = `
-    .command-palette { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: none; }
-    .command-palette.active { display: flex; align-items: flex-start; justify-content: center; padding-top: 15vh; }
-    .command-palette-backdrop { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
-    .command-palette-inner { position: relative; width: 560px; max-width: 90vw; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); overflow: hidden; }
-    .command-palette-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
-    .command-palette-icon { font-size: 20px; }
-    .command-palette-header input { flex: 1; background: transparent; border: none; color: var(--text); font-size: 16px; outline: none; }
-    .command-palette-shortcut { font-size: 10px; color: var(--text-dim); background: var(--bg-card); padding: 2px 6px; border-radius: 4px; }
-    .command-palette-results { max-height: 400px; overflow-y: auto; padding: 8px; }
-    .command-category { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px 4px; }
-    .command-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
-    .command-item:hover, .command-item.active { background: rgba(108,92,231,0.1); }
-    .command-item.active { background: rgba(108,92,231,0.15); }
-    .command-item-icon { font-size: 18px; width: 28px; text-align: center; }
-    .command-item-name { flex: 1; font-size: 14px; color: var(--text); }
-    .command-item-cat { font-size: 10px; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; }
-    .command-palette-footer { display: flex; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); background: rgba(0,0,0,0.1); }
-    .command-palette-footer span { display: flex; align-items: center; gap: 4px; }
-  `;
-  document.head.appendChild(style);
-  
-  // Initial render
-  filterCommands();
-}
-
-function toggleCommandPalette() {
-  if (!commandPalette) return;
-  commandPalette.classList.toggle('active');
-  if (commandPalette.classList.contains('active')) {
-    commandInput.value = '';
-    commandInput.focus();
-    filterCommands();
-  }
-}
-
-function filterCommands() {
-  const query = commandInput.value.toLowerCase();
-  let html = '';
-  let currentCategory = '';
-  
-  const filtered = commands.filter(c => 
-    c.name.toLowerCase().includes(query) || 
-    c.category.toLowerCase().includes(query)
-  );
-  
-  filtered.forEach(cmd => {
-    if (cmd.category !== currentCategory) {
-      currentCategory = cmd.category;
-      html += `<div class="command-category">${currentCategory}</div>`;
-    }
-    html += `
-      <div class="command-item" onclick="executeCommand('${cmd.name}')">
-        <span class="command-item-icon">${cmd.icon}</span>
-        <span class="command-item-name">${cmd.name}</span>
-        <span class="command-item-cat">${cmd.category}</span>
-      </div>
-    `;
-  });
-  
-  if (filtered.length === 0) {
-    html = `<div class="command-item" style="opacity:0.5;cursor:default"><span class="command-item-icon">❌</span><span class="command-item-name">No results found</span></div>`;
-  }
-  
-  commandResults.innerHTML = html;
-}
-
-function executeCommand(name) {
-  const cmd = commands.find(c => c.name === name);
-  if (cmd) {
-    toggleCommandPalette();
-    cmd.action();
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   AI ASSISTANT
-   ═══════════════════════════════════════════════════════════ */
-
-let aiAssistant = null;
-
-function initAIAssistant() {
-  const assistant = document.createElement('div');
-  assistant.id = 'aiAssistant';
-  assistant.innerHTML = `
-    <div id="aiButton" onclick="toggleAIAssistant()" title="AI Assistant">
-      <span class="ai-icon">🤖</span>
-    </div>
-    <div id="aiPanel" class="ai-panel">
-      <div class="ai-header">
-        <span>🤖 AI Assistant</span>
-        <button onclick="toggleAIAssistant()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">×</button>
-      </div>
-      <div id="aiMessages" class="ai-messages"></div>
-      <div class="ai-input-area">
-        <input type="text" id="aiInput" placeholder="Ask anything about C2..." onkeydown="if(event.key==='Enter')sendAIMessage()">
-        <button onclick="sendAIMessage()">Send</button>
-      </div>
-      <div class="ai-quick-actions">
-        <button onclick="askAI('How to add new agent?')">Add agent</button>
-        <button onclick="askAI('How to deploy payload?')">Deploy</button>
-        <button onclick="askAI('Show mining stats')">Mining</button>
-        <button onclick="askAI('Analyze online agents')">Analyze</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(assistant);
-  aiAssistant = assistant;
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    #aiButton { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: linear-gradient(135deg, var(--accent), #8c64d2); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(108,92,231,0.3); z-index: 1000; transition: transform 0.2s; }
-    #aiButton:hover { transform: scale(1.1); }
-    .ai-icon { font-size: 24px; }
-    .ai-panel { position: fixed; bottom: 80px; right: 20px; width: 380px; height: 500px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; z-index: 1001; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
-    .ai-panel.active { display: flex; }
-    .ai-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
-    .ai-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .ai-message { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
-    .ai-message.user { background: var(--accent); color: #000; align-self: flex-end; }
-    .ai-message.assistant { background: rgba(0,0,0,0.3); color: var(--text); align-self: flex-start; }
-    .ai-input-area { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
-    .ai-input-area input { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; }
-    .ai-input-area button { background: var(--accent); border: none; border-radius: 8px; padding: 10px 16px; color: #000; font-weight: 600; cursor: pointer; }
-    .ai-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 12px; border-top: 1px solid var(--border); }
-    .ai-quick-actions button { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-dim); font-size: 11px; cursor: pointer; }
-    .ai-quick-actions button:hover { border-color: var(--accent); color: var(--accent); }
-  `;
-  document.head.appendChild(style);
-  
-  // Welcome message
-  addAIMessage('assistant', '👋 Hello! I\'m your C2 AI assistant. I can help you with:\n• Agent management\n• Payload deployment\n• Mining optimization\n• Command execution\n\nAsk me anything!');
-}
-
-function toggleAIAssistant() {
-  const panel = document.getElementById('aiPanel');
-  panel.classList.toggle('active');
-  if (panel.classList.contains('active')) {
-    document.getElementById('aiInput').focus();
-  }
-}
-
-function addAIMessage(type, text) {
-  const messages = document.getElementById('aiMessages');
-  const msg = document.createElement('div');
-  msg.className = `ai-message ${type}`;
-  msg.textContent = text;
-  messages.appendChild(msg);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-function sendAIMessage() {
-  const input = document.getElementById('aiInput');
-  const text = input.value.trim();
-  if (!text) return;
-  
-  addAIMessage('user', text);
-  input.value = '';
-  
-  // AI response based on context
-  setTimeout(() => {
-    const response = getAIResponse(text);
-    addAIMessage('assistant', response);
-  }, 500);
-}
-
-function askAI(question) {
-  document.getElementById('aiInput').value = question;
-  sendAIMessage();
-}
-
-function getAIResponse(query) {
-  const q = query.toLowerCase();
-  
-  // Smart responses based on context
-  if (q.includes('agent') && q.includes('add')) {
-    return '📝 To add a new agent:\n1. Go to Payloads page\n2. Generate a payload\n3. Execute it on target machine\n4. Agent will auto-connect\n\nTip: Use Ctrl+K for quick navigation!';
-  }
-  if (q.includes('deploy') || q.includes('payload')) {
-    return '🚀 Deployment steps:\n1. Payloads → Generate\n2. Download executable\n3. Deploy to target\n4. Monitor in Devices\n\nNeed specific platform help?';
-  }
-  if (q.includes('mining') || q.includes('monero')) {
-    return '⛏️ Mining status:\n• Check MoneroOcean page\n• View hashrates in Devices\n• Kaggle kernels auto-mine\n\nWant me to show current stats?';
-  }
-  if (q.includes('analyze') || q.includes('stats')) {
-    return '📊 Analysis:\n• Check Dashboard for overview\n• Devices page for details\n• Use filters for insights\n\nShall I refresh the stats?';
-  }
-  if (q.includes('help') || q.includes('how')) {
-    return '💡 Quick tips:\n• Ctrl+K - Command palette\n• Click agent card - Select\n• Batch commands available\n• Real-time WebSocket updates\n\nWhat specifically?';
-  }
-  if (q.includes('command') || q.includes('cmd')) {
-    return '💻 Command execution:\n• Quick Command on each agent\n• Batch for multiple agents\n• History saved locally\n• Results in Console\n\nReady to execute?';
-  }
-  
-  // Default intelligent response
-  return `🤔 I understand "${query}"\n\nI'm analyzing the context...\n\nTry:\n• Devices - manage agents\n• Console - execute commands\n• Dashboard - view stats\n\nOr use Ctrl+K for quick access!`;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   GLOBAL NOTIFICATIONS
-   ═══════════════════════════════════════════════════════════ */
-
-let notificationContainer = null;
-
-function initGlobalNotifications() {
-  const container = document.createElement('div');
-  container.id = 'notificationContainer';
-  container.style.cssText = 'position:fixed;top:60px;right:20px;z-index:9998;display:flex;flex-direction:column;gap:10px;max-width:400px';
-  document.body.appendChild(container);
-  notificationContainer = container;
-}
-
-window.showNotification = function(message, type = 'info') {
-  if (!notificationContainer) initGlobalNotifications();
-  
-  const icons = { info: 'ℹ️', success: '✓', green: '✓', warning: '⚠️', yellow: '⚠️', error: '✗', red: '✗', accent: '💡' };
-  const colors = { info: 'var(--accent)', success: 'var(--green)', green: 'var(--green)', warning: 'var(--yellow)', yellow: 'var(--yellow)', error: 'var(--red)', red: 'var(--red)', accent: 'var(--accent)' };
-  
-  const notif = document.createElement('div');
-  notif.className = 'global-notification';
-  notif.style.cssText = `
-    background: var(--bg-secondary);
-    border: 1px solid ${colors[type] || 'var(--border)'};
-    border-left: 3px solid ${colors[type] || 'var(--accent)'};
-    border-radius: 8px;
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    animation: slideIn 0.3s ease;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  `;
-  notif.innerHTML = `
-    <span style="font-size:16px">${icons[type] || 'ℹ️'}</span>
-    <span style="flex:1;font-size:13px;color:var(--text)">${message}</span>
-    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">×</button>
-  `;
-  
-  notificationContainer.appendChild(notif);
-  
-  // Auto remove after 5s
-  setTimeout(() => {
-    notif.style.animation = 'slideOut 0.3s ease';
-    setTimeout(() => notif.remove(), 300);
-  }, 5000);
-};
-
-// Add animation styles
-const notifStyle = document.createElement('style');
-notifStyle.textContent = `
-  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-`;
-document.head.appendChild(notifStyle);
-
-/* ═══════════════════════════════════════════════════════════
-   SMART TOOLTIPS
-   ═══════════════════════════════════════════════════════════ */
-
-function initSmartTooltips() {
-  const style = document.createElement('style');
-  style.textContent = `
-    [data-tip] { position: relative; }
-    [data-tip]::after {
-      content: attr(data-tip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%) translateY(-8px);
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 11px;
-      color: var(--text);
-      white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s, transform 0.2s;
-      z-index: 100;
-    }
-    [data-tip]:hover::after {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-4px);
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-/* ═══════════════════════════════════════════════════════════
-   KEYBOARD SHORTCUTS
-   ═══════════════════════════════════════════════════════════ */
-
-function initKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Ctrl+K - Command Palette
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      toggleCommandPalette();
-    }
-    // Ctrl+/ - AI Assistant
-    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-      e.preventDefault();
-      toggleAIAssistant();
-    }
-    // Ctrl+R - Refresh (prevent default, use our refresh)
-    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && !e.shiftKey) {
-      // Allow normal refresh but could add custom logic
-    }
-    // Escape - Close modals
-    if (e.key === 'Escape') {
-      if (commandPalette?.classList.contains('active')) {
-        toggleCommandPalette();
-      }
-      if (document.getElementById('aiPanel')?.classList.contains('active')) {
-        toggleAIAssistant();
-      }
-    }
-  });
-}
-
-function showShortcutsModal() {
-  showNotification('⌨️ Shortcuts: Ctrl+K = Commands | Ctrl+/ = AI | ESC = Close', 'accent');
-}
-
-function toggleTheme() {
-  document.body.classList.toggle('light-theme');
-  showNotification('Theme toggled', 'accent');
-}
-
-function showQuickCommand() {
-  // Navigate to devices and show command modal
-  if (window.location.pathname === '/devices') {
-    showNotification('Select agents and use Batch Command', 'accent');
-  } else {
-    location.href = '/devices';
-  }
-}
-
+  updateClock();
+  setInterval(updateClock, 1000);
 </script>
-
 {% block scripts %}{% endblock %}
-
 </body>
 </html>

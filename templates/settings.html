@@ -3,69 +3,46 @@
 {% block page_title %}Settings{% endblock %}
 {% block head %}
 <style>
-  .card table tbody tr:hover td { background: rgba(108,92,231,0.04); }
-  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-    box-shadow: 0 0 0 2px rgba(108,92,231,0.12);
-    border-color: var(--accent);
-  }
-  .btn.primary:hover { box-shadow: 0 4px 16px rgba(108,92,231,0.25); }
-  .btn.danger:hover  { box-shadow: 0 3px 12px rgba(255,61,90,0.2); }
-  .settings-tabs {
-    display: flex; gap: 4px; margin-bottom: 20px;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 4px;
-  }
-  .settings-tab {
-    flex: 1; padding: 8px 12px; border-radius: 8px;
-    border: none; background: transparent;
-    color: var(--text-dim); font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    font-family: var(--font-ui);
-  }
-  .settings-tab:hover { color: var(--text); background: var(--bg-input); }
-  .settings-tab.active {
-    background: var(--accent-glow); color: var(--accent);
-    border: 1px solid var(--accent-dim);
-  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(108,92,231,0.12); border-color: #6c5ce7; }
+  .btn.primary:hover { box-shadow: 0 10px 40px rgba(108,92,231,0.25); }
+  .btn.danger:hover  { box-shadow: 0 4px 20px rgba(255,71,87,0.2); }
   .settings-panel { display: none; }
   .settings-panel.active { display: block; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="settings-tabs">
-  <button class="settings-tab active" onclick="showTab('network')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+<div class="flex gap-1 mb-5 bg-bg-secondary border border-border rounded-xl p-1">
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5 data-[active]:bg-accent/15 data-[active]:text-accent data-[active]:border data-[active]:border-accent/30" data-active onclick="showTab('network')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     Network
   </button>
-  <button class="settings-tab" onclick="showTab('users')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5" onclick="showTab('users')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
     Users
   </button>
-  <button class="settings-tab" onclick="showTab('agents')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5" onclick="showTab('agents')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     Agents
   </button>
-  <button class="settings-tab" onclick="showTab('api')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5" onclick="showTab('api')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
     API Keys
   </button>
-  <button class="settings-tab" onclick="showTab('security')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5" onclick="showTab('security')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     Security
   </button>
-  <button class="settings-tab" onclick="showTab('export')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  <button class="settings-tab flex-1 py-2 px-3 rounded-lg bg-transparent text-text-muted text-xs font-semibold cursor-pointer transition-colors hover:text-text-primary hover:bg-bg-tertiary flex items-center justify-center gap-1.5" onclick="showTab('export')">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export
   </button>
 </div>
 
 <!-- NETWORK TAB -->
 <div class="settings-panel active" id="panel-network">
-  <div class="two-col">
+  <div class="grid grid-cols-2 gap-5">
     <div>
       <div class="card">
         <h2>Listeners</h2>
@@ -74,19 +51,19 @@
           <tbody>
           {% for l in listeners %}
           <tr>
-            <td style="font-weight:500">{{ l.name }}</td>
+            <td class="font-medium">{{ l.name }}</td>
             <td><span class="badge type">{{ l.protocol }}</span></td>
-            <td style="font-family:var(--font-mono);font-size:12px">{{ l.host }}</td>
-            <td style="font-family:var(--font-mono)">{{ l.port }}</td>
+            <td class="font-mono text-xs">{{ l.host }}</td>
+            <td class="font-mono">{{ l.port }}</td>
             <td><button class="btn sm danger" onclick="deleteListener('{{ l.id }}')">Delete</button></td>
           </tr>
           {% else %}
-          <tr><td colspan="5" style="color:var(--text-dim);text-align:center;padding:20px">No listeners</td></tr>
+          <tr><td colspan="5" class="text-text-muted text-center py-5">No listeners</td></tr>
           {% endfor %}
           </tbody>
         </table>
-        <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
-          <h3 style="font-size:13px;margin-bottom:14px;color:var(--text-bright);font-weight:700">New Listener</h3>
+        <div class="mt-4.5 pt-4.5 border-t border-border">
+          <h3 class="text-[13px] mb-3.5 text-text-bright font-bold">New Listener</h3>
           <div class="form-row">
             <div class="form-group"><label>Name</label><input type="text" id="lName" placeholder="main-http"></div>
             <div class="form-group"><label>Protocol</label>
@@ -97,26 +74,26 @@
             <div class="form-group"><label>Bind Host</label><input type="text" id="lHost" value="0.0.0.0"></div>
             <div class="form-group"><label>Port</label><input type="number" id="lPort" value="8443"></div>
           </div>
-          <button class="btn primary" style="width:100%" onclick="createListener()">Create Listener</button>
+          <button class="btn primary w-full" onclick="createListener()">Create Listener</button>
         </div>
       </div>
 
       <div class="card">
         <h2>Server Info</h2>
-        <table style="font-size:12px">
-          <tr><td style="color:var(--text-dim);padding:8px">Server Time</td><td style="padding:8px;font-family:var(--font-mono)" id="serverTime">&mdash;</td></tr>
-          <tr><td style="color:var(--text-dim);padding:8px">Local URL</td><td style="padding:8px;font-family:var(--font-mono);font-size:11px" id="localUrl">&mdash;</td></tr>
-          <tr><td style="color:var(--text-dim);padding:8px">Public URL</td><td style="padding:8px;font-family:var(--font-mono);font-size:11px;word-break:break-all" id="publicUrl">&mdash;</td></tr>
-          <tr><td style="color:var(--text-dim);padding:8px">DB Path</td><td style="font-family:var(--font-mono);padding:8px;font-size:11px">data/c2.db</td></tr>
-          <tr><td style="color:var(--text-dim);padding:8px">Version</td><td style="font-family:var(--font-mono);padding:8px;font-size:11px">2.0</td></tr>
+        <table class="text-xs">
+          <tr><td class="text-text-muted p-2">Server Time</td><td class="p-2 font-mono" id="serverTime">&mdash;</td></tr>
+          <tr><td class="text-text-muted p-2">Local URL</td><td class="p-2 font-mono text-[11px]" id="localUrl">&mdash;</td></tr>
+          <tr><td class="text-text-muted p-2">Public URL</td><td class="p-2 font-mono text-[11px] break-all" id="publicUrl">&mdash;</td></tr>
+          <tr><td class="text-text-muted p-2">DB Path</td><td class="font-mono p-2 text-[11px]">data/c2.db</td></tr>
+          <tr><td class="text-text-muted p-2">Version</td><td class="font-mono p-2 text-[11px]">2.0</td></tr>
         </table>
       </div>
     </div>
 
     <div>
       <div class="card">
-        <h2 style="color:var(--accent)">Domain &amp; Tunnel</h2>
-        <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">Set a stable public URL so payloads and agents can always reach the panel.</p>
+        <h2 class="text-accent">Domain &amp; Tunnel</h2>
+        <p class="text-[11px] text-text-muted mb-3.5">Set a stable public URL so payloads and agents can always reach the panel.</p>
         <div class="form-group">
           <label>Public URL (always used in payloads)</label>
           <input type="url" id="cfgPublicUrl" placeholder="https://your-c2.example.com or https://xxx.trycloudflare.com">
@@ -124,18 +101,18 @@
         <div class="form-group">
           <label>Kaggle C2 URL (override for Kaggle deploy)</label>
           <input type="url" id="cfgPublicUrlKaggle" placeholder="Leave empty = use Public URL">
-          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Kaggle may block trycloudflare.com. Use direct URL (DDNS/VPN) if agents don't connect.</div>
+          <div class="text-[10px] text-text-muted mt-1">Kaggle may block trycloudflare.com. Use direct URL (DDNS/VPN) if agents don't connect.</div>
         </div>
         <div class="form-group">
           <label>Cloudflare Tunnel Token (optional)</label>
           <input type="password" id="cfgTunnelToken" placeholder="Paste token from Cloudflare Zero Trust → Tunnels" autocomplete="off">
         </div>
-        <button class="btn primary" style="width:100%" onclick="saveDomainConfig()">Save Domain &amp; Tunnel</button>
+        <button class="btn primary w-full" onclick="saveDomainConfig()">Save Domain &amp; Tunnel</button>
       </div>
 
       <div class="card">
-        <h2 style="color:var(--purple)">Webhook Notifications</h2>
-        <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">Get instant alerts on agent events. Leave blank to disable.</p>
+        <h2 class="text-purple">Webhook Notifications</h2>
+        <p class="text-[11px] text-text-muted mb-3.5">Get instant alerts on agent events. Leave blank to disable.</p>
         <div class="form-group">
           <label>Discord Webhook URL</label>
           <input type="text" id="cfgDiscord" placeholder="https://discord.com/api/webhooks/...">
@@ -144,8 +121,8 @@
           <label>Telegram Bot URL</label>
           <input type="text" id="cfgTelegram" placeholder="https://api.telegram.org/bot.../sendMessage?chat_id=...">
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn primary" style="flex:1" onclick="saveWebhooks()">Save Webhooks</button>
+        <div class="flex gap-2">
+          <button class="btn primary flex-1" onclick="saveWebhooks()">Save Webhooks</button>
           <button class="btn" onclick="testWebhook()">Test</button>
         </div>
       </div>
@@ -155,7 +132,7 @@
 
 <!-- USERS TAB -->
 <div class="settings-panel" id="panel-users">
-  <div class="two-col">
+  <div class="grid grid-cols-2 gap-5">
     <div>
       <div class="card">
         <h2>User Management</h2>
@@ -164,16 +141,16 @@
           <tbody>
           {% for u in users %}
           <tr>
-            <td style="font-weight:500">{{ u.username }}</td>
+            <td class="font-medium">{{ u.username }}</td>
             <td><span class="badge type">{{ u.role }}</span></td>
-            <td style="font-size:12px;color:var(--text-dim)">{{ u.created_at }}</td>
+            <td class="text-xs text-text-muted">{{ u.created_at }}</td>
             <td><button class="btn sm danger" onclick="deleteUser({{ u.id }}, '{{ u.username }}')">Delete</button></td>
           </tr>
           {% endfor %}
           </tbody>
         </table>
-        <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
-          <h3 style="font-size:13px;margin-bottom:14px;color:var(--text-bright);font-weight:700">Add User</h3>
+        <div class="mt-4.5 pt-4.5 border-t border-border">
+          <h3 class="text-[13px] mb-3.5 text-text-bright font-bold">Add User</h3>
           <div class="form-row">
             <div class="form-group"><label>Username</label><input type="text" id="newUser" placeholder="operator1"></div>
             <div class="form-group"><label>Password</label><input type="password" id="newPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
@@ -182,7 +159,7 @@
             <label>Role</label>
             <select id="newRole"><option value="operator">Operator</option><option value="admin">Admin</option></select>
           </div>
-          <button class="btn primary" style="width:100%" onclick="createUser()">Create User</button>
+          <button class="btn primary w-full" onclick="createUser()">Create User</button>
         </div>
       </div>
     </div>
@@ -192,7 +169,7 @@
         <div class="form-group"><label>Current Password</label><input type="password" id="curPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
         <div class="form-group"><label>New Password</label><input type="password" id="newPw" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
         <div class="form-group"><label>Confirm New Password</label><input type="password" id="confPw" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
-        <button class="btn primary" style="width:100%" onclick="changePassword()">Change Password</button>
+        <button class="btn primary w-full" onclick="changePassword()">Change Password</button>
       </div>
     </div>
   </div>
@@ -200,41 +177,41 @@
 
 <!-- AGENTS TAB -->
 <div class="settings-panel" id="panel-agents">
-  <div class="card" style="max-width:600px">
+  <div class="card max-w-[600px]">
     <h2>Global Agent Config</h2>
     <div class="form-row">
       <div class="form-group"><label>Default Sleep (s)</label><input type="number" id="gSleep" value="5"></div>
       <div class="form-group"><label>Default Jitter (%)</label><input type="number" id="gJitter" value="10"></div>
     </div>
-    <button class="btn" onclick="applyGlobalConfig()" style="width:100%;margin-bottom:16px">Apply to All Agents</button>
+    <button class="btn w-full mb-4" onclick="applyGlobalConfig()">Apply to All Agents</button>
     <div class="form-group">
       <label>Kill Switch</label>
-      <button class="btn danger" onclick="killAll()" style="width:100%">KILL ALL AGENTS</button>
+      <button class="btn danger w-full" onclick="killAll()">KILL ALL AGENTS</button>
     </div>
   </div>
 </div>
 
 <!-- API KEYS TAB -->
 <div class="settings-panel" id="panel-api">
-  <div class="two-col">
+  <div class="grid grid-cols-2 gap-5">
     <div>
       <div class="card">
-        <h2 style="color:var(--orange)">Mail &amp; Captcha APIs</h2>
-        <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">API ключи для авторегистрации. Оставьте пустым, чтобы не использовать.</p>
+        <h2 class="text-orange">Mail &amp; Captcha APIs</h2>
+        <p class="text-[11px] text-text-muted mb-3.5">API ключи для авторегистрации. Оставьте пустым, чтобы не использовать.</p>
         <div class="form-group">
           <label>CapMonster / Anti-Captcha API Key</label>
-          <input type="text" id="cfgCaptchaKey" placeholder="API key для решения капчи" style="font-family:var(--font-mono);font-size:12px">
-          <p style="font-size:10px;color:var(--text-dim);margin-top:4px">CapMonster Cloud / Anti-Captcha — для автоматического обхода reCAPTCHA, hCaptcha.</p>
+          <input type="text" id="cfgCaptchaKey" placeholder="API key для решения капчи" class="font-mono text-xs">
+          <p class="text-[10px] text-text-muted mt-1">CapMonster Cloud / Anti-Captcha — для автоматического обхода reCAPTCHA, hCaptcha.</p>
         </div>
         <div class="form-group">
           <label>Boomlify API Keys (по одному на строку)</label>
-          <textarea id="cfgBoomlifyKeys" rows="3" style="font-family:var(--font-mono);font-size:11px" placeholder="ключ1&#10;ключ2&#10;ключ3"></textarea>
+          <textarea id="cfgBoomlifyKeys" rows="3" class="font-mono text-[11px]" placeholder="ключ1&#10;ключ2&#10;ключ3"></textarea>
         </div>
         <div class="form-group">
           <label>FCaptcha / FureCap API Keys (по одному на строку)</label>
-          <textarea id="cfgFcbKeys" rows="3" style="font-family:var(--font-mono);font-size:11px" placeholder="ключ1&#10;ключ2"></textarea>
+          <textarea id="cfgFcbKeys" rows="3" class="font-mono text-[11px]" placeholder="ключ1&#10;ключ2"></textarea>
         </div>
-        <button class="btn primary" style="width:100%" onclick="saveMailConfig()">Save Mail &amp; Captcha</button>
+        <button class="btn primary w-full" onclick="saveMailConfig()">Save Mail &amp; Captcha</button>
       </div>
     </div>
     <div></div>
@@ -243,38 +220,38 @@
 
 <!-- SECURITY TAB -->
 <div class="settings-panel" id="panel-security">
-  <div class="card" style="max-width:600px">
-    <h2 style="color:var(--red)">Security</h2>
+  <div class="card max-w-[600px]">
+    <h2 class="text-error">Security</h2>
     <div class="form-group">
       <label>Agent Auth Token (PSK)</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="cfgToken" placeholder="Leave empty for open registration" style="font-family:var(--font-mono);font-size:12px;flex:1">
+      <div class="flex gap-2">
+        <input type="text" id="cfgToken" placeholder="Leave empty for open registration" class="font-mono text-xs flex-1">
         <button class="btn sm" onclick="document.getElementById('cfgToken').value=crypto.randomUUID().replace(/-/g,'').slice(0,32)" title="Generate">Gen</button>
         <button class="btn sm" onclick="navigator.clipboard.writeText(document.getElementById('cfgToken').value).then(()=>showNotification('Copied','green'))" title="Copy">Copy</button>
       </div>
-      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">Agents must send X-Auth-Token header to register. Empty = open registration.</p>
+      <p class="text-[10px] text-text-muted mt-1">Agents must send X-Auth-Token header to register. Empty = open registration.</p>
     </div>
     <div class="form-group">
       <label>Agent Comm Encryption Key</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="cfgEncKey" placeholder="XOR encryption key (leave empty to disable)" style="font-family:var(--font-mono);font-size:12px;flex:1">
+      <div class="flex gap-2">
+        <input type="text" id="cfgEncKey" placeholder="XOR encryption key (leave empty to disable)" class="font-mono text-xs flex-1">
         <button class="btn sm" onclick="document.getElementById('cfgEncKey').value=crypto.randomUUID().replace(/-/g,'')" title="Generate">Gen</button>
         <button class="btn sm" onclick="navigator.clipboard.writeText(document.getElementById('cfgEncKey').value).then(()=>showNotification('Copied','green'))" title="Copy">Copy</button>
       </div>
-      <p style="font-size:10px;color:var(--text-dim);margin-top:4px">XOR+HMAC encryption for agent &lt;-&gt; server traffic. Agents need same key.</p>
+      <p class="text-[10px] text-text-muted mt-1">XOR+HMAC encryption for agent &lt;-&gt; server traffic. Agents need same key.</p>
     </div>
-    <button class="btn primary" style="width:100%" onclick="saveConfig()">Save Security Config</button>
+    <button class="btn primary w-full" onclick="saveConfig()">Save Security Config</button>
   </div>
 </div>
 
 <!-- EXPORT TAB -->
 <div class="settings-panel" id="panel-export">
-  <div class="card" style="max-width:400px">
-    <h2 style="color:var(--green)">Data Export</h2>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <a href="/api/export/agents" class="btn sm" style="text-align:center">Export Agents (CSV)</a>
-      <a href="/api/export/logs" class="btn sm" style="text-align:center">Export Logs (CSV)</a>
-      <a href="/api/export/tasks" class="btn sm" style="text-align:center">Export Tasks (CSV)</a>
+  <div class="card max-w-[400px]">
+    <h2 class="text-success">Data Export</h2>
+    <div class="flex flex-col gap-2">
+      <a href="/api/export/agents" class="btn sm text-center">Export Agents (CSV)</a>
+      <a href="/api/export/logs" class="btn sm text-center">Export Logs (CSV)</a>
+      <a href="/api/export/tasks" class="btn sm text-center">Export Tasks (CSV)</a>
     </div>
   </div>
 </div>
@@ -286,7 +263,12 @@
 function showTab(name) {
   document.querySelectorAll('.settings-tab').forEach((t, i) => {
     const tabs = ['network','users','agents','api','security','export'];
-    t.classList.toggle('active', tabs[i] === name);
+    const isActive = tabs[i] === name;
+    t.classList.toggle('bg-accent/15', isActive);
+    t.classList.toggle('text-accent', isActive);
+    t.classList.toggle('border', isActive);
+    t.classList.toggle('border-accent/30', isActive);
+    t.classList.toggle('text-text-muted', !isActive);
   });
   document.querySelectorAll('.settings-panel').forEach(p => {
     p.classList.toggle('active', p.id === 'panel-' + name);

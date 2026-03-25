@@ -19,7 +19,7 @@
     overflow: hidden;
   }
   .btn.sm:hover, .btn.primary:hover {
-    box-shadow: 0 4px 15px rgba(108,92,231,0.3);
+    box-shadow: 0 4px 15px rgba(0,212,255,0.3);
   }
   .btn.sm:active, .btn.primary:active {
     filter: brightness(0.9);
@@ -31,11 +31,11 @@
     cursor: pointer;
   }
   .email-item:hover {
-    background: rgba(108,92,231,0.06);
+    background: rgba(0,212,255,0.06);
   }
   .email-item.active {
     border-left: 2px solid var(--accent);
-    background: rgba(108,92,231,0.08);
+    background: rgba(0,212,255,0.08);
   }
   
   /* Icon wrap animation */
@@ -46,7 +46,7 @@
     filter: brightness(1.2);
   }
   .tm-icon-wrap.accent {
-    box-shadow: 0 0 15px rgba(108,92,231,0.3);
+    box-shadow: 0 0 15px rgba(0,212,255,0.3);
   }
   .tm-icon-wrap.green {
     box-shadow: 0 0 15px rgba(0,245,155,0.3);
@@ -87,7 +87,7 @@
     transition: all 0.2s ease;
   }
   #domainSelect:focus {
-    box-shadow: 0 0 0 3px rgba(108,92,231,0.15);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
     border-color: var(--accent);
   }
   
@@ -96,7 +96,7 @@
     transition: all 0.2s ease;
   }
   .message-item:hover {
-    background: rgba(108,92,231,0.04);
+    background: rgba(0,212,255,0.04);
   }
   
   /* Section header */
@@ -104,15 +104,15 @@
     transition: background 0.2s ease;
   }
   .tm-card:hover .tm-section-header {
-    background: rgba(108,92,231,0.03);
+    background: rgba(0,212,255,0.03);
   }
 </style>
 {% endblock %}
 {% block topbar_actions %}
-<div style="display:flex;gap:8px;align-items:center">
-  <button id="createBtnTop" class="btn sm primary" onclick="createEmail()" title="New email [N]">+ Create Email</button>
-  <button class="btn sm" onclick="refreshAllInboxes()" id="refreshAllBtn" title="Refresh all [R]">↻ Refresh All</button>
-  <span style="font-size:10px;color:var(--text-muted)" title="Keyboard shortcuts">[N] new · [R] refresh</span>
+<div class="flex items-center gap-2">
+  <button id="createBtnTop" class="topbar-btn topbar-btn-primary" onclick="createEmail()" title="New email [N]">+ Create</button>
+  <button class="topbar-btn topbar-btn-secondary" onclick="refreshAllInboxes()" id="refreshAllBtn" title="Refresh all [R]">Refresh</button>
+  <span class="text-[10px] text-text-muted">[N] new · [R] refresh</span>
 </div>
 {% endblock %}
 
@@ -426,7 +426,7 @@
 }
 .email-card:hover {
   border-color: var(--accent);
-  background: rgba(108,92,231,.05);
+  background: rgba(0,212,255,.05);
 }
 .email-card.active {
   border-color: var(--accent);
@@ -535,7 +535,7 @@
 }
 .message-card:hover {
   border-color: var(--accent);
-  background: rgba(108,92,231,.05);
+  background: rgba(0,212,255,.05);
 }
 .message-card .msg-row {
   display: flex;
@@ -1029,7 +1029,7 @@ toastStyles.textContent = `
 .tm-toast.success { background: linear-gradient(135deg, rgba(0,255,136,.9) 0%, rgba(0,204,106,.9) 100%); color: #000; }
 .tm-toast.error { background: linear-gradient(135deg, rgba(255,68,102,.9) 0%, rgba(204,54,82,.9) 100%); color: #fff; }
 .tm-toast.warning { background: linear-gradient(135deg, rgba(255,208,0,.9) 0%, rgba(204,166,0,.9) 100%); color: #000; }
-.tm-toast.info { background: linear-gradient(135deg, rgba(108,92,231,.9) 0%, rgba(0,180,216,.9) 100%); color: #000; }
+.tm-toast.info { background: linear-gradient(135deg, rgba(0,212,255,.9) 0%, rgba(0,180,216,.9) 100%); color: #000; }
 .tm-toast.fade-out { opacity: 0; transform: translateY(10px); transition: all .3s ease; }
 @keyframes tmToastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
