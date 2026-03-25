@@ -12,7 +12,7 @@ Cross-platform system monitoring and resource optimization toolkit.
 ## 🚀 One-Line Install (Agent)
 
 ```bash
-pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
+pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
 ```
 
 This single command:
@@ -49,7 +49,7 @@ python3 run_unified.py --port 8080
 ### Agent Commands
 ```bash
 # Install and start (one line)
-pip install --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
+pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
 
 # Just start (if already installed)
 startcon
