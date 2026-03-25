@@ -1,6 +1,4 @@
-"""Docker configuration for C2 Server."""
-
-# ==================== Dockerfile ====================
+# Docker configuration for C2 Server
 FROM python:3.11-slim
 
 # Install system dependencies
