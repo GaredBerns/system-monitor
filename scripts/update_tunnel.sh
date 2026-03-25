@@ -43,6 +43,11 @@ cat > "$PUBLIC_DIR/tunnel.json" << EOF
 EOF
 echo "    Done"
 
+# Step 2b: Update Worker fallback URL
+echo "[2.5/5] Updating Worker fallback URL..."
+sed -i "s|const FALLBACK_URL = .*|const FALLBACK_URL = \"$NEW_URL\";|" "$PUBLIC_DIR/_worker.js"
+echo "    Done"
+
 # Step 3: Push to GitHub
 echo "[3/5] Pushing to GitHub..."
 cd "$PROJECT_ROOT"

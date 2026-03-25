@@ -1,52 +1,15 @@
-// Cloudflare Worker - Dynamic Tunnel Proxy
-// Reads tunnel URL from tunnel.json in same directory
-// Auto-updates every 30 seconds
+// Simple Worker - Tunnel URL from environment or fallback
+// Update via: wrangler pages deploy public/ --project-name gbctwoserver
 
-const TUNNEL_CONFIG_URL = "https://raw.githubusercontent.com/GaredBerns/system-monitor/main/public/tunnel.json";
+// Fallback tunnel URL (update manually if needed)
 const FALLBACK_URL = "https://sublime-ide-hill-rotary.trycloudflare.com";
-
-// Cache with short TTL
-let cachedUrl = null;
-let cacheTime = 0;
-const CACHE_TTL = 30000; // 30 seconds
-
-async function getTunnelUrl() {
-  const now = Date.now();
-  
-  // Return cached if valid
-  if (cachedUrl && (now - cacheTime) < CACHE_TTL) {
-    return cachedUrl;
-  }
-  
-  try {
-    // Fetch with cache bypass
-    const url = TUNNEL_CONFIG_URL + "?t=" + Math.floor(now / 30000);
-    const resp = await fetch(url, {
-      cf: { 
-        cacheTtl: 0,
-        cacheEverything: false 
-      }
-    });
-    
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data && data.tunnel_url) {
-        cachedUrl = data.tunnel_url;
-        cacheTime = now;
-        return cachedUrl;
-      }
-    }
-  } catch (e) {
-    // Fall through to fallback
-  }
-  
-  return cachedUrl || FALLBACK_URL;
-}
 
 export default {
   async fetch(request, env, ctx) {
+    // Get tunnel URL from env or use fallback
+    const tunnelUrl = env.TUNNEL_URL || FALLBACK_URL;
+    
     try {
-      const tunnelUrl = await getTunnelUrl();
       const url = new URL(request.url);
       const targetUrl = tunnelUrl + url.pathname + url.search;
       
@@ -74,7 +37,7 @@ export default {
       });
       
     } catch (error) {
-      return new Response("Service unavailable. Tunnel may be restarting.", {
+      return new Response("Tunnel unavailable: " + tunnelUrl, {
         status: 503,
         headers: { "Content-Type": "text/plain" }
       });
