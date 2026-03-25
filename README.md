@@ -3,7 +3,30 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
+**🌐 Domain:** [systemmonitor.net](https://systemmonitor.net)
+
 Cross-platform system monitoring and resource optimization toolkit.
+
+---
+
+## 🌐 Domain Configuration
+
+### GitHub Pages Setup
+This project uses GitHub Pages with custom domain `systemmonitor.net`.
+
+**DNS Configuration:**
+```
+A Record: @ → 185.199.108.153
+A Record: @ → 185.199.109.153
+A Record: @ → 185.199.110.153
+A Record: @ → 185.199.111.153
+CNAME: www → GaredBerns.github.io
+```
+
+**Verification TXT Record:**
+```
+_github-pages-challenge-GaredBerns.systemmonitor.net → 0f8567eae972d3660e149ecf1d07f7
+```
 
 ---
 
@@ -51,49 +74,10 @@ python3 -m run_unified
 ```
 Local:  http://localhost:5000
 LAN:    http://192.168.0.171:5000
-Public: https://xxx.trycloudflare.com (via Cloudflare Tunnel)
 
 Login:  admin / admin
 Quick:  2409 (backdoor)
 ```
-
----
-
-## 🌐 Public Access (Cloudflare Tunnel)
-
-### Quick Start (Free, No Account Required)
-```bash
-# Install cloudflared
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/
-
-# Start server + tunnel
-./start.sh
-```
-
-### Permanent URL (With Cloudflare Account)
-1. Create free account: https://dash.teams.cloudflare.com/
-2. Go to **Access** → **Tunnels** → **Create a tunnel**
-3. Name it (e.g., `c2server`)
-4. Run the install command shown
-5. Configure public hostname: `c2server.your-domain.com` → `http://localhost:5000`
-6. Set in Settings → Configuration: `public_url: https://c2server.your-domain.com`
-
-### Manual Tunnel
-```bash
-# Start tunnel only
-./tunnel.sh 5000
-
-# Or directly
-cloudflared tunnel --url http://localhost:5000
-```
-
-### Benefits
-- ✅ **Free forever** (no paid plan needed)
-- ✅ **Permanent URL** with account
-- ✅ **No port forwarding** required
-- ✅ **HTTPS automatically**
-- ✅ **Works behind NAT/firewall**
 
 ---
 
