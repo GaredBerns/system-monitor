@@ -46,7 +46,7 @@
   .log-entry[data-ev="tunnel"] .ev { color: var(--orange); }
 
   .agent-row { cursor: pointer; }
-  .agent-row:hover td { background: rgba(0,212,255,0.04); }
+  .agent-row:hover td { background: rgba(108,92,231,0.04); }
 
   .empty-state { padding: 40px 20px; text-align: center; animation: fadeIn 0.5s ease; }
   .empty-state .es-icon { font-size: 36px; display: block; margin-bottom: 12px; animation: float 3s ease-in-out infinite; }
@@ -85,7 +85,7 @@
   .refresh-btn.loading svg { animation: spin 0.8s linear infinite; }
 
   .listener-row { cursor: pointer; }
-  .listener-row:hover td { background: rgba(0,212,255,0.04); }
+  .listener-row:hover td { background: rgba(108,92,231,0.04); }
 
   .card h2 svg { display: inline; vertical-align: -3px; margin-right: 8px; opacity: 0.7; }
   .card h2 .card-extra {
@@ -98,7 +98,7 @@
   .uptime-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 20px;
-    background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15);
+    background: rgba(108,92,231,0.06); border: 1px solid rgba(108,92,231,0.15);
     font-size: 10px; font-family: var(--font-mono); color: var(--text-dim);
   }
 
@@ -499,7 +499,7 @@ function makePie(id, data) {
         },
         tooltip: {
           backgroundColor: 'rgba(13,24,41,0.95)',
-          borderColor: 'rgba(0,212,255,0.3)',
+          borderColor: 'rgba(108,92,231,0.3)',
           borderWidth: 1,
           titleColor: '#00d4ff',
           bodyColor: '#a8b8d0',
@@ -665,8 +665,8 @@ function initSmartInsights() {
     .insight-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
     .insight-desc { font-size: 11px; color: var(--text-dim); }
     .insight-action { margin-top: 8px; }
-    .insight-action button { background: rgba(0,212,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
-    .insight-action button:hover { background: rgba(0,212,255,0.2); }
+    .insight-action button { background: rgba(108,92,231,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; color: var(--accent); font-size: 10px; cursor: pointer; }
+    .insight-action button:hover { background: rgba(108,92,231,0.2); }
   `;
   document.head.appendChild(style);
   
@@ -799,7 +799,7 @@ function initQuickActions() {
     .qa-header { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
     .qa-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-    .qa-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+    .qa-btn:hover { border-color: var(--accent); background: rgba(108,92,231,0.1); }
     .qa-icon { font-size: 24px; }
     .qa-btn span:last-child { font-size: 11px; color: var(--text-dim); }
     @media (max-width: 768px) { .qa-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -1217,7 +1217,7 @@ function initTaskQueue() {
     .tq-task { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px; }
     .tq-task-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
     .tq-task-icon.pending { background: rgba(255,208,0,0.15); color: var(--yellow); }
-    .tq-task-icon.running { background: rgba(0,212,255,0.15); color: var(--accent); }
+    .tq-task-icon.running { background: rgba(108,92,231,0.15); color: var(--accent); }
     .tq-task-content { flex: 1; }
     .tq-task-type { font-size: 12px; font-weight: 600; }
     .tq-task-agent { font-size: 10px; color: var(--text-dim); }

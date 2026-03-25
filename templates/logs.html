@@ -14,12 +14,12 @@
     border-left: 2px solid transparent;
   }
   .log-entry:hover {
-    background: rgba(0,212,255,0.03);
+    background: rgba(108,92,231,0.03);
     border-left-color: var(--accent);
   }
 
   /* Event type color coding */
-  .log-entry[data-ev*="login"]   { border-left-color: rgba(0,212,255,0.3); }
+  .log-entry[data-ev*="login"]   { border-left-color: rgba(108,92,231,0.3); }
   .log-entry[data-ev*="login"] .ev   { color: var(--accent); }
   .log-entry[data-ev*="agent"]   { border-left-color: rgba(0,245,155,0.3); }
   .log-entry[data-ev*="agent"] .ev   { color: var(--green); }
@@ -31,11 +31,11 @@
   .log-entry[data-ev*="autoreg"] .ev { color: var(--purple); }
   .log-entry[data-ev*="tunnel"]  { border-left-color: rgba(255,140,0,0.3); }
   .log-entry[data-ev*="tunnel"] .ev  { color: var(--orange); }
-  .log-entry[data-ev*="server"]  { border-left-color: rgba(0,212,255,0.2); }
+  .log-entry[data-ev*="server"]  { border-left-color: rgba(108,92,231,0.2); }
   .log-entry[data-ev*="server"] .ev  { color: var(--text-dim); }
 
   #logFilter:focus {
-    box-shadow: 0 0 0 3px rgba(0,212,255,0.15), 0 0 20px rgba(0,212,255,0.1);
+    box-shadow: 0 0 0 3px rgba(108,92,231,0.15), 0 0 20px rgba(108,92,231,0.1);
     border-color: var(--accent);
   }
 

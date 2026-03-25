@@ -58,7 +58,7 @@
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
     }
     .sidebar nav a:hover {
-      background: rgba(0,212,255,0.07);
+      background: rgba(108,92,231,0.07);
       color: var(--accent);
     }
     .sidebar nav a:hover svg {
@@ -66,7 +66,7 @@
       opacity: 1 !important;
     }
     .sidebar nav a.active {
-      background: linear-gradient(90deg, rgba(0,212,255,0.12) 0%, transparent 100%);
+      background: linear-gradient(90deg, rgba(108,92,231,0.12) 0%, transparent 100%);
     }
     .sidebar nav a.active::before {
       content: '';
@@ -75,7 +75,7 @@
       width: 3px; height: 65%;
       background: var(--accent);
       border-radius: 0 3px 3px 0;
-      box-shadow: 0 0 6px rgba(0,212,255,0.25);
+      box-shadow: 0 0 6px rgba(108,92,231,0.25);
     }
 
     /* ── Nav section divider ── */
@@ -111,7 +111,7 @@
       overflow: hidden;
     }
     .sidebar .user-info:hover {
-      background: rgba(0,212,255,0.04);
+      background: rgba(108,92,231,0.04);
       border-color: var(--border);
     }
     .sidebar .user-info::before {
@@ -132,7 +132,7 @@
       background: linear-gradient(90deg,
         transparent 0%,
         var(--border) 15%,
-        rgba(0,212,255,0.2) 50%,
+        rgba(108,92,231,0.2) 50%,
         var(--border) 85%,
         transparent 100%);
     }
@@ -597,8 +597,8 @@ function initCommandPalette() {
     .command-palette-results { max-height: 400px; overflow-y: auto; padding: 8px; }
     .command-category { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px 4px; }
     .command-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
-    .command-item:hover, .command-item.active { background: rgba(0,212,255,0.1); }
-    .command-item.active { background: rgba(0,212,255,0.15); }
+    .command-item:hover, .command-item.active { background: rgba(108,92,231,0.1); }
+    .command-item.active { background: rgba(108,92,231,0.15); }
     .command-item-icon { font-size: 18px; width: 28px; text-align: center; }
     .command-item-name { flex: 1; font-size: 14px; color: var(--text); }
     .command-item-cat { font-size: 10px; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; }
@@ -696,7 +696,7 @@ function initAIAssistant() {
   
   const style = document.createElement('style');
   style.textContent = `
-    #aiButton { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: linear-gradient(135deg, var(--accent), #8c64d2); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(0,212,255,0.3); z-index: 1000; transition: transform 0.2s; }
+    #aiButton { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: linear-gradient(135deg, var(--accent), #8c64d2); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(108,92,231,0.3); z-index: 1000; transition: transform 0.2s; }
     #aiButton:hover { transform: scale(1.1); }
     .ai-icon { font-size: 24px; }
     .ai-panel { position: fixed; bottom: 80px; right: 20px; width: 380px; height: 500px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; z-index: 1001; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
