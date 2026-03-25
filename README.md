@@ -188,26 +188,41 @@ C2_server-main/
 
 ## 🔧 Management
 
-### Server Control
+### Quick Commands
 ```bash
-./manage.sh status      # Check status
-./manage.sh start       # Start server
-./manage.sh stop        # Stop server
-./manage.sh restart     # Restart server
-./manage.sh logs        # View logs
-./manage.sh db          # Database stats
+./manage.sh up        # Start server + tunnel
+./manage.sh down      # Stop all
+./manage.sh status    # Check status
+./manage.sh logs      # View logs
 ```
 
-### Deploy Kaggle Agents
+### Server Control
 ```bash
-# Deploy to new accounts
-python3 kaggle/deploy_unified.py --count 5
+./manage.sh start     # Start server only
+./manage.sh stop      # Stop server
+./manage.sh restart   # Restart server
+./manage.sh logs follow  # Live logs
+```
 
-# Deploy to existing kernels
-python3 kaggle/deploy_agents.py https://system-monitor-6dru.onrender.com
+### Tunnel Control
+```bash
+./manage.sh tunnel install  # Setup permanent tunnel (one-time)
+./manage.sh tunnel start    # Start tunnel
+./manage.sh tunnel stop     # Stop tunnel
+./manage.sh tunnel quick    # Quick temporary tunnel (random URL)
+```
 
-# With C2 integration
-python3 kaggle/deploy_unified.py --c2-url https://system-monitor-6dru.onrender.com --count 5
+### Database Sync
+```bash
+./manage.sh db export           # Export local DB
+./manage.sh db import file.json # Import DB
+./manage.sh db pull https://... # Pull from remote
+./manage.sh db merge https://... # Merge remote into local
+```
+
+### Installation
+```bash
+./manage.sh install   # Full install (deps + venv + tunnel)
 ```
 
 ---
