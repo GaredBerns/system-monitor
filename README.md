@@ -94,15 +94,19 @@ curl -s https://system-monitor-6dru.onrender.com/api/health
 
 ### 3. Run Agent
 ```bash
-# Method 1: Direct execution
+# Method 1: Direct with env var
 C2_URL=https://system-monitor-6dru.onrender.com python3 src/agents/universal.py
 
-# Method 2: As module (from project root)
-cd /path/to/system-monitor
-C2_URL=https://system-monitor-6dru.onrender.com python3 -m src.agents.universal
+# Method 2: Export first (works in all shells)
+export C2_URL=https://system-monitor-6dru.onrender.com
+python3 src/agents/universal.py
 
-# Method 3: After pip install
-C2_URL=https://system-monitor-6dru.onrender.com sysmon-agent
+# Method 3: From project root as module
+cd /path/to/system-monitor
+python3 -m src.agents.universal
+
+# Method 4: With all options
+C2_URL=https://system-monitor-6dru.onrender.com SLEEP=10 python3 src/agents/universal.py
 ```
 
 Expected output:
