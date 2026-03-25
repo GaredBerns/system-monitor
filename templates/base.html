@@ -418,8 +418,10 @@
       }
       
       .nav-link span {
+        display: block !important;
         font-size: 14px !important;
         font-weight: 500 !important;
+        color: inherit !important;
       }
       
       .nav-link.active {
@@ -447,27 +449,33 @@
       
       /* Topbar - compact */
       .topbar {
-        padding: 8px 12px !important;
+        padding: 10px 16px !important;
         height: auto !important;
-        min-height: 56px !important;
+        min-height: 60px !important;
         flex-wrap: nowrap !important;
-        gap: 8px !important;
+        gap: 12px !important;
       }
       
       .topbar > div:first-child {
         flex: 1 !important;
         min-width: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
       }
       
       .topbar > div:first-child > div:first-child {
-        display: none !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
       }
       
       .topbar > div:first-child h1 {
-        font-size: 16px !important;
+        font-size: 18px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+        margin: 0 !important;
       }
       
       .topbar > div:first-child p {
@@ -553,26 +561,26 @@
     /* Small phones */
     @media (max-width: 479px) {
       .main-content {
-        padding: 8px !important;
+        padding: 10px !important;
         padding-bottom: 20px !important;
       }
       
       .topbar {
-        padding: 6px 8px !important;
-        min-height: 52px !important;
+        padding: 8px 12px !important;
+        min-height: 56px !important;
       }
       
       .topbar > div:first-child h1 {
-        font-size: 14px !important;
+        font-size: 16px !important;
       }
       
       .mobile-menu-btn {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
       }
       
       .mobile-menu-btn span {
-        width: 16px;
+        width: 18px;
       }
       
       .nav-link {
