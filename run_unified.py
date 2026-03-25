@@ -38,8 +38,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="System Monitor")
-    parser.add_argument("--host", default="0.0.0.0", help="Host")
-    parser.add_argument("--port", type=int, default=5000, help="Port")
+    parser.add_argument("--host", default=os.getenv("HOST", "0.0.0.0"), help="Host")
+    parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "5000")), help="Port")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
     
     args = parser.parse_args()

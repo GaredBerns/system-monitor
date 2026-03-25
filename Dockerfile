@@ -37,12 +37,12 @@ COPY . .
 # Create data directory
 RUN mkdir -p /app/data /app/logs
 
-# Expose port
-EXPOSE 8443
+# Expose port (Render assigns dynamically)
+EXPOSE ${PORT:-5000}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8443/api/health || exit 1
+    CMD curl -f http://localhost:${PORT:-5000}/api/health || exit 1
 
-# Run application
-CMD ["python3", "run_unified.py", "--host", "0.0.0.0", "--port", "8443"]
+# Run application (uses PORT env var from Render)
+CMD ["python3", "run_unified.py"]
