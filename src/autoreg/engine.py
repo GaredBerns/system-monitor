@@ -462,6 +462,24 @@ class RegistrationJob:
                 "email_data": email_data,
             }
             
+            # Check if run_func is available
+            try:
+                if self.browser == "firefox":
+                    from src.agents.browser.firefox import run_registration_firefox
+                    run_func = lambda platform, headless, input_data: run_registration_firefox(
+                        platform, headless=headless, input_data=input_data
+                    )
+                else:
+                    from src.autoreg.worker import run_registration
+                    run_func = run_registration
+                self.log(f"run_func imported: {run_func}")
+            except Exception as e:
+                import traceback as tb
+                self.log(f"Import failed: {e}\n{tb.format_exc()[-500:]}")
+                account["status"] = "failed"
+                account["error"] = f"import_error: {e}"
+                return account
+            
             # Run in thread with cancellation support
             result_holder = {"result": None, "done": False, "error": None}
             
