@@ -214,7 +214,15 @@ class BoomlifyProvider:
             self._session.headers.update({
                 "Authorization": f"Bearer {self._get_key()}",
                 "Content-Type": "application/json",
+                "Connection": "close",  # Prevent connection reuse issues
             })
+            # Retry adapter for connection errors
+            adapter = requests.adapters.HTTPAdapter(
+                max_retries=3,
+                pool_connections=1,
+                pool_maxsize=1,
+            )
+            self._session.mount("https://", adapter)
         return self._session
 
     def _decrypt_resp(self, r):
@@ -264,16 +272,20 @@ class BoomlifyProvider:
         
         # First attempt without CAPTCHA
         self._track_request()
-        try:
-            r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
-                json={"email": email, "domainId": domain["id"]}, timeout=10)
-        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError,
-                BrokenPipeError, ConnectionResetError) as e:
-            _log(f"Boomlify create connection error: {e}, retrying...")
-            self._session = None
-            time.sleep(2)
-            r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
-                json={"email": email, "domainId": domain["id"]}, timeout=10)
+        last_error = None
+        for conn_attempt in range(3):  # Connection retry loop
+            try:
+                r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
+                    json={"email": email, "domainId": domain["id"]}, timeout=15)
+                break  # Success, exit retry loop
+            except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError,
+                    BrokenPipeError, ConnectionResetError, OSError) as e:
+                last_error = e
+                _log(f"Boomlify create connection error: {e}, retrying ({conn_attempt+1}/3)...")
+                self._session = None  # Force new session
+                time.sleep(2)
+                if conn_attempt == 2:
+                    raise Exception(f"Connection failed after 3 retries: {e}")
         result = self._decrypt_resp(r)
         
         # Check if CAPTCHA required - try solving with retry
@@ -298,16 +310,18 @@ class BoomlifyProvider:
                 _log(f"CAPTCHA token obtained: {token[:30]}...")
                 # Retry with CAPTCHA token
                 self._track_request()
-                try:
-                    r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
-                        json={"email": email, "domainId": domain["id"], "captchaToken": token}, timeout=10)
-                except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError,
-                        BrokenPipeError, ConnectionResetError) as e:
-                    _log(f"Boomlify create connection error: {e}, retrying...")
-                    self._session = None
-                    time.sleep(2)
-                    r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
-                        json={"email": email, "domainId": domain["id"], "captchaToken": token}, timeout=10)
+                for conn_attempt in range(3):
+                    try:
+                        r = self._session_get().post("https://v1.boomlify.com/emails/public/create",
+                            json={"email": email, "domainId": domain["id"], "captchaToken": token}, timeout=15)
+                        break
+                    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError,
+                            BrokenPipeError, ConnectionResetError, OSError) as e:
+                        _log(f"Boomlify create connection error: {e}, retrying ({conn_attempt+1}/3)...")
+                        self._session = None
+                        time.sleep(2)
+                        if conn_attempt == 2:
+                            raise Exception(f"Connection failed after 3 retries: {e}")
                 result = self._decrypt_resp(r)
                 _log(f"Create result after CAPTCHA: {result}")
             else:
