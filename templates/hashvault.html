@@ -233,10 +233,6 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
     Statistics
   </button>
-  <button class="pool-tab" onclick="switchTab('workers')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 1-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    Workers
-  </button>
   <button class="pool-tab active" onclick="switchTab('dashboard')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     Pool Dashboard
@@ -277,42 +273,6 @@
             <div class="empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               <p>No workers data - use Pool Dashboard tab</p>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Workers Tab -->
-<div id="workers-tab" class="pool-tab-content">
-  <div class="workers-panel">
-    <div class="workers-panel-header">
-      <span class="workers-panel-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        Kaggle Workers
-      </span>
-      <span class="text-xs text-text-muted font-mono" id="kaggle-count">0 kernels</span>
-    </div>
-    <div class="table-container">
-      <table>
-      <thead>
-        <tr>
-          <th>Worker ID</th>
-          <th>Kernel</th>
-          <th>Account</th>
-          <th>Status</th>
-          <th>Hashrate</th>
-          <th>Uptime</th>
-        </tr>
-      </thead>
-      <tbody id="kaggle-workers-tbody">
-        <tr>
-          <td colspan="6">
-            <div class="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-              <p>No Kaggle workers deployed</p>
             </div>
           </td>
         </tr>
