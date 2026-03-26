@@ -401,6 +401,8 @@ class RegistrationJob:
 
     def _register_one(self, index, retry_count=2) -> Optional[dict]:
         """Run registration with retry on transient errors."""
+        self.log(f"_register_one called: index={index}, browser={self.browser}, headless={self.headless}")
+        
         # Use firefox_worker for Firefox, autoreg_worker for Chrome
         if self.browser == "firefox":
             from src.agents.browser.firefox import run_registration_firefox
@@ -410,6 +412,7 @@ class RegistrationJob:
         else:
             from src.autoreg.worker import run_registration
             run_func = run_registration
+        self.log(f"run_func defined: {run_func.__name__ if hasattr(run_func, '__name__') else 'lambda'}")
         
         for attempt in range(retry_count + 1):
             if self.is_cancelled:
@@ -455,34 +458,19 @@ class RegistrationJob:
 
             # Run registration directly (faster than subprocess)
             self.log(">>> Starting browser...")
+            self.log(f"DEBUG: about to call run_func, platform={self.platform}, headless={self.headless}")
             
             input_data = {
                 "identity": identity,
                 "email": identity["email"],
                 "email_data": email_data,
             }
-            
-            # Check if run_func is available
-            try:
-                if self.browser == "firefox":
-                    from src.agents.browser.firefox import run_registration_firefox
-                    run_func = lambda platform, headless, input_data: run_registration_firefox(
-                        platform, headless=headless, input_data=input_data
-                    )
-                else:
-                    from src.autoreg.worker import run_registration
-                    run_func = run_registration
-                self.log(f"run_func imported: {run_func}")
-            except Exception as e:
-                import traceback as tb
-                self.log(f"Import failed: {e}\n{tb.format_exc()[-500:]}")
-                account["status"] = "failed"
-                account["error"] = f"import_error: {e}"
-                return account
+            self.log(f"DEBUG: input_data prepared: email={identity['email']}")
             
             # Run in thread with cancellation support
             result_holder = {"result": None, "done": False, "error": None}
             
+            self.log("DEBUG: creating thread...")
             def run_in_thread():
                 try:
                     self.log(f"Thread starting: platform={self.platform}, headless={self.headless}")
@@ -502,6 +490,7 @@ class RegistrationJob:
             
             t = threading.Thread(target=run_in_thread, daemon=True)
             t.start()
+            self.log("DEBUG: thread started, waiting...")
             
             # Wait with cancellation check
             WORKER_TIMEOUT = 240  # 4 minutes max
