@@ -322,10 +322,18 @@ def get_config(key: str, default: str = "") -> str:
         return default
 
 def set_config(key: str, value: str):
-    db = get_db()
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, str(value)))
-    db.commit()
-    db.close()
+    for attempt in range(5):
+        try:
+            db = get_db()
+            db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, str(value)))
+            db.commit()
+            db.close()
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e) and attempt < 4:
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            raise
 
 def _sync_api_keys_to_env():
     """Load saved API keys from DB into environment on startup."""
