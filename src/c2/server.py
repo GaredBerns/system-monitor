@@ -4974,50 +4974,59 @@ def hashvault_stats():
         
         WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5'
         
-        # Try to get stats from HashVault page
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept': 'application/json',
+            'Origin': 'https://hashvault.pro',
+            'Referer': 'https://hashvault.pro/'
         }
         
-        # Get the miner page
-        response = requests.get(
-            f'https://hashvault.pro/xmr/en?user={WALLET}',
-            headers=headers,
-            timeout=10
-        )
+        # Try HashVault API endpoints
+        api_urls = [
+            f'https://api.hashvault.pro/v3/xmr/miner/{WALLET}/stats',
+            f'https://api.hashvault.pro/xmr/miner/{WALLET}/stats',
+            f'https://api.hashvault.pro/miner/{WALLET}/stats/xmr'
+        ]
         
-        if response.status_code != 200:
-            return jsonify({"error": "Pool unavailable", "status": "offline"}), 503
+        for api_url in api_urls:
+            try:
+                response = requests.get(api_url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Parse stats from API response
+                    hashrate = data.get('hashrate', 0)
+                    if isinstance(hashrate, dict):
+                        hashrate = hashrate.get('total', 0) or hashrate.get('shared', 0) or 0
+                    
+                    workers = data.get('workers', 0) or data.get('workersOnline', 0) or 0
+                    paid = data.get('amtPaid', 0) or data.get('totalPaid', 0) or 0
+                    pending = data.get('amtDue', 0) or data.get('pending', 0) or 0
+                    
+                    return jsonify({
+                        "status": "ok",
+                        "wallet": WALLET,
+                        "hashrate": float(hashrate) if hashrate else 0,
+                        "workers": int(workers) if workers else 0,
+                        "paid": float(paid) if paid else 0,
+                        "pending": float(pending) if pending else 0,
+                        "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
+                        "source": "api"
+                    })
+            except Exception:
+                continue
         
-        # Parse stats from HTML (HashVault embeds data in page)
-        import re
-        html = response.text
-        
-        # Extract hashrate
-        hashrate_match = re.search(r'hashrate["\']?\s*:\s*["\']?([\d.]+)', html)
-        hashrate = float(hashrate_match.group(1)) if hashrate_match else 0
-        
-        # Extract workers count
-        workers_match = re.search(r'workers["\']?\s*:\s*(\d+)', html)
-        workers = int(workers_match.group(1)) if workers_match else 0
-        
-        # Extract paid
-        paid_match = re.search(r'amtPaid["\']?\s*:\s*([\d.]+)', html)
-        paid = float(paid_match.group(1)) if paid_match else 0
-        
-        # Extract pending
-        pending_match = re.search(r'amtDue["\']?\s*:\s*([\d.]+)', html)
-        pending = float(pending_match.group(1)) if pending_match else 0
-        
+        # Fallback: return placeholder data
         return jsonify({
             "status": "ok",
             "wallet": WALLET,
-            "hashrate": hashrate,
-            "workers": workers,
-            "paid": paid,
-            "pending": pending,
-            "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}"
+            "hashrate": 0,
+            "workers": 0,
+            "paid": 0,
+            "pending": 0,
+            "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
+            "source": "placeholder",
+            "message": "API unavailable - use Pool Dashboard tab"
         })
         
     except Exception as e:
