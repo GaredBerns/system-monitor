@@ -325,7 +325,7 @@
             if (data.status === 'ok') {
                 // Update stats cards
                 document.getElementById('total-hashrate').textContent = formatHashrate(data.hashrate || data.avg_hashrate);
-                document.getElementById('active-workers').textContent = data.valid_shares || 0;
+                document.getElementById('active-workers').textContent = data.workers ? data.workers.length : 0;
                 document.getElementById('total-paid').textContent = formatXMR(data.paid);
                 document.getElementById('pending-balance').textContent = formatXMR(data.balance);
                 
