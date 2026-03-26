@@ -838,9 +838,31 @@ function renderDatasetMachinesRow(a) {
   const machines = a.machines || [];
   const machinesCreated = a.machines_created || machines.length;
   let machinesHtml = machines.length > 0 ? machines.map((m,i) => {
-    const status = m.success ? '✓' : '✗';
-    const color = m.success ? 'var(--green)' : 'var(--red)';
-    return `<a href="${m.url||'#'}" target="_blank" style="color:${color};font-size:12px;margin-right:6px;text-decoration:none" title="${m.slug||''}">${status} M${i+1}</a>`;
+    // Default to created (green) if machine exists in list
+    // Status can be: created, running, complete, error
+    const rawStatus = m.status || 'created';
+    let status = '✓';
+    let color = 'var(--green)';
+    let title = m.slug || `Machine ${i+1}`;
+    
+    if (rawStatus === 'running') {
+      status = '▶';
+      color = 'var(--accent)';
+      title += ' (running)';
+    } else if (rawStatus === 'complete') {
+      status = '✓';
+      color = 'var(--green)';
+      title += ' (complete)';
+    } else if (rawStatus === 'error') {
+      status = '✗';
+      color = 'var(--red)';
+      title += ' (error)';
+    } else {
+      title += ' (created)';
+    }
+    
+    const kaggleUrl = m.slug ? `https://www.kaggle.com/${m.slug}` : '#';
+    return `<a href="${kaggleUrl}" target="_blank" style="color:${color};font-size:12px;margin-right:6px;text-decoration:none" title="${title}">${status} M${i+1}</a>`;
   }).join('') : '';
   return `<tr class="dataset-machines-row" style="background:rgba(0,0,0,.2)">
     <td colspan="9" style="padding:4px 14px;font-size:12px">
