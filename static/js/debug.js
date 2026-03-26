@@ -125,11 +125,6 @@ const C2_DEBUG = {
     
     // Проверяем WebSocket
     this.checkWebSocket();
-    
-    // Добавляем кнопку отладки в development режиме
-    if (this.enabled) {
-      this.addDebugButton();
-    }
   },
   
   // Проверка API
