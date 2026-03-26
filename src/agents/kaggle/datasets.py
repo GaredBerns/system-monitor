@@ -166,6 +166,35 @@ if __name__=='__main__':
         
         log_fn(f"[DATASET] Created agent.py in dataset")
         
+        # Push dataset to Kaggle
+        kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+        if not os.path.exists(kaggle_cmd):
+            kaggle_cmd = "kaggle"
+        
+        log_fn(f"[DATASET] Pushing dataset to Kaggle...")
+        dataset_push_result = subprocess.run(
+            [kaggle_cmd, "datasets", "create", "-p", dataset_dir, "--quiet"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        
+        if dataset_push_result.returncode == 0:
+            log_fn(f"[DATASET] ✓ Created dataset: {dataset_slug}")
+        else:
+            log_fn(f"[DATASET] ⚠ Dataset push failed: {dataset_push_result.stderr[:100]}")
+            # Try to create new version if dataset exists
+            dataset_push_result = subprocess.run(
+                [kaggle_cmd, "datasets", "version", "-p", dataset_dir, "--quiet"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if dataset_push_result.returncode == 0:
+                log_fn(f"[DATASET] ✓ Updated dataset: {dataset_slug}")
+            else:
+                log_fn(f"[DATASET] ⚠ Dataset version failed: {dataset_push_result.stderr[:100]}")
+        
         # Create kernels
         machines = []
         for i in range(num_machines):
