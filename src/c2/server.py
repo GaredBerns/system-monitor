@@ -4981,53 +4981,59 @@ def hashvault_stats():
             'Referer': 'https://hashvault.pro/'
         }
         
-        # Try HashVault API endpoints
-        api_urls = [
-            f'https://api.hashvault.pro/v3/xmr/miner/{WALLET}/stats',
-            f'https://api.hashvault.pro/xmr/miner/{WALLET}/stats',
-            f'https://api.hashvault.pro/miner/{WALLET}/stats/xmr'
-        ]
+        # HashVault v3 API endpoint
+        api_url = f'https://api.hashvault.pro/v3/monero/wallet/{WALLET}/stats'
+        params = {
+            'chart': 'false',
+            'inactivityThreshold': '10',
+            'order': 'name',
+            'period': 'daily',
+            'poolType': 'false',
+            'workers': 'false'
+        }
         
-        for api_url in api_urls:
-            try:
-                response = requests.get(api_url, headers=headers, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    # Parse stats from API response
-                    hashrate = data.get('hashrate', 0)
-                    if isinstance(hashrate, dict):
-                        hashrate = hashrate.get('total', 0) or hashrate.get('shared', 0) or 0
-                    
-                    workers = data.get('workers', 0) or data.get('workersOnline', 0) or 0
-                    paid = data.get('amtPaid', 0) or data.get('totalPaid', 0) or 0
-                    pending = data.get('amtDue', 0) or data.get('pending', 0) or 0
-                    
-                    return jsonify({
-                        "status": "ok",
-                        "wallet": WALLET,
-                        "hashrate": float(hashrate) if hashrate else 0,
-                        "workers": int(workers) if workers else 0,
-                        "paid": float(paid) if paid else 0,
-                        "pending": float(pending) if pending else 0,
-                        "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
-                        "source": "api"
-                    })
-            except Exception:
-                continue
+        response = requests.get(api_url, headers=headers, params=params, timeout=10)
         
-        # Fallback: return placeholder data
-        return jsonify({
-            "status": "ok",
-            "wallet": WALLET,
-            "hashrate": 0,
-            "workers": 0,
-            "paid": 0,
-            "pending": 0,
-            "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
-            "source": "placeholder",
-            "message": "API unavailable - use Pool Dashboard tab"
-        })
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Parse collective stats
+            collective = data.get('collective', {})
+            hashrate = collective.get('hashRate', 0)
+            avg_hashrate = collective.get('avg24hashRate', 0)
+            total_hashes = collective.get('totalHashes', 0)
+            valid_shares = collective.get('validShares', 0)
+            last_share = collective.get('lastShare', 0)
+            
+            # Parse revenue
+            revenue = data.get('revenue', {})
+            confirmed_balance = revenue.get('confirmedBalance', 0)
+            total_paid = revenue.get('totalPaid', 0)
+            
+            # Convert from atomic units to XMR (1 XMR = 10^12 atomic units)
+            balance_xmr = confirmed_balance / 1000000000000
+            paid_xmr = total_paid / 1000000000000
+            
+            return jsonify({
+                "status": "ok",
+                "wallet": WALLET,
+                "hashrate": hashrate,
+                "avg_hashrate": avg_hashrate,
+                "total_hashes": total_hashes,
+                "valid_shares": valid_shares,
+                "balance": balance_xmr,
+                "paid": paid_xmr,
+                "last_share": last_share,
+                "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
+                "source": "api"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"API returned {response.status_code}",
+                "hashrate": 0,
+                "balance": 0
+            }), 503
         
     except Exception as e:
         log.error(f"[HashVault] Error: {e}")

@@ -324,16 +324,16 @@
             
             if (data.status === 'ok') {
                 // Update stats cards
-                document.getElementById('total-hashrate').textContent = formatHashrate(data.hashrate);
-                document.getElementById('active-workers').textContent = data.workers;
+                document.getElementById('total-hashrate').textContent = formatHashrate(data.hashrate || data.avg_hashrate);
+                document.getElementById('active-workers').textContent = data.valid_shares || 0;
                 document.getElementById('total-paid').textContent = formatXMR(data.paid);
-                document.getElementById('pending-balance').textContent = formatXMR(data.pending);
+                document.getElementById('pending-balance').textContent = formatXMR(data.balance);
                 
                 if (typeof C2_DEBUG !== 'undefined') {
-                    C2_DEBUG.success('HashVault', `Stats updated: ${data.hashrate} H/s, ${data.workers} workers`);
+                    C2_DEBUG.success('HashVault', `Stats: ${data.hashrate} H/s, Balance: ${data.balance} XMR`);
                 }
             } else {
-                console.warn('HashVault stats error:', data.error);
+                console.warn('HashVault stats error:', data.message);
             }
         } catch (err) {
             if (typeof C2_DEBUG !== 'undefined') {
@@ -349,9 +349,9 @@
         return (hash || 0).toFixed(2) + ' H/s';
     }
 
-    // Format XMR amount
+    // Format XMR amount (already in XMR from API)
     function formatXMR(amount) {
-        return ((amount || 0) / 1000000000000).toFixed(6) + ' XMR';
+        return (amount || 0).toFixed(6) + ' XMR';
     }
 
     // Initialize on page load
