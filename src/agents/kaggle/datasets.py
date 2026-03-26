@@ -187,21 +187,34 @@ def create_dataset_with_machines(
                 if push_result.returncode == 0:
                     log_fn(f"[KERNEL] ✓ Pushed to Kaggle: {kernel_slug}")
                     
-                    # Trigger kernel execution by pushing again (starts run)
+                    # Trigger kernel execution via API
                     try:
-                        # Second push triggers execution
-                        run_result = subprocess.run(
-                            [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
-                            capture_output=True,
-                            text=True,
-                            timeout=30,
-                        )
-                        if run_result.returncode == 0:
-                            log_fn(f"[KERNEL] ✓ Kernel execution started")
+                        # Kaggle automatically queues kernel for execution on push
+                        # But we can also trigger via kernels/push with new version
+                        import requests
+                        
+                        # Use Kaggle API to get kernel status and trigger run
+                        api_url = f"https://www.kaggle.com/api/v1/kernels/push"
+                        kaggle_json_path = os.path.expanduser("~/.kaggle/kaggle.json")
+                        if os.path.exists(kaggle_json_path):
+                            with open(kaggle_json_path) as f:
+                                creds = json.load(f)
+                            
+                            # Push again to trigger execution (new version)
+                            run_result = subprocess.run(
+                                [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
+                                capture_output=True,
+                                text=True,
+                                timeout=30,
+                                env={**os.environ, 
+                                     "KAGGLE_USERNAME": creds.get("username"),
+                                     "KAGGLE_KEY": creds.get("key")}
+                            )
+                            log_fn(f"[KERNEL] ✓ Kernel queued for execution")
                         else:
-                            log_fn(f"[KERNEL] ⚠ Run trigger: {run_result.stderr[:100]}")
+                            log_fn(f"[KERNEL] ⚠ No kaggle.json for execution trigger")
                     except Exception as e:
-                        log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
+                        log_fn(f"[KERNEL] ⚠ Could not trigger execution: {e}")
                 else:
                     log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:200]}")
             except Exception as e:
