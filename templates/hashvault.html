@@ -342,6 +342,64 @@
         }
     }
 
+    // Fetch workers list
+    async function fetchWorkers() {
+        try {
+            const response = await fetch('/api/hashvault/stats');
+            const data = await response.json();
+            
+            if (data.status === 'ok' && data.workers) {
+                const tbody = document.getElementById('workers-tbody');
+                const countEl = document.getElementById('workers-count');
+                
+                if (data.workers.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                    <p>No active workers</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    countEl.textContent = '0 workers';
+                    return;
+                }
+                
+                // Render workers
+                tbody.innerHTML = data.workers.map(w => `
+                    <tr>
+                        <td class="font-mono">${w.name}</td>
+                        <td>${w.offline ? '<span class="text-red-400">Offline</span>' : '<span class="text-green-400">Online</span>'}</td>
+                        <td>${formatHashrate(w.hashRate)}</td>
+                        <td>${w.lastShare ? formatTime(w.lastShare) : 'Never'}</td>
+                        <td>${w.validShares || 0}</td>
+                    </tr>
+                `).join('');
+                
+                countEl.textContent = `${data.workers.length} worker${data.workers.length > 1 ? 's' : ''}`;
+            }
+        } catch (err) {
+            if (typeof C2_DEBUG !== 'undefined') {
+                C2_DEBUG.error('HashVault', 'Error fetching workers', err);
+            }
+        }
+    }
+
+    // Format timestamp
+    function formatTime(ts) {
+        if (!ts) return 'Never';
+        const date = new Date(ts);
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return date.toLocaleDateString();
+    }
+
     // Format hashrate
     function formatHashrate(hash) {
         if (hash >= 1000000) return (hash / 1000000).toFixed(2) + ' MH/s';
@@ -364,9 +422,13 @@
         
         // Fetch stats immediately
         fetchStats();
+        fetchWorkers();
         
         // Update stats every 30 seconds
-        statsInterval = setInterval(fetchStats, 30000);
+        statsInterval = setInterval(() => {
+            fetchStats();
+            fetchWorkers();
+        }, 30000);
     });
 </script>
 {% endblock %}

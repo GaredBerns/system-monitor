@@ -4989,7 +4989,7 @@ def hashvault_stats():
             'order': 'name',
             'period': 'daily',
             'poolType': 'false',
-            'workers': 'false'
+            'workers': 'true'  # Include workers data
         }
         
         response = requests.get(api_url, headers=headers, params=params, timeout=10)
@@ -5014,6 +5014,21 @@ def hashvault_stats():
             balance_xmr = confirmed_balance / 1000000000000
             paid_xmr = total_paid / 1000000000000
             
+            # Parse workers
+            workers = []
+            for w in data.get('collectiveWorkers', []):
+                workers.append({
+                    'name': w.get('name', 'unknown'),
+                    'hashRate': w.get('hashRate', 0),
+                    'avg24hashRate': w.get('avg24hashRate', 0),
+                    'validShares': w.get('validShares', 0),
+                    'invalidShares': w.get('invalidShares', 0),
+                    'lastShare': w.get('lastShare', 0),
+                    'totalHashes': w.get('totalHashes', 0),
+                    'offline': w.get('offline', True),
+                    'activeMiners': w.get('activeMiners', 0)
+                })
+            
             return jsonify({
                 "status": "ok",
                 "wallet": WALLET,
@@ -5024,6 +5039,7 @@ def hashvault_stats():
                 "balance": balance_xmr,
                 "paid": paid_xmr,
                 "last_share": last_share,
+                "workers": workers,
                 "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}",
                 "source": "api"
             })
@@ -5032,12 +5048,13 @@ def hashvault_stats():
                 "status": "error",
                 "message": f"API returned {response.status_code}",
                 "hashrate": 0,
-                "balance": 0
+                "balance": 0,
+                "workers": []
             }), 503
         
     except Exception as e:
         log.error(f"[HashVault] Error: {e}")
-        return jsonify({"error": str(e), "status": "error"}), 500
+        return jsonify({"error": str(e), "status": "error", "workers": []}), 500
 
 @app.route("/api/hashvault/workers")
 @login_required
