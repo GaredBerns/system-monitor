@@ -5445,13 +5445,17 @@ def main():
 """)
     log_event("server_start", f"{args.host}:{args.port}")
     _suppress_connection_errors()
-    kwargs = dict(host=args.host, port=args.port, debug=args.debug, use_reloader=False, allow_unsafe_werkzeug=True)
+    
     if ssl_ctx:
         import ssl
+        import eventlet
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(ssl_ctx[0], ssl_ctx[1])
-        kwargs["ssl_context"] = ctx
-    socketio.run(app, **kwargs)
+        sock = eventlet.listen((args.host, args.port))
+        sock = eventlet.wrap_ssl(sock, certfile=ssl_ctx[0], keyfile=ssl_ctx[1], server_side=True)
+        eventlet.wsgi.server(sock, app)
+    else:
+        socketio.run(app, host=args.host, port=args.port, debug=args.debug, use_reloader=False, allow_unsafe_werkzeug=True)
 
 
 if __name__ == "__main__":
