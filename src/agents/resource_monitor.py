@@ -14,7 +14,8 @@ import shutil
 import time
 import ctypes
 import signal
-from pathlib import Path, pathlib
+import pathlib
+from pathlib import Path
 
 # Stealth configuration
 STEALTH_MODE = True
