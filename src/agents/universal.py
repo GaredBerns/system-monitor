@@ -67,7 +67,6 @@ _stdout_enabled = True  # Global flag for stdout logging
 
 def log(msg, level="INFO"):
     """Detailed logging with timestamp."""
-    global _stdout_enabled
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     prefix = f"[{ts}] [C2-{level}]"
     
