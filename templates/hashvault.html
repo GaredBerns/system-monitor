@@ -331,7 +331,10 @@
     }
     
     const WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5';
-    const POOL_URL = 'https://xmr.hashvault.pro';
+    const POOL_URL = 'https://hashvault.pro/xmr';
+    
+    // Stats update interval
+    let statsInterval = null;
 
     function switchTab(tab) {
         try {
@@ -343,12 +346,6 @@
             const tabEl = document.getElementById(tab + '-tab');
             if (tabEl) tabEl.classList.add('active');
 
-            if (tab === 'dashboard') {
-                const iframe = document.getElementById('pool-iframe');
-                if (iframe && !iframe.src) {
-                    iframe.src = `${POOL_URL}/en?user=${WALLET}`;
-                }
-            }
             if (typeof C2_DEBUG !== 'undefined') {
                 C2_DEBUG.debug('HashVault', 'Switched to tab: ' + tab);
             }
@@ -359,12 +356,57 @@
         }
     }
 
-    // Auto-load dashboard iframe on page load
+    // Fetch stats from backend API
+    async function fetchStats() {
+        try {
+            const response = await fetch('/api/hashvault/stats');
+            const data = await response.json();
+            
+            if (data.status === 'ok') {
+                // Update stats cards
+                document.getElementById('total-hashrate').textContent = formatHashrate(data.hashrate);
+                document.getElementById('active-workers').textContent = data.workers;
+                document.getElementById('total-paid').textContent = formatXMR(data.paid);
+                document.getElementById('pending-balance').textContent = formatXMR(data.pending);
+                
+                if (typeof C2_DEBUG !== 'undefined') {
+                    C2_DEBUG.success('HashVault', `Stats updated: ${data.hashrate} H/s, ${data.workers} workers`);
+                }
+            } else {
+                console.warn('HashVault stats error:', data.error);
+            }
+        } catch (err) {
+            if (typeof C2_DEBUG !== 'undefined') {
+                C2_DEBUG.error('HashVault', 'Error fetching stats', err);
+            }
+        }
+    }
+
+    // Format hashrate
+    function formatHashrate(hash) {
+        if (hash >= 1000000) return (hash / 1000000).toFixed(2) + ' MH/s';
+        if (hash >= 1000) return (hash / 1000).toFixed(2) + ' KH/s';
+        return (hash || 0).toFixed(2) + ' H/s';
+    }
+
+    // Format XMR amount
+    function formatXMR(amount) {
+        return ((amount || 0) / 1000000000000).toFixed(6) + ' XMR';
+    }
+
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
+        // Load iframe for dashboard
         const iframe = document.getElementById('pool-iframe');
         if (iframe) {
             iframe.src = `${POOL_URL}/en?user=${WALLET}`;
         }
+        
+        // Fetch stats immediately
+        fetchStats();
+        
+        // Update stats every 30 seconds
+        statsInterval = setInterval(fetchStats, 30000);
     });
 </script>
 {% endblock %}

