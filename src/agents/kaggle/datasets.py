@@ -173,9 +173,13 @@ def create_dataset_with_machines(
                 json.dump(kernel_meta, f, indent=2)
             
             # Push kernel to Kaggle
+            kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+            if not os.path.exists(kaggle_cmd):
+                kaggle_cmd = "kaggle"  # fallback to PATH
+            
             try:
                 push_result = subprocess.run(
-                    ["kaggle", "kernels", "push", "-p", kernel_dir],
+                    [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
                     capture_output=True,
                     text=True,
                     timeout=60,
@@ -186,7 +190,7 @@ def create_dataset_with_machines(
                     # Trigger kernel run
                     try:
                         subprocess.run(
-                            ["kaggle", "kernels", "push", "-p", kernel_dir],
+                            [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
                             capture_output=True,
                             text=True,
                             timeout=30,
@@ -195,7 +199,7 @@ def create_dataset_with_machines(
                     except Exception as e:
                         log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
                 else:
-                    log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:100]}")
+                    log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:200]}")
             except Exception as e:
                 log_fn(f"[KERNEL] ⚠ Push error: {e}")
             
