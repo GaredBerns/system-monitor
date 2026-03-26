@@ -463,15 +463,21 @@ class RegistrationJob:
             }
             
             # Run in thread with cancellation support
-            result_holder = {"result": None, "done": False}
+            result_holder = {"result": None, "done": False, "error": None}
             
             def run_in_thread():
                 try:
+                    self.log(f"Thread starting: platform={self.platform}, headless={self.headless}")
                     result_holder["result"] = run_func(
                         self.platform, headless=self.headless, input_data=input_data
                     )
+                    self.log(f"Thread completed: success={result_holder['result'].get('success') if result_holder.get('result') else None}")
                 except Exception as e:
-                    result_holder["result"] = {"success": False, "error": str(e)}
+                    import traceback as tb
+                    error_str = f"Thread crashed: {e}\n{tb.format_exc()[-800:]}"
+                    self.log(error_str)
+                    result_holder["result"] = {"success": False, "error": str(e), "logs": [error_str]}
+                    result_holder["error"] = str(e)
                 finally:
                     result_holder["done"] = True
             

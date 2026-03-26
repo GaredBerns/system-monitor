@@ -563,14 +563,30 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
     }
     options.add_experimental_option("prefs", prefs)
     
+    # Initialize Chrome with detailed error handling
+    log_fn("Initializing undetected_chromedriver...")
+    log_fn(f"  Chrome version_main: {chrome_ver}, Headless: {headless}")
+    
     try:
         driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
         driver.set_window_size(390, 844)
         driver.set_window_position(100, 50)
         log_fn("✓ Anti-detect Chrome started")
     except Exception as e:
-        log_fn(f"Chrome init failed: {e}")
-        return {"verified": False, "error": f"chrome_init_failed: {e}", "error_type": "browser"}
+        error_str = str(e)
+        log_fn(f"Chrome init failed: {error_str}")
+        log_fn(f"Traceback: {traceback.format_exc()[-500:]}")
+        
+        # Fallback: try without version_main
+        try:
+            log_fn("Retrying without version_main constraint...")
+            driver = uc.Chrome(options=options, headless=headless)
+            driver.set_window_size(390, 844)
+            driver.set_window_position(100, 50)
+            log_fn("✓ Anti-detect Chrome started (fallback mode)")
+        except Exception as e2:
+            log_fn(f"Fallback also failed: {e2}")
+            return {"verified": False, "error": f"chrome_init_failed: {error_str}", "error_type": "browser"}
     
     # Create email via Boomlify web if API is rate limited
     if not email_data or not email_data.get("email"):
