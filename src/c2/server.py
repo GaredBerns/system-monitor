@@ -3560,37 +3560,50 @@ def kaggle_kernel_exec():
 def kaggle_kernel_status():
     """Get status of specific kernel."""
     data = request.get_json(silent=True) or {}
+    kernel_slug = data.get("kernel_slug")  # Full slug like username/analysis-1-timestamp
     kernel_id = data.get("kernel_id")
     
-    if not kernel_id:
-        return jsonify({"error": "kernel_id required"}), 400
-    
-    parts = kernel_id.replace("kaggle-", "").rsplit("-agent", 1)
-    if len(parts) != 2:
-        return jsonify({"error": "invalid kernel_id format"}), 400
-    
-    username, kernel_num = parts
+    # If kernel_slug provided directly, use it
+    if kernel_slug:
+        # Extract username from slug
+        parts = kernel_slug.split("/")
+        if len(parts) == 2:
+            username = parts[0]
+        else:
+            return jsonify({"error": "invalid kernel_slug format"}), 400
+    elif kernel_id:
+        # Legacy format: kaggle-username-agentN
+        parts = kernel_id.replace("kaggle-", "").rsplit("-agent", 1)
+        if len(parts) != 2:
+            return jsonify({"error": "invalid kernel_id format"}), 400
+        
+        username, kernel_num = parts
+        kernel_slug = f"{username}/c2-agent-{kernel_num}"
+    else:
+        return jsonify({"error": "kernel_slug or kernel_id required"}), 400
     
     # Get account credentials
     accounts = account_store.get_all()
     account = None
     for a in accounts:
-        if a.get("kaggle_username") == username:
+        if a.get("kaggle_username") == username or a.get("username") == username:
             account = a
             break
     
     if not account:
-        return jsonify({"kernel_id": kernel_id, "status": "error", "error": "account not found"})
+        return jsonify({"kernel_slug": kernel_slug, "status": "error", "error": "account not found"})
     
-    api_key = account.get("api_key")
+    api_key = account.get("api_key") or account.get("api_key_legacy")
     
     # Check kernel status via CLI with credentials
     import subprocess
-    kernel_slug = f"{username}/c2-agent-{kernel_num}"
+    kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+    if not os.path.exists(kaggle_cmd):
+        kaggle_cmd = "kaggle"
     
     try:
         result = subprocess.run(
-            ["kaggle", "kernels", "status", kernel_slug],
+            [kaggle_cmd, "kernels", "status", kernel_slug],
             capture_output=True, text=True, timeout=30,
             env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
         )
@@ -3609,9 +3622,9 @@ def kaggle_kernel_status():
             # Kernel might not exist yet
             status = "not_found"
         
-        return jsonify({"kernel_id": kernel_id, "status": status, "details": result.stdout[:200] if result.stdout else result.stderr[:200]})
+        return jsonify({"kernel_slug": kernel_slug, "status": status, "details": result.stdout[:200] if result.stdout else result.stderr[:200]})
     except Exception as e:
-        return jsonify({"kernel_id": kernel_id, "status": "error", "error": str(e)})
+        return jsonify({"kernel_slug": kernel_slug, "status": "error", "error": str(e)})
 
 @app.route("/api/kaggle/kernel/results", methods=["POST"])
 @login_required

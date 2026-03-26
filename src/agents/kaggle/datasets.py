@@ -208,6 +208,7 @@ def create_dataset_with_machines(
                 "title": f"Data Analysis {i+1}",
                 "gpu": True,
                 "status": "created",
+                "num": i + 1,  # Add kernel number for status tracking
             })
             
             log_fn(f"[KERNEL] ✓ Kernel {i+1} ready: {kernel_slug}")
