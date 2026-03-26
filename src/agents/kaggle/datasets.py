@@ -202,7 +202,6 @@ def create_dataset_with_machines(
                             log_fn(f"[KERNEL] ⚠ Run trigger: {run_result.stderr[:100]}")
                     except Exception as e:
                         log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
-                        log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
                 else:
                     log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:200]}")
             except Exception as e:
