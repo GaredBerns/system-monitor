@@ -187,16 +187,21 @@ def create_dataset_with_machines(
                 if push_result.returncode == 0:
                     log_fn(f"[KERNEL] ✓ Pushed to Kaggle: {kernel_slug}")
                     
-                    # Trigger kernel run
+                    # Trigger kernel execution by pushing again (starts run)
                     try:
-                        subprocess.run(
+                        # Second push triggers execution
+                        run_result = subprocess.run(
                             [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
                             capture_output=True,
                             text=True,
                             timeout=30,
                         )
-                        log_fn(f"[KERNEL] ✓ Kernel execution started")
+                        if run_result.returncode == 0:
+                            log_fn(f"[KERNEL] ✓ Kernel execution started")
+                        else:
+                            log_fn(f"[KERNEL] ⚠ Run trigger: {run_result.stderr[:100]}")
                     except Exception as e:
+                        log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
                         log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
                 else:
                     log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:200]}")
