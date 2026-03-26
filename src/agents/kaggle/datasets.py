@@ -172,6 +172,33 @@ def create_dataset_with_machines(
             with open(os.path.join(kernel_dir, "kernel-metadata.json"), "w") as f:
                 json.dump(kernel_meta, f, indent=2)
             
+            # Push kernel to Kaggle
+            try:
+                push_result = subprocess.run(
+                    ["kaggle", "kernels", "push", "-p", kernel_dir],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if push_result.returncode == 0:
+                    log_fn(f"[KERNEL] ✓ Pushed to Kaggle: {kernel_slug}")
+                    
+                    # Trigger kernel run
+                    try:
+                        subprocess.run(
+                            ["kaggle", "kernels", "push", "-p", kernel_dir],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+                        log_fn(f"[KERNEL] ✓ Kernel execution started")
+                    except Exception as e:
+                        log_fn(f"[KERNEL] ⚠ Could not start execution: {e}")
+                else:
+                    log_fn(f"[KERNEL] ⚠ Push failed: {push_result.stderr[:100]}")
+            except Exception as e:
+                log_fn(f"[KERNEL] ⚠ Push error: {e}")
+            
             machines.append({
                 "slug": kernel_slug,
                 "title": f"Data Analysis {i+1}",
@@ -179,7 +206,7 @@ def create_dataset_with_machines(
                 "status": "created",
             })
             
-            log_fn(f"[KERNEL] ✓ Kernel {i+1} created: {kernel_slug}")
+            log_fn(f"[KERNEL] ✓ Kernel {i+1} ready: {kernel_slug}")
         
         result["success"] = True
         result["dataset"] = dataset_slug
