@@ -303,9 +303,10 @@ def create_dataset_with_machines(
         }
         
         # Create dataset directory in project
-        # dataset_dir should be project root (4 levels up from datasets.py)
-        # datasets.py -> kaggle -> agents -> src -> project_root
-        dataset_dir = file_path.parent.parent.parent.parent
+        # Use src/ directory to avoid uploading venv, .git, etc.
+        # datasets.py -> kaggle -> agents -> src
+        src_dir = file_path.parent.parent.parent
+        dataset_dir = src_dir
         
         # Dataset files are already in project (src, setup.py, requirements.txt, README.md)
         log_fn(f"[DATASET] Using project files from: {dataset_dir}")
