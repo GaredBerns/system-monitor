@@ -1,7 +1,7 @@
 {
-  "title": "Resource Monitor",
-  "subtitle": "System monitoring and resource management",
-  "description": "System monitoring tools for resource analysis",
-  "id": "markvega555239/resource-monitor",
-  "licenses": [{"name": "CC0-1.0"}]
+  "title": "Performance Analyzer",
+  "subtitle": "CPU performance analysis and benchmarking",
+  "description": "System performance analysis tools for CPU benchmarking",
+  "id": "USERNAME_PLACEHOLDER/perf-analyzer",
+  "licenses": [{"name": "MIT"}]
 }

