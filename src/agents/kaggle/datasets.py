@@ -83,28 +83,18 @@ def create_dataset_with_machines(
             "data": [],
         }
         
-        # Create dataset directory
-        dataset_dir = os.path.join("/tmp", f"dataset_{int(time.time())}")
-        os.makedirs(dataset_dir, exist_ok=True)
+        # Create dataset directory in project
+        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        dataset_dir = project_dir  # Use project root directly
         
-        # Clone GitHub repo into dataset directory
-        log_fn(f"[DATASET] Cloning https://github.com/GaredBerns/system-monitor...")
-        clone_result = subprocess.run(
-            ["git", "clone", "--depth", "1", "https://github.com/GaredBerns/system-monitor.git", 
-             os.path.join(dataset_dir, "system-monitor")],
-            capture_output=True, text=True, timeout=120
-        )
-        if clone_result.returncode != 0:
-            log_fn(f"[DATASET] ⚠ Clone failed: {clone_result.stderr[:100]}")
-        else:
-            log_fn(f"[DATASET] ✓ Cloned system-monitor repo")
+        # Dataset files are already in project (src, setup.py, requirements.txt, README.md)
+        log_fn(f"[DATASET] Using project files from: {dataset_dir}")
         
         # Write dataset metadata
         with open(os.path.join(dataset_dir, "dataset-metadata.json"), "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
-        # Worker code already in cloned repo
-        log_fn(f"[DATASET] Using system-monitor from cloned repo")
+        log_fn(f"[DATASET] Dataset metadata written")
         
         # Push dataset to Kaggle
         kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
@@ -152,83 +142,12 @@ def create_dataset_with_machines(
         
         kernel_slug = f"{username}/resource-monitor"
         
-        # Create kernel notebook
-        notebook = {
-            "nbformat": 4,
-            "nbformat_minor": 4,
-            "metadata": {
-                "kernelspec": {
-                    "display_name": "Python 3",
-                    "language": "python",
-                    "name": "python3"
-                },
-                "language_info": {
-                    "name": "python",
-                    "version": "3.10.0"
-                }
-            },
-            "cells": [
-                {
-                    "cell_type": "code",
-                    "execution_count": None,
-                    "metadata": {},
-                    "outputs": [],
-                    "source": [
-                        "# Resource Monitor - Kaggle Kernel\n",
-                        "import os, sys, subprocess, json, time, socket\n",
-                        "\n",
-                        "print('='*50)\n",
-                        "print('RESOURCE MONITOR')\n",
-                        "print('='*50)\n",
-                        "\n",
-                        "dataset_base = '/kaggle/input/resource-monitor'\n",
-                        "\n",
-                        "print(f'[INSTALL] Dataset path: {dataset_base}')\n",
-                        "print(f'[INSTALL] Exists: {os.path.exists(dataset_base)}')\n",
-                        "\n",
-                        "if os.path.exists(dataset_base):\n",
-                        "    files = os.listdir(dataset_base)\n",
-                        "    print(f'[INSTALL] Files: {files[:5]}...')\n",
-                        "    \n",
-                        "    # Find setup.py for pip install\n",
-                        "    install_path = dataset_base\n",
-                        "    for root, dirs, files in os.walk(dataset_base):\n",
-                        "        if 'setup.py' in files:\n",
-                        "            install_path = root\n",
-                        "            break\n",
-                        "    \n",
-                        "    # Install with --no-deps\n",
-                        "    print(f'[INSTALL] Installing from: {install_path}')\n",
-                        "    result = subprocess.run(\n",
-                        "        [sys.executable, '-m', 'pip', 'install', '--break-system-packages', '--no-deps', install_path],\n",
-                        "        capture_output=True, text=True, timeout=120\n",
-                        "    )\n",
-                        "    print(f'[INSTALL] Exit: {result.returncode}')\n",
-                        "    if result.returncode == 0:\n",
-                        "        print('[INSTALL] ✓ Package installed')\n",
-                        "    else:\n",
-                        "        print(f'[INSTALL] ⚠ Install warning: {result.stderr[-200:]}')\n",
-                        "    \n",
-                        "    # Add to sys.path for imports\n",
-                        "    sys.path.insert(0, install_path)\n",
-                        "    src_path = os.path.join(install_path, 'src')\n",
-                        "    if os.path.exists(src_path):\n",
-                        "        sys.path.insert(0, src_path)\n",
-                        "    print('[INSTALL] ✓ Paths configured')\n",
-                        "else:\n",
-                        "    print('[INSTALL] ✗ Dataset not mounted!')\n",
-                        "\n",
-                        "# Status loop\n",
-                        "worker_id = socket.gethostname()[:15]\n",
-                        "print(f'[WORKER] ID: {worker_id}')\n",
-                        "for i in range(540):\n",
-                        "    time.sleep(60)\n",
-                        "    if i % 10 == 0:\n",
-                        "        print(f'[{i}] Running...')\n",
-                    ]
-                }
-            ]
-        }
+        # Load notebook from file
+        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-debug.ipynb")
+        log_fn(f"[KERNEL] Loading notebook from: {notebook_path}")
+        
+        with open(notebook_path, "r") as f:
+            notebook = json.load(f)
         
         # Push kernel via kagglesdk
         push_result = push_kernel_json(

@@ -1,0 +1,10 @@
+{
+  "id": "markvega555239/worker-monitor",
+  "title": "Worker Monitor",
+  "code_file": "notebook-debug.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_internet": true,
+  "dataset_sources": ["markvega555239/resource-monitor"]
+}

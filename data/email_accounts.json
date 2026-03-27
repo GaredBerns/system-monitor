@@ -11,6 +11,19 @@
     "email_id": "ea064d09-e4f3-428f-85b5-002c36e38911",
     "provider": "boomlify",
     "is_edu": true,
-    "created_at": 1774598158.337194
+    "created_at": 1774598158.337194,
+    "registration_job": {
+      "reg_id": "9600a05f",
+      "platform": "kaggle",
+      "platform_name": "Kaggle",
+      "job_index": 0
+    }
+  },
+  "eib7eigf0j@bscse.okcx.edu.rs": {
+    "email": "eib7eigf0j@bscse.okcx.edu.rs",
+    "email_id": "fde137f7-901b-4079-a823-d8c64b03873c",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774611229.193644
   }
 }
