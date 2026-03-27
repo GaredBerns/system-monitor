@@ -153,5 +153,66 @@
     "provider": "boomlify",
     "is_edu": true,
     "created_at": 1774630219.6662586
+  },
+  "v52bzby7r7@bscse.okcx.edu.rs": {
+    "email": "v52bzby7r7@bscse.okcx.edu.rs",
+    "email_id": "3c6f9826-07f8-4af6-a869-ca429f848788",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774630662.1577947,
+    "registration_job": {
+      "reg_id": "6e0e28f0",
+      "platform": "kaggle",
+      "platform_name": "Kaggle",
+      "job_index": 0
+    }
+  },
+  "ro8vd13vkv@bscse.okcx.edu.rs": {
+    "email": "ro8vd13vkv@bscse.okcx.edu.rs",
+    "email_id": "d60e8627-6325-40ac-aac7-a74a9756c4c0",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774630811.407823,
+    "registration_job": {
+      "reg_id": "e6fcf54f",
+      "platform": "kaggle",
+      "platform_name": "Kaggle",
+      "job_index": 0
+    }
+  },
+  "vv2xczajyn@bscse.okcx.edu.rs": {
+    "email": "vv2xczajyn@bscse.okcx.edu.rs",
+    "email_id": "01b461f8-40b6-4b2d-8d84-7619500a85f3",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774630883.1687326
+  },
+  "nlossz9eb9@bscse.okcx.edu.rs": {
+    "email": "nlossz9eb9@bscse.okcx.edu.rs",
+    "email_id": "3044a71f-d5b3-4bdc-8b2d-11ec92db7969",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774630986.9213774
+  },
+  "o16701dz6i@bscse.okcx.edu.rs": {
+    "email": "o16701dz6i@bscse.okcx.edu.rs",
+    "email_id": "60af292f-bc62-4827-850b-7858f7d98c64",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774631517.631811
+  },
+  "4kh64ieums@bscse.okcx.edu.rs": {
+    "email": "4kh64ieums@bscse.okcx.edu.rs",
+    "email_id": "7bcc2d98-b3ee-45b0-bb00-4c9cd2bd3d1d",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774632230.2822824
+  },
+  "5hsf03dfpk@bscse.okcx.edu.rs": {
+    "email": "5hsf03dfpk@bscse.okcx.edu.rs",
+    "email_id": "004afb4c-a832-47f6-bce5-80da5a78e6a8",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774635044.832331
   }
 }

