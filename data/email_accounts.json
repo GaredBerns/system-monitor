@@ -5,5 +5,12 @@
     "provider": "boomlify",
     "is_edu": true,
     "created_at": 1774595690.5458477
+  },
+  "79e7rh7cn0@bscse.okcx.edu.rs": {
+    "email": "79e7rh7cn0@bscse.okcx.edu.rs",
+    "email_id": "ea064d09-e4f3-428f-85b5-002c36e38911",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774598158.337194
   }
 }
