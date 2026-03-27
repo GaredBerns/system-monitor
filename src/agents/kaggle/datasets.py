@@ -424,7 +424,6 @@ def push_kernel_json(
         from kagglesdk import KaggleClient
         from kagglesdk.kernels.types.kernels_api_service import ApiSaveKernelRequest
         from kagglesdk.kernels.types.kernels_enums import KernelExecutionType
-        import os
         
         # Set credentials via environment
         os.environ['KAGGLE_USERNAME'] = username
