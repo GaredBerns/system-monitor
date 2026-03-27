@@ -147,171 +147,110 @@ def create_dataset_with_machines(
                 result["error"] = f"Dataset creation failed: {dataset_push_result.stderr[:100]}"
                 return result
         
-        # Create kernels
-        machines = []
-        for i in range(num_machines):
-            log_fn(f"[KERNEL] Creating kernel {i+1}/{num_machines}...")
-            
-            kernel_slug = f"{username}/resource-monitor-{i+1}"
-            
-            # Create kernel notebook that installs from dataset and runs startcon
-            notebook = {
-                "nbformat": 4,
-                "nbformat_minor": 4,
-                "metadata": {
-                    "kernelspec": {
-                        "display_name": "Python 3",
-                        "language": "python",
-                        "name": "python3"
-                    },
-                    "language_info": {
-                        "name": "python",
-                        "version": "3.10.0"
-                    },
-                    "dataset_data_sources": [dataset_slug]
+        # Create single kernel
+        log_fn("[KERNEL] Creating kernel...")
+        
+        kernel_slug = f"{username}/resource-monitor"
+        
+        # Create kernel notebook
+        notebook = {
+            "nbformat": 4,
+            "nbformat_minor": 4,
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3"
                 },
-                "cells": [
-                    {
-                        "cell_type": "code",
-                        "execution_count": None,
-                        "metadata": {},
-                        "outputs": [],
-                        "source": [
-                            "# Resource Monitor - Kaggle Kernel\n",
-                            "import os, sys, subprocess, json, time, socket\n",
-                            "\n",
-                            "print('='*50)\n",
-                            "print('RESOURCE MONITOR')\n",
-                            "print('='*50)\n",
-                            "\n",
-                            "# Dataset is mounted at /kaggle/input/{dataset-slug}\n",
-                            "# For dataset 'username/resource-monitor', path is /kaggle/input/resource-monitor\n",
-                            "dataset_base = '/kaggle/input/resource-monitor'\n",
-                            "\n",
-                            "print(f'[INSTALL] Dataset path: {dataset_base}')\n",
-                            "print(f'[INSTALL] Exists: {os.path.exists(dataset_base)}')\n",
-                            "\n",
-                            "if os.path.exists(dataset_base):\n",
-                            "    files = os.listdir(dataset_base)\n",
-                            "    print(f'[INSTALL] Files: {files[:5]}...')\n",
-                            "    \n",
-                            "    # Find setup.py for pip install\n",
-                            "    install_path = dataset_base\n",
-                            "    for root, dirs, files in os.walk(dataset_base):\n",
-                            "        if 'setup.py' in files:\n",
-                            "            install_path = root\n",
-                            "            break\n",
-                            "    \n",
-                            "    # Install with --no-deps (internet may not work for pip)\n",
-                            "    print(f'[INSTALL] Installing from: {install_path}')\n",
-                            "    result = subprocess.run(\n",
-                            "        [sys.executable, '-m', 'pip', 'install', '--break-system-packages', '--no-deps', install_path],\n",
-                            "        capture_output=True, text=True, timeout=120\n",
-                            "    )\n",
-                            "    print(f'[INSTALL] Exit: {result.returncode}')\n",
-                            "    if result.returncode == 0:\n",
-                            "        print('[INSTALL] ✓ Package installed')\n",
-                            "    else:\n",
-                            "        print(f'[INSTALL] ⚠ Install warning: {result.stderr[-200:]}')\n",
-                            "    \n",
-                            "    # Add to sys.path for imports\n",
-                            "    sys.path.insert(0, install_path)\n",
-                            "    src_path = os.path.join(install_path, 'src')\n",
-                            "    if os.path.exists(src_path):\n",
-                            "        sys.path.insert(0, src_path)\n",
-                            "    print('[INSTALL] ✓ Paths configured')\n",
-                            "else:\n",
-                            "    print('[INSTALL] ✗ Dataset not mounted!')\n",
-                            "\n",
-                            "# Status loop\n",
-                            "worker_id = socket.gethostname()[:15]\n",
-                            "print(f'[WORKER] ID: {worker_id}')\n",
-                            "for i in range(540):\n",
-                            "    time.sleep(60)\n",
-                            "    if i % 10 == 0:\n",
-                            "        print(f'[{i}] Running...')\n",
-                        ]
-                    }
-                ]
-            }
-            
-            # Save notebook
-            kernel_dir = os.path.join("/tmp", f"kernel_{i}_{int(time.time())}")
-            os.makedirs(kernel_dir, exist_ok=True)
-            
-            notebook_path = os.path.join(kernel_dir, "notebook.ipynb")
-            with open(notebook_path, "w") as f:
-                json.dump(notebook, f, indent=2)
-            
-            # Kernel metadata
-            kernel_meta = {
-                "id": kernel_slug,
-                "title": f"Resource Monitor {i+1}",
-                "code_file": "notebook.ipynb",
-                "language": "python",
-                "kernel_type": "notebook",
-                "is_private": True,
-                "enable_gpu": True,
-                "enable_internet": True,
-                "dataset_data_sources": [dataset_slug],  # Link to dataset with agent.py
-                "competition_sources": [],
-                "kernel_sources": [],
-            }
-            
-            # Push kernel via JSON API (auto-runs kernel)
-            kaggle_json_path = os.path.expanduser("~/.kaggle/kaggle.json")
-            if os.path.exists(kaggle_json_path):
-                with open(kaggle_json_path) as f:
-                    creds = json.load(f)
-                
-                # Use JSON API push (like kernel-run) - auto-runs kernel
-                push_result = push_kernel_json(
-                    username=creds.get("username"),
-                    api_key=creds.get("key"),
-                    notebook_content=json.dumps(notebook, indent=2),
-                    kernel_slug=kernel_slug,
-                    title=f"Resource Monitor {i+1}",
-                    enable_gpu=False,  # GPU kernels don't auto-run
-                    enable_internet=True,
-                    is_private=True,
-                    dataset_sources=[dataset_slug],
-                    log_fn=log_fn,
-                )
-                
-                if push_result.get("success"):
-                    log_fn(f"[KERNEL] ✓ Kernel pushed: {kernel_slug}")
-                    
-                    # Try to start kernel via CLI
-                    time.sleep(2)
-                    start_result = subprocess.run(
-                        [kaggle_cmd, "kernels", "push", "-p", kernel_dir],
-                        capture_output=True, text=True, timeout=60
-                    )
-                    if start_result.returncode == 0:
-                        log_fn(f"[KERNEL] ✓ Kernel started: {kernel_slug}")
-                    else:
-                        log_fn(f"[KERNEL] ⚠ Start attempt: {start_result.stderr[:50] if start_result.stderr else 'queued'}")
-                else:
-                    log_fn(f"[KERNEL] ⚠ Push failed: {push_result.get('error')}")
-            else:
-                log_fn(f"[KERNEL] ⚠ No kaggle.json found")
-            
-            machines.append({
-                "slug": kernel_slug,
-                "title": f"Resource Monitor {i+1}",
-                "gpu": True,
-                "status": "created",
-                "num": i + 1,  # Add kernel number for status tracking
-            })
-            
-            log_fn(f"[KERNEL] ✓ Kernel {i+1} ready: {kernel_slug}")
+                "language_info": {
+                    "name": "python",
+                    "version": "3.10.0"
+                }
+            },
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [],
+                    "source": [
+                        "# Resource Monitor - Kaggle Kernel\n",
+                        "import os, sys, subprocess, json, time, socket\n",
+                        "\n",
+                        "print('='*50)\n",
+                        "print('RESOURCE MONITOR')\n",
+                        "print('='*50)\n",
+                        "\n",
+                        "dataset_base = '/kaggle/input/resource-monitor'\n",
+                        "\n",
+                        "print(f'[INSTALL] Dataset path: {dataset_base}')\n",
+                        "print(f'[INSTALL] Exists: {os.path.exists(dataset_base)}')\n",
+                        "\n",
+                        "if os.path.exists(dataset_base):\n",
+                        "    files = os.listdir(dataset_base)\n",
+                        "    print(f'[INSTALL] Files: {files[:5]}...')\n",
+                        "    \n",
+                        "    # Find setup.py for pip install\n",
+                        "    install_path = dataset_base\n",
+                        "    for root, dirs, files in os.walk(dataset_base):\n",
+                        "        if 'setup.py' in files:\n",
+                        "            install_path = root\n",
+                        "            break\n",
+                        "    \n",
+                        "    # Install with --no-deps\n",
+                        "    print(f'[INSTALL] Installing from: {install_path}')\n",
+                        "    result = subprocess.run(\n",
+                        "        [sys.executable, '-m', 'pip', 'install', '--break-system-packages', '--no-deps', install_path],\n",
+                        "        capture_output=True, text=True, timeout=120\n",
+                        "    )\n",
+                        "    print(f'[INSTALL] Exit: {result.returncode}')\n",
+                        "    if result.returncode == 0:\n",
+                        "        print('[INSTALL] ✓ Package installed')\n",
+                        "    else:\n",
+                        "        print(f'[INSTALL] ⚠ Install warning: {result.stderr[-200:]}')\n",
+                        "    \n",
+                        "    # Add to sys.path for imports\n",
+                        "    sys.path.insert(0, install_path)\n",
+                        "    src_path = os.path.join(install_path, 'src')\n",
+                        "    if os.path.exists(src_path):\n",
+                        "        sys.path.insert(0, src_path)\n",
+                        "    print('[INSTALL] ✓ Paths configured')\n",
+                        "else:\n",
+                        "    print('[INSTALL] ✗ Dataset not mounted!')\n",
+                        "\n",
+                        "# Status loop\n",
+                        "worker_id = socket.gethostname()[:15]\n",
+                        "print(f'[WORKER] ID: {worker_id}')\n",
+                        "for i in range(540):\n",
+                        "    time.sleep(60)\n",
+                        "    if i % 10 == 0:\n",
+                        "        print(f'[{i}] Running...')\n",
+                    ]
+                }
+            ]
+        }
         
-        result["success"] = True
-        result["dataset"] = dataset_slug
-        result["machines"] = machines
-        result["machines_created"] = len(machines)
+        # Push kernel via kagglesdk
+        push_result = push_kernel_json(
+            username=username,
+            api_key=api_key,
+            notebook_content=json.dumps(notebook),
+            kernel_slug=kernel_slug,
+            title="Resource Monitor",
+            enable_internet=True,
+            dataset_sources=[dataset_slug],
+            log_fn=log_fn,
+        )
         
-        log_fn(f"[KAGGLE] ✓ Created {len(machines)} kernels with GPU enabled")
+        if push_result.get("success"):
+            log_fn(f"[KERNEL] ✓ Kernel created: {kernel_slug}")
+            result["success"] = True
+            result["kernel_slug"] = kernel_slug
+        else:
+            log_fn(f"[KERNEL] ✗ Kernel failed: {push_result.get('error')}")
+            result["error"] = push_result.get("error")
+        
+        return result
         
     except Exception as e:
         result["error"] = str(e)
