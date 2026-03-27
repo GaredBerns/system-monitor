@@ -168,7 +168,7 @@ def create_dataset_with_machines(
                         "name": "python",
                         "version": "3.10.0"
                     },
-                    "dataset_sources": [dataset_slug]
+                    "dataset_data_sources": [dataset_slug]
                 },
                 "cells": [
                     {
@@ -253,7 +253,7 @@ def create_dataset_with_machines(
                 "is_private": True,
                 "enable_gpu": True,
                 "enable_internet": True,
-                "dataset_sources": [dataset_slug],  # Link to dataset with agent.py
+                "dataset_data_sources": [dataset_slug],  # Link to dataset with agent.py
                 "competition_sources": [],
                 "kernel_sources": [],
             }
