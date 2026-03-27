@@ -1,0 +1,7 @@
+{
+  "title": "Performance Analyzer",
+  "id": "hectornelson5675/perf-analyzer",
+  "subtitle": "CPU performance analysis",
+  "description": "System performance analysis tools",
+  "licenses": [{"name": "MIT"}]
+}

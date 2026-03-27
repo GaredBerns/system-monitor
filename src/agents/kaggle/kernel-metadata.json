@@ -1,0 +1,11 @@
+{
+  "id": "hectornelson5675/performance-analyzer",
+  "title": "Performance Analyzer",
+  "code_file": "notebook-telegram.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_internet": true,
+  "enable_gpu": false,
+  "dataset_sources": ["hectornelson5675/perf-analyzer"]
+}
