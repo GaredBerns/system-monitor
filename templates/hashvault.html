@@ -229,25 +229,25 @@
 
 <!-- Tab Navigation -->
 <div class="pool-tabs">
-  <button class="pool-tab" onclick="switchTab('stats')">
+  <button class="pool-tab active" onclick="switchTab('stats')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
     Statistics
   </button>
-  <button class="pool-tab active" onclick="switchTab('dashboard')">
+  <button class="pool-tab" onclick="switchTab('dashboard')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     Pool Dashboard
   </button>
 </div>
 
-<!-- Pool Dashboard Tab (ACTIVE BY DEFAULT) -->
-<div id="dashboard-tab" class="pool-tab-content active">
+<!-- Pool Dashboard Tab -->
+<div id="dashboard-tab" class="pool-tab-content">
   <div class="pool-iframe-container">
     <iframe id="pool-iframe" class="pool-iframe" src="https://hashvault.pro/xmr/miner/44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5/dashboard"></iframe>
   </div>
 </div>
 
-<!-- Statistics Tab -->
-<div id="stats-tab" class="pool-tab-content">
+<!-- Statistics Tab (ACTIVE BY DEFAULT) -->
+<div id="stats-tab" class="pool-tab-content active">
   <div class="workers-panel">
     <div class="workers-panel-header">
       <span class="workers-panel-title">

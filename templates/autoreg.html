@@ -1817,24 +1817,7 @@ function applyRuleTemplate(type) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   EVENT LOG
-   ═══════════════════════════════════════════════════════════ */
-
-let eventLog = JSON.parse(localStorage.getItem('autoregEventLog') || '[]');
-
-function initEventLog() {
-  const btn = document.createElement('button');
-  btn.className = 'btn sm';
-  btn.innerHTML = '📋 Event Log';
-  btn.onclick = showEventLog;
-  btn.style.marginLeft = '8px';
-  
-  const topbar = document.querySelector('.stats-grid');
-  if (topbar) {
-    topbar.insertAdjacentElement('afterend', btn);
-  }
-}
+/* Event Log removed */
 
 function showEventLog() {
   const existing = document.querySelector('.event-log-panel');

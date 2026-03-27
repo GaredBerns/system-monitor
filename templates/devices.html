@@ -156,8 +156,8 @@
        data-online="{{ 'true' if a.is_alive else 'false' }}"
        data-type="local"
        onclick="toggleSelect(event, '{{ a.id }}')">
-    <input type="checkbox" id="check-{{ a.id }}" onclick="event.stopPropagation()" class="absolute top-3 right-3 w-4 h-4 accent-accent">
     <div class="flex items-center gap-3 mb-3">
+      <input type="checkbox" id="check-{{ a.id }}" onclick="event.stopPropagation()" class="w-4 h-4 accent-accent flex-shrink-0">
       <div class="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center text-lg">
         {% if a.os and 'Windows' in a.os %}🪟
         {% elif a.os and 'Linux' in a.os %}🐧
