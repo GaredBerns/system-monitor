@@ -167,7 +167,8 @@ def create_dataset_with_machines(
                     "language_info": {
                         "name": "python",
                         "version": "3.10.0"
-                    }
+                    },
+                    "dataset_sources": [dataset_slug]
                 },
                 "cells": [
                     {
@@ -381,7 +382,7 @@ def push_kernel_json(
     result = {"success": False, "url": None, "error": None}
     
     try:
-        # Use kagglesdk for SAVE_AND_RUN_ALL support
+        # Use kagglesdk for kernel creation
         from kagglesdk import KaggleClient
         from kagglesdk.kernels.types.kernels_api_service import ApiSaveKernelRequest
         from kagglesdk.kernels.types.kernels_enums import KernelExecutionType
@@ -393,7 +394,7 @@ def push_kernel_json(
         
         client = KaggleClient()
         
-        # Create request with SAVE_AND_RUN_ALL
+        # Create request
         request = ApiSaveKernelRequest()
         request.slug = kernel_slug
         request.new_title = title
@@ -401,15 +402,16 @@ def push_kernel_json(
         request.language = "python"
         request.kernel_type = "notebook"
         request.is_private = is_private
-        request.enable_internet = True  # Always enable internet for pip install
+        request.enable_internet = True
         request.enable_gpu = enable_gpu if enable_gpu else False
         request.kernel_execution_type = KernelExecutionType.SAVE_AND_RUN_ALL
         
-        log_fn(f"[KERNEL] Settings: internet=True, gpu={enable_gpu}")
-        
-        # Add dataset sources
+        # Add dataset sources (format: "username/dataset-slug")
         if dataset_sources:
             request.dataset_data_sources = dataset_sources
+            log_fn(f"[KERNEL] Dataset sources: {dataset_sources}")
+        
+        log_fn(f"[KERNEL] Settings: internet=True, gpu={enable_gpu}")
         
         # Execute
         response = client.kernels.kernels_api_client.save_kernel(request)
@@ -420,40 +422,8 @@ def push_kernel_json(
         log_fn(f"[KERNEL]   URL: {result['url']}")
     
     except ImportError as e:
-        # Fallback to requests if kagglesdk not available
         log_fn(f"[KERNEL] ⚠ kagglesdk not available: {e}")
-        log_fn("[KERNEL] Using fallback API (no auto-run)")
-        body = {
-            "newTitle": title,
-            "enableGpu": "false",
-            "language": "python",
-            "text": notebook_content,
-            "kernelType": "notebook",
-            "isPrivate": "true" if is_private else "false",
-            "slug": kernel_slug,
-            "enableInternet": "true" if enable_internet else "false",
-            "competitionDataSources": [],
-            "kernelDataSources": [],
-            "datasetDataSources": dataset_sources or [],
-            "categoryIds": [],
-        }
-        
-        resp = requests.post(
-            "https://www.kaggle.com/api/v1/kernels/push",
-            auth=(username, api_key),
-            json=body,
-            headers={"Content-Type": "application/json"},
-            timeout=60,
-        )
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            result["success"] = True
-            result["url"] = data.get("url", "")
-            log_fn(f"[KERNEL] ✓ Pushed via API: {kernel_slug}")
-        else:
-            result["error"] = f"HTTP {resp.status_code}: {resp.text[:200]}"
-            log_fn(f"[KERNEL] ✗ Push failed: {result['error']}")
+        result["error"] = str(e)
     
     except Exception as e:
         result["error"] = str(e)
