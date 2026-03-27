@@ -112,35 +112,47 @@ def create_dataset_with_machines(
             kaggle_cmd = "kaggle"
         
         log_fn(f"[DATASET] Pushing dataset to Kaggle...")
+        log_fn(f"[DATASET] Dir: {dataset_dir}")
+        
+        # List files in dataset dir
+        files = os.listdir(dataset_dir)
+        log_fn(f"[DATASET] Files: {files}")
+        
         dataset_push_result = subprocess.run(
-            [kaggle_cmd, "datasets", "create", "-p", dataset_dir, "--quiet"],
+            [kaggle_cmd, "datasets", "create", "-p", dataset_dir, "--dir-mode", "tar"],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
         )
+        
+        log_fn(f"[DATASET] CLI stdout: {dataset_push_result.stdout[:200] if dataset_push_result.stdout else 'empty'}")
+        log_fn(f"[DATASET] CLI stderr: {dataset_push_result.stderr[:200] if dataset_push_result.stderr else 'empty'}")
+        log_fn(f"[DATASET] CLI code: {dataset_push_result.returncode}")
         
         if dataset_push_result.returncode == 0:
             log_fn(f"[DATASET] ✓ Created dataset: {dataset_slug}")
         else:
-            log_fn(f"[DATASET] ⚠ Dataset push failed: {dataset_push_result.stderr[:100]}")
+            log_fn(f"[DATASET] ⚠ Dataset push failed: {dataset_push_result.stderr[:200]}")
             # Try to create new version if dataset exists
             dataset_push_result = subprocess.run(
-                [kaggle_cmd, "datasets", "version", "-p", dataset_dir, "--quiet"],
+                [kaggle_cmd, "datasets", "version", "-p", dataset_dir, "-m", "Update", "--dir-mode", "tar"],
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=120,
             )
             if dataset_push_result.returncode == 0:
                 log_fn(f"[DATASET] ✓ Updated dataset: {dataset_slug}")
             else:
-                log_fn(f"[DATASET] ⚠ Dataset version failed: {dataset_push_result.stderr[:100]}")
+                log_fn(f"[DATASET] ⚠ Dataset version failed: {dataset_push_result.stderr[:200]}")
+                result["error"] = f"Dataset creation failed: {dataset_push_result.stderr[:100]}"
+                return result
         
         # Create kernels
         machines = []
         for i in range(num_machines):
             log_fn(f"[KERNEL] Creating kernel {i+1}/{num_machines}...")
             
-            kernel_slug = f"{username}/resource-monitor-{i+1}-{int(time.time())}"
+            kernel_slug = f"{username}/resource-monitor-{i+1}"
             
             # Create kernel notebook that installs from dataset and runs startcon
             notebook = {
@@ -165,24 +177,58 @@ def create_dataset_with_machines(
                         "outputs": [],
                         "source": [
                             "# Resource Monitor Installation\n",
-                            "import os, sys, subprocess, json, time, socket\n",
+                            "import os, sys, subprocess, json, time, socket, glob\n",
                             "\n",
                             "print('='*50)\n",
                             "print('RESOURCE MONITOR INSTALLATION')\n",
                             "print('='*50)\n",
                             "\n",
-                            "# Find dataset path\n",
-                            "dataset_path = '/kaggle/input/resource-monitor/system-monitor'\n",
-                            "if not os.path.exists(dataset_path):\n",
-                            "    for p in ['/kaggle/input/resource-monitor', '/kaggle/input/system-monitor']:\n",
-                            "        if os.path.exists(p):\n",
-                            "            dataset_path = p\n",
+                            "# Find system-monitor package in dataset\n",
+                            "dataset_base = '/kaggle/input/resource-monitor'\n",
+                            "print(f'[INSTALL] Checking: {dataset_base}')\n",
+                            "\n",
+                            "# List all files in dataset\n",
+                            "dataset_path = None\n",
+                            "if os.path.exists(dataset_base):\n",
+                            "    files = os.listdir(dataset_base)\n",
+                            "    print(f'[INSTALL] Files in dataset: {files[:10]}...')\n",
+                            "    \n",
+                            "    # Look for setup.py or pyproject.toml (Python package)\n",
+                            "    for pkg_dir in ['system-monitor', 'src', '']:\n",
+                            "        check_path = os.path.join(dataset_base, pkg_dir) if pkg_dir else dataset_base\n",
+                            "        setup_py = os.path.join(check_path, 'setup.py')\n",
+                            "        pyproject = os.path.join(check_path, 'pyproject.toml')\n",
+                            "        if os.path.exists(setup_py) or os.path.exists(pyproject):\n",
+                            "            dataset_path = check_path\n",
+                            "            print(f'[INSTALL] Found package at: {dataset_path}')\n",
                             "            break\n",
+                            "    \n",
+                            "    # If not found, check for system-monitor subfolder\n",
+                            "    if not dataset_path:\n",
+                            "        for f in files:\n",
+                            "            if 'system-monitor' in f.lower() or 'monitor' in f.lower():\n",
+                            "                candidate = os.path.join(dataset_base, f)\n",
+                            "                if os.path.isdir(candidate):\n",
+                            "                    dataset_path = candidate\n",
+                            "                    break\n",
+                            "else:\n",
+                            "    print('[INSTALL] Dataset base not found!')\n",
                             "\n",
-                            "print(f'[INSTALL] Dataset path: {dataset_path}')\n",
+                            "print(f'[INSTALL] Using path: {dataset_path}')\n",
                             "\n",
-                            "if os.path.exists(dataset_path):\n",
-                            "    print('[INSTALL] Installing system-monitor from dataset...')\n",
+                            "if dataset_path and os.path.exists(dataset_path):\n",
+                            "    # Check for setup.py\n",
+                            "    setup_py = os.path.join(dataset_path, 'setup.py')\n",
+                            "    if not os.path.exists(setup_py):\n",
+                            "        print('[INSTALL] No setup.py found, checking subdirectories...')\n",
+                            "        for root, dirs, files in os.walk(dataset_path):\n",
+                            "            if 'setup.py' in files:\n",
+                            "                dataset_path = root\n",
+                            "                print(f'[INSTALL] Found setup.py at: {dataset_path}')\n",
+                            "                break\n",
+                            "    \n",
+                            "    # Install with internet enabled\n",
+                            "    print('[INSTALL] Installing package...')\n",
                             "    result = subprocess.run(\n",
                             "        [sys.executable, '-m', 'pip', 'install', '--break-system-packages',\n",
                             "         '--force-reinstall', '--no-cache-dir', dataset_path],\n",
@@ -191,22 +237,45 @@ def create_dataset_with_machines(
                             "    print(f'[INSTALL] Exit code: {result.returncode}')\n",
                             "    if result.returncode == 0:\n",
                             "        print('[INSTALL] ✓ Installation successful')\n",
+                            "        # Add to path for imports\n",
+                            "        sys.path.insert(0, dataset_path)\n",
                             "    else:\n",
                             "        print(f'[INSTALL] ✗ Installation failed: {result.stderr[-500:]}')\n",
+                            "        # Try adding to path directly\n",
+                            "        sys.path.insert(0, dataset_path)\n",
+                            "        print('[INSTALL] Added to sys.path for direct import')\n",
                             "else:\n",
-                            "    print('[INSTALL] ✗ Dataset not found!')\n",
+                            "    print('[INSTALL] ✗ Package not found!')\n",
                             "    sys.exit(1)\n",
                             "\n",
-                            "# Run startcon\n",
+                            "# Run startcon (installed via entry point)\n",
                             "print('\\n' + '='*50)\n",
                             "print('STARTING RESOURCE MONITOR')\n",
                             "print('='*50)\n",
                             "\n",
                             "worker_id = socket.gethostname()[:15]\n",
                             "print(f'[WORKER] ID: {worker_id}')\n",
-                            "print(f'[WORKER] Starting startcon...')\n",
                             "\n",
-                            "os.system('startcon &')\n",
+                            "# Check if startcon is available\n",
+                            "startcon_check = subprocess.run(['which', 'startcon'], capture_output=True, text=True)\n",
+                            "if startcon_check.returncode == 0:\n",
+                            "    print(f'[WORKER] Starting startcon...')\n",
+                            "    subprocess.Popen(['startcon'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n",
+                            "else:\n",
+                            "    print('[WORKER] startcon not in PATH, trying direct import...')\n",
+                            "    try:\n",
+                            "        # Add src directory to path\n",
+                            "        src_path = os.path.join(dataset_path, 'src')\n",
+                            "        if os.path.exists(src_path):\n",
+                            "            sys.path.insert(0, src_path)\n",
+                            "        from agents.universal import main as agent_main\n",
+                            "        import threading\n",
+                            "        t = threading.Thread(target=agent_main, daemon=True)\n",
+                            "        t.start()\n",
+                            "        print('[WORKER] Agent started via import')\n",
+                            "    except Exception as e:\n",
+                            "        print(f'[WORKER] Failed to start agent: {e}')\n",
+                            "        # Continue with status loop anyway\n",
                             "\n",
                             "# Status loop\n",
                             "for i in range(540):\n",
@@ -260,6 +329,7 @@ def create_dataset_with_machines(
                     enable_gpu=False,  # GPU kernels don't auto-run
                     enable_internet=True,
                     is_private=True,
+                    dataset_sources=[dataset_slug],
                     log_fn=log_fn,
                 )
                 
@@ -339,6 +409,7 @@ def push_kernel_json(
     enable_gpu: bool = False,
     enable_internet: bool = True,
     is_private: bool = True,
+    dataset_sources: list = None,
     log_fn: Optional[Callable] = None,
 ) -> dict:
     """Push kernel to Kaggle via kagglesdk with SAVE_AND_RUN_ALL for auto-execution.
@@ -386,8 +457,15 @@ def push_kernel_json(
         request.language = "python"
         request.kernel_type = "notebook"
         request.is_private = is_private
-        request.enable_internet = enable_internet
+        request.enable_internet = True  # Always enable internet for pip install
+        request.enable_gpu = enable_gpu if enable_gpu else False
         request.kernel_execution_type = KernelExecutionType.SAVE_AND_RUN_ALL
+        
+        log_fn(f"[KERNEL] Settings: internet=True, gpu={enable_gpu}")
+        
+        # Add dataset sources
+        if dataset_sources:
+            request.dataset_data_sources = dataset_sources
         
         # Execute
         response = client.kernels.kernels_api_client.save_kernel(request)
@@ -411,7 +489,7 @@ def push_kernel_json(
             "enableInternet": "true" if enable_internet else "false",
             "competitionDataSources": [],
             "kernelDataSources": [],
-            "datasetDataSources": [],
+            "datasetDataSources": dataset_sources or [],
             "categoryIds": [],
         }
         

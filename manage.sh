@@ -19,6 +19,9 @@ PORT="${PORT:-5000}"
 VENV="$SCRIPT_DIR/venv"
 PID_FILE="$SCRIPT_DIR/data/c2-server.pid"
 LOG_FILE="$SCRIPT_DIR/logs/c2-server.log"
+NGROK_PID_FILE="$SCRIPT_DIR/data/ngrok.pid"
+NGROK_LOG_FILE="$SCRIPT_DIR/logs/ngrok.log"
+NGROK_AUTHTOKEN="3BSLfBkyp4PMXsaom9XTj5mcsDb_2YJmW96LrznsCNPWddTcP"
 
 # Colors
 RED='\033[0;31m'
@@ -86,6 +89,9 @@ server_start() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo -e "${GREEN}✓ Server started (PID: $(cat $PID_FILE))${NC}"
         echo -e "${CYAN}  Local: http://127.0.0.1:$PORT${NC}"
+        
+        # Start ngrok automatically
+        ngrok_start
     else
         echo -e "${RED}✗ Failed to start server${NC}"
         tail -20 "$LOG_FILE"
@@ -95,6 +101,9 @@ server_start() {
 
 server_stop() {
     echo -e "${YELLOW}Stopping server...${NC}"
+    
+    # Stop ngrok first
+    ngrok_stop
     
     # Kill Python server
     if [ -f "$PID_FILE" ]; then
@@ -131,9 +140,13 @@ server_status() {
         [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
     fi
     
+    # Ngrok status
+    echo ""
+    ngrok_status
+    
     # Tunnel status
     echo ""
-    echo -e "${CYAN}Tunnel Status:${NC}"
+    echo -e "${CYAN}Cloudflare Tunnel Status:${NC}"
     if pgrep -f "cloudflared tunnel run" > /dev/null; then
         echo -e "${GREEN}✓ Running${NC}"
         echo -e "  Public: https://$DOMAIN"
@@ -147,6 +160,69 @@ server_logs() {
         tail -f "$LOG_FILE"
     else
         tail -100 "$LOG_FILE"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NGROK COMMANDS
+# ─────────────────────────────────────────────────────────────────────────────
+
+ngrok_start() {
+    echo -e "${YELLOW}Starting ngrok tunnel...${NC}"
+    
+    # Kill ALL existing ngrok processes completely
+    pkill -9 -f "ngrok" 2>/dev/null || true
+    killall -9 ngrok 2>/dev/null || true
+    sleep 2
+    
+    # Check if ngrok is installed
+    if ! command -v ngrok &> /dev/null; then
+        echo -e "${RED}✗ ngrok not installed. Run: snap install ngrok${NC}"
+        return 1
+    fi
+    
+    # Start ngrok fresh
+    mkdir -p "$SCRIPT_DIR/logs"
+    nohup ngrok http $PORT --authtoken "$NGROK_AUTHTOKEN" > "$NGROK_LOG_FILE" 2>&1 &
+    echo $! > "$NGROK_PID_FILE"
+    
+    sleep 4
+    
+    # Get public URL
+    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('tunnels',[]); print(t[0].get('public_url','') if t else '')" 2>/dev/null || true)
+    
+    if [ -n "$NGROK_URL" ]; then
+        echo -e "${GREEN}✓ Ngrok started${NC}"
+        echo -e "${CYAN}  Public: $NGROK_URL${NC}"
+    else
+        echo -e "${GREEN}✓ Ngrok started${NC}"
+        echo -e "${CYAN}  Check status at: http://127.0.0.1:4040${NC}"
+    fi
+}
+
+ngrok_stop() {
+    echo -e "${YELLOW}Stopping ngrok...${NC}"
+    
+    pkill -f "ngrok http" 2>/dev/null || true
+    rm -f "$NGROK_PID_FILE" 2>/dev/null
+    
+    echo -e "${GREEN}✓ Ngrok stopped${NC}"
+}
+
+ngrok_status() {
+    echo -e "${CYAN}Ngrok Status:${NC}"
+    
+    if pgrep -f "ngrok http" > /dev/null; then
+        echo -e "${GREEN}✓ Running${NC}"
+        
+        # Get public URL
+        NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('tunnels',[]); print(t[0].get('public_url','') if t else '')" 2>/dev/null || true)
+        
+        if [ -n "$NGROK_URL" ]; then
+            echo -e "${CYAN}  Public: $NGROK_URL${NC}"
+        fi
+    else
+        echo -e "${YELLOW}✗ Not running${NC}"
     fi
 }
 
@@ -410,6 +486,11 @@ show_help() {
     echo "  status          Show status"
     echo "  logs [follow]   View logs"
     echo ""
+    echo -e "${CYAN}Ngrok Commands:${NC}"
+    echo "  ngrok start     Start ngrok tunnel"
+    echo "  ngrok stop      Stop ngrok tunnel"
+    echo "  ngrok status    Show ngrok status"
+    echo ""
     echo -e "${CYAN}Tunnel Commands:${NC}"
     echo "  tunnel install  Setup permanent tunnel for $DOMAIN"
     echo "  tunnel start    Start tunnel"
@@ -457,6 +538,16 @@ case "${1:-}" in
             stop)       tunnel_stop ;;
             quick)      tunnel_quick ;;
             *)          echo "Usage: $0 tunnel {install|start|stop|quick}" ;;
+        esac
+        ;;
+    
+    # Ngrok
+    ngrok)
+        case "${2:-}" in
+            start)      ngrok_start ;;
+            stop)       ngrok_stop ;;
+            status)     ngrok_status ;;
+            *)          echo "Usage: $0 ngrok {start|stop|status}" ;;
         esac
         ;;
     
