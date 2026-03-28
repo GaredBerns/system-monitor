@@ -38,24 +38,9 @@ def recreate_c2_kernel(username: str, api_key: str, kernel_slug: str = None, use
             with open(template_path) as f:
                 notebook = json.load(f)
             
-            # Update COMMANDS in source
-            for cell in notebook.get("cells", []):
-                source = cell.get("source", "")
-                if isinstance(source, list):
-                    source = "".join(source)
-                
-                # Inject account-specific config
-                if "COMMANDS" in source and "=" in source:
-                    # Find and replace COMMANDS
-                    lines = source.split("\n")
-                    new_lines = []
-                    for line in lines:
-                        if "COMMANDS" in line and "=" in line and "{" in line:
-                            # Replace with new COMMANDS
-                            new_lines.append(f"COMMANDS = {{'action': 'ready', 'account': '{username}', 'timestamp': {time.time()}}}")
-                        else:
-                            new_lines.append(line)
-                    cell["source"] = "\n".join(new_lines)
+            # Don't modify source - use template as-is
+            # The template already has proper COMMANDS structure
+            print(f"[RECREATE] Using template with {len(notebook.get('cells', []))} cells")
         else:
             print(f"[RECREATE] Template not found, using simple notebook")
             use_full = False
