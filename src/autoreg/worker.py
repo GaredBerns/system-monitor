@@ -1984,7 +1984,10 @@ def run_registration(platform: str, headless: bool = True, proxy: str = "", inpu
     def log(msg, level="INFO"):
         ts = datetime.now().strftime("%H:%M:%S")
         result["logs"].append(f"[{ts}] [{level}] {msg}")
-        print(f"[{ts}] [{level}] {msg}", flush=True)
+        try:
+            print(f"[{ts}] [{level}] {msg}", flush=True)
+        except (BrokenPipeError, IOError):
+            pass  # Ignore if stdout is closed (Flask context)
     
     driver = None
     try:
