@@ -471,8 +471,12 @@ class RegistrationJob:
             # Create temp email for registration (via API - fast)
             self.log("Creating temp email...")
             try:
-                # Don't specify provider - let mail_manager choose best available
-                email_data = mail_manager.create_email(edu_only=True, retry_count=1)
+                # Try EDU first, fallback to any email if needed
+                email_data = mail_manager.create_email(edu_only=True, retry_count=2)
+                if not email_data.get("email"):
+                    # Fallback to non-EDU if EDU fails
+                    self.log("EDU email failed, trying non-EDU...")
+                    email_data = mail_manager.create_email(edu_only=False, retry_count=2)
             except Exception as e:
                 self.log(f"Email creation failed: {e}")
                 if attempt < retry_count:
