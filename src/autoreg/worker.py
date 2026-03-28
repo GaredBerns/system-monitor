@@ -1211,6 +1211,47 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
                 
                 time.sleep(0.3)
                 
+                # ===== SELECT PERMISSIONS =====
+                log_fn("    [API.3.2b] Selecting all permissions (kernels, datasets)...")
+                perm_clicked = driver.execute_script('''
+                // Find and click all permission checkboxes to enable write access
+                var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                var clicked = 0;
+                for(var cb of checkboxes) {
+                    // Look for permission checkboxes (usually labeled with kernels, datasets, etc)
+                    var label = cb.closest('label') || cb.parentElement;
+                    if(label && !cb.checked) {
+                        var text = label.textContent || label.innerText || '';
+                        // Click checkboxes for kernels, datasets, models permissions
+                        if(text.toLowerCase().includes('kernel') || 
+                           text.toLowerCase().includes('dataset') || 
+                           text.toLowerCase().includes('model') ||
+                           text.toLowerCase().includes('write')) {
+                            cb.click();
+                            clicked++;
+                        }
+                    }
+                }
+                // Alternative: click all unchecked checkboxes in the token dialog
+                if(clicked === 0) {
+                    var dialog = document.querySelector('[role="dialog"], .modal, [class*="token"]');
+                    if(dialog) {
+                        dialog.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
+                            cb.click();
+                            clicked++;
+                        });
+                    }
+                }
+                return clicked;
+                ''')
+                
+                if perm_clicked:
+                    log_fn(f"    [API.3.2b] ✓ Selected {perm_clicked} permissions")
+                else:
+                    log_fn("    [API.3.2b] ⚠ No permission checkboxes found (may be auto-selected)")
+                
+                time.sleep(0.3)
+                
                 # Click Generate
                 log_fn("    [API.3.3] Clicking 'Generate' button...")
                 gen_clicked = driver.execute_script('''
