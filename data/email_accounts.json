@@ -285,5 +285,12 @@
     "provider": "boomlify",
     "is_edu": true,
     "created_at": 1774702161.3947995
+  },
+  "fo3pjbwdnu@bscse.okcx.edu.rs": {
+    "email": "fo3pjbwdnu@bscse.okcx.edu.rs",
+    "email_id": "813b2ce4-f231-40c9-af23-0beafdca1e3b",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774705866.567251
   }
 }
