@@ -4673,6 +4673,7 @@ print(result)
             result = create_dataset_and_kernel(
                 username=account.get("username"),
                 api_key=account.get("api_key"),
+                kgat_token=account.get("api_key_new"),  # KGAT token for kernel push
                 log_fn=_log
             )
             

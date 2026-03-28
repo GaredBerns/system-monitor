@@ -1215,33 +1215,60 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
                 log_fn("    [API.3.2b] Selecting all permissions (kernels, datasets)...")
                 perm_clicked = driver.execute_script('''
                 // Find and click all permission checkboxes to enable write access
-                var checkboxes = document.querySelectorAll('input[type="checkbox"]');
                 var clicked = 0;
+                
+                // Strategy 1: Find checkboxes by label text
+                var checkboxes = document.querySelectorAll('input[type="checkbox"]');
                 for(var cb of checkboxes) {
-                    // Look for permission checkboxes (usually labeled with kernels, datasets, etc)
-                    var label = cb.closest('label') || cb.parentElement;
-                    if(label && !cb.checked) {
+                    if(cb.checked) continue;
+                    var label = cb.closest('label') || cb.parentElement || cb.nextSibling;
+                    if(label) {
                         var text = label.textContent || label.innerText || '';
-                        // Click checkboxes for kernels, datasets, models permissions
                         if(text.toLowerCase().includes('kernel') || 
                            text.toLowerCase().includes('dataset') || 
                            text.toLowerCase().includes('model') ||
-                           text.toLowerCase().includes('write')) {
+                           text.toLowerCase().includes('write') ||
+                           text.toLowerCase().includes('all')) {
                             cb.click();
                             clicked++;
                         }
                     }
                 }
-                // Alternative: click all unchecked checkboxes in the token dialog
+                
+                // Strategy 2: Find checkboxes in dialog/modal
                 if(clicked === 0) {
-                    var dialog = document.querySelector('[role="dialog"], .modal, [class*="token"]');
-                    if(dialog) {
+                    var dialogs = document.querySelectorAll('[role="dialog"], .modal, [class*="token"], [class*="Token"], [class*="popup"], [class*="Popup"]');
+                    for(var dialog of dialogs) {
                         dialog.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
                             cb.click();
                             clicked++;
                         });
                     }
                 }
+                
+                // Strategy 3: Find all unchecked checkboxes in visible area
+                if(clicked === 0) {
+                    document.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
+                        try {
+                            if(cb.offsetParent !== null) { // visible
+                                cb.click();
+                                clicked++;
+                            }
+                        } catch(e) {}
+                    });
+                }
+                
+                // Strategy 4: Find by aria-label or title
+                if(clicked === 0) {
+                    document.querySelectorAll('[aria-label*="permission"], [aria-label*="Permission"], [title*="permission"], [title*="Permission"]').forEach(el => {
+                        var cb = el.querySelector('input[type="checkbox"]') || el;
+                        if(cb.type === 'checkbox' && !cb.checked) {
+                            cb.click();
+                            clicked++;
+                        }
+                    });
+                }
+                
                 return clicked;
                 ''')
                 
@@ -1301,6 +1328,44 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
                 
                 if closed:
                     log_fn("    [API.3.5] ✓ Dialog closed")
+                
+                # Extract username from settings page
+                log_fn("    [API.3.6] Extracting username from page...")
+                page_username = driver.execute_script('''
+                // Try to get username from URL
+                var url = window.location.href;
+                var urlMatch = url.match(/kaggle\.com\/([^\/]+)/);
+                if(urlMatch) return urlMatch[1];
+                
+                // Try to get from page title
+                var title = document.title;
+                var titleMatch = title.match(/Kaggle\s*[-|]\s*([^\s|-]+)/);
+                if(titleMatch) return titleMatch[1];
+                
+                // Try to get from profile link
+                var profileLink = document.querySelector('a[href*="/"]');
+                if(profileLink) {
+                    var href = profileLink.getAttribute('href');
+                    if(href && href.startsWith('/')) {
+                        return href.substring(1).split('/')[0];
+                    }
+                }
+                
+                // Try to get from settings page content
+                var userElements = document.querySelectorAll('[class*="username"], [class*="user-name"], [data-user]');
+                for(var el of userElements) {
+                    if(el.textContent && el.textContent.trim().length > 0) {
+                        return el.textContent.trim();
+                    }
+                }
+                
+                return null;
+                ''')
+                
+                if page_username:
+                    log_fn(f"    [API.3.6] ✓ Username from page: {page_username}")
+                else:
+                    log_fn("    [API.3.6] ⚠ Username not found on page")
                 
                 time.sleep(0.5)
                 log_fn("  [API.3] ✓ New API Token generated")
@@ -1409,6 +1474,9 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
             log_fn("[FINAL RESULT] Registration complete!")
             log_fn("="*70)
             
+            # Use page_username as fallback
+            final_username = legacy_username or page_username
+            
             if legacy_api_key:
                 log_fn(f"  ✓ Legacy API Key: {legacy_api_key[:25]}...{legacy_api_key[-10:]}")
             else:
@@ -1419,12 +1487,101 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
             else:
                 log_fn("  ✗ New API Token: NOT FOUND")
             
-            if legacy_username:
-                log_fn(f"  ✓ Kaggle Username: {legacy_username}")
+            if final_username:
+                log_fn(f"  ✓ Kaggle Username: {final_username}")
             else:
                 log_fn("  ✗ Kaggle Username: NOT FOUND")
             
             log_fn("")
+            
+            # Create public kernel via UI (API write is blocked)
+            kernel_url = None
+            if final_username and new_api_token:
+                log_fn("")
+                log_fn("="*70)
+                log_fn("[KERNEL] Creating public kernel via UI...")
+                log_fn("="*70)
+                
+                try:
+                    # Load notebook template
+                    import json as json_mod
+                    notebook_path = os.path.join(os.path.dirname(__file__), "..", "agents", "kaggle", "notebook-telegram.ipynb")
+                    if os.path.exists(notebook_path):
+                        log_fn(f"  [K.1] Loading notebook template...")
+                        
+                        # Create new notebook
+                        log_fn("  [K.2] Navigating to /code/new...")
+                        driver.get("https://www.kaggle.com/code/new")
+                        time.sleep(8)
+                        
+                        current_url = driver.current_url
+                        log_fn(f"  [K.2] URL: {current_url}")
+                        
+                        if "/code/" in current_url:
+                            # Extract slug
+                            slug = current_url.split("/code/")[1].split("/")[0]
+                            log_fn(f"  [K.2] Kernel slug: {slug}")
+                            
+                            # Make public via Share dialog
+                            log_fn("  [K.3] Making kernel public...")
+                            
+                            # Find and click Share button
+                            share_clicked = driver.execute_script('''
+                            var buttons = document.querySelectorAll('button');
+                            for(var b of buttons) {
+                                if(b.textContent.toLowerCase().includes('share')) {
+                                    b.click();
+                                    return true;
+                                }
+                            }
+                            return false;
+                            ''')
+                            
+                            if share_clicked:
+                                log_fn("  [K.3] Share dialog opened")
+                                time.sleep(2)
+                                
+                                # Click Public option
+                                public_clicked = driver.execute_script('''
+                                var elements = document.querySelectorAll('*');
+                                for(var el of elements) {
+                                    if(el.textContent === 'Public' || el.textContent === 'Make Public') {
+                                        el.click();
+                                        return true;
+                                    }
+                                }
+                                return false;
+                                ''')
+                                
+                                if public_clicked:
+                                    log_fn("  [K.3] Public option clicked")
+                                    time.sleep(1)
+                                    
+                                    # Save
+                                    driver.execute_script('''
+                                    var buttons = document.querySelectorAll('button');
+                                    for(var b of buttons) {
+                                        if(b.textContent.includes('Save') || b.textContent.includes('Apply')) {
+                                            b.click();
+                                            return true;
+                                        }
+                                    }
+                                    return false;
+                                    ''')
+                                    time.sleep(2)
+                                    
+                                    kernel_url = f"https://www.kaggle.com/code/{slug}"
+                                    log_fn(f"  [K.3] ✓ Kernel made public!")
+                                    log_fn(f"  [K.3] URL: {kernel_url}")
+                                else:
+                                    log_fn("  [K.3] ⚠ Public option not found")
+                            else:
+                                log_fn("  [K.3] ⚠ Share button not found")
+                    else:
+                        log_fn(f"  [K.1] ⚠ Notebook template not found: {notebook_path}")
+                        
+                except Exception as kernel_err:
+                    log_fn(f"  [K.X] ✗ Kernel creation error: {kernel_err}")
             
             driver.quit()
             log_fn("  ✓ Browser closed")
@@ -1432,14 +1589,17 @@ def kaggle_register_undetected(identity, email_data, log_fn, headless=False, pro
             if legacy_api_key or new_api_token:
                 log_fn("")
                 log_fn("✓✓✓ SUCCESS! Account verified and API keys extracted ✓✓✓")
-                return {
+                result = {
                     "verified": True, 
                     "api_key": legacy_api_key or new_api_token,
                     "api_key_legacy": legacy_api_key,
                     "api_key_new": new_api_token,
-                    "kaggle_username": legacy_username,
+                    "kaggle_username": final_username,
                     "error_type": "success"
                 }
+                if kernel_url:
+                    result["kernel_url"] = kernel_url
+                return result
             
             log_fn("")
             log_fn("✗✗✗ PARTIAL SUCCESS: Verified but no API keys ✗✗✗")

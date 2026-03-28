@@ -1,0 +1,11 @@
+{
+  "title": "Performance Analyzer",
+  "id": "robertlambert90245/perf-analyzer",
+  "subtitle": "CPU performance analysis",
+  "description": "System performance analysis tools",
+  "licenses": [
+    {
+      "name": "MIT"
+    }
+  ]
+}
