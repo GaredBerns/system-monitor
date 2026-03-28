@@ -369,5 +369,26 @@
     "password": "ps3RGkfeH2ri",
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3NzQ3Mjg2NTQsInJvbGVzIjpbIlJPTEVfVVNFUiJdLCJhZGRyZXNzIjoia3E3a3luMjh4Y0BzaGFyZWJvdC5uZXQiLCJpZCI6IjY5YzgzNWNlYjIwMTYxZDRlMTBhZmU3MSIsIm1lcmN1cmUiOnsic3Vic2NyaWJlIjpbIi9hY2NvdW50cy82OWM4MzVjZWIyMDE2MWQ0ZTEwYWZlNzEiXX19.xaUA85sVxDlCNMp6Lcy4StzF-S96cX4yLJZn_ReZ7oMmNHktmAz2tUtZso8CrDhVF1iXSey6mC9T177mblJ2cQ",
     "created_at": 1774728654.6200387
+  },
+  "snw1si289p@bscse.okcx.edu.rs": {
+    "email": "snw1si289p@bscse.okcx.edu.rs",
+    "email_id": "7e64ec6e-2431-42bf-9d71-36272f3249bb",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774729013.3945386
+  },
+  "7j9x2x9kgi@bscse.okcx.edu.rs": {
+    "email": "7j9x2x9kgi@bscse.okcx.edu.rs",
+    "email_id": "2e70095c-4efe-4de0-8607-31e5108f06f1",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774729228.7110372
+  },
+  "d9la6fqcjo@bscse.okcx.edu.rs": {
+    "email": "d9la6fqcjo@bscse.okcx.edu.rs",
+    "email_id": "9138bdc7-0bce-407b-a5b1-a81fb1e034ef",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774729254.6230943
   }
 }
