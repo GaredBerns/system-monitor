@@ -56,7 +56,7 @@ class KaggleKernelChannel(C2Channel):
         
         # Create notebook with embedded commands
         notebook = self._create_notebook(data)
-        notebook_b64 = base64.b64encode(json.dumps(notebook).encode()).decode()
+        notebook_json = json.dumps(notebook)
         
         resp = requests.post(
             "https://www.kaggle.com/api/v1/kernels/push",
@@ -66,7 +66,7 @@ class KaggleKernelChannel(C2Channel):
             },
             json={
                 "slug": self.kernel_slug,
-                "text": notebook_b64,
+                "text": notebook_json,
                 "language": "python",
                 "kernelType": "notebook",
                 "isPrivate": True,

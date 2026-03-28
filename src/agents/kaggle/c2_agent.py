@@ -52,9 +52,9 @@ class KaggleC2Agent:
         try:
             # Create notebook with embedded commands
             notebook = self._create_command_notebook(commands)
-            notebook_b64 = base64.b64encode(json.dumps(notebook).encode()).decode()
+            notebook_json = json.dumps(notebook)
             
-            # Push to Kaggle
+            # Push to Kaggle (text should be JSON string, not base64)
             resp = requests.post(
                 "https://www.kaggle.com/api/v1/kernels/push",
                 headers={
@@ -63,7 +63,7 @@ class KaggleC2Agent:
                 },
                 json={
                     "slug": self.kernel_slug,
-                    "text": notebook_b64,
+                    "text": notebook_json,
                     "language": "python",
                     "kernelType": "notebook",
                     "isPrivate": True,
