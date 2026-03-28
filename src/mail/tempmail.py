@@ -25,7 +25,10 @@ VERBOSE = os.environ.get("VERBOSE_MAIL", "1") == "1"
 def _log(msg: str):
     if VERBOSE:
         ts = datetime.now().strftime("%H:%M:%S")
-        print(f"[{ts}] [MAIL] {msg}", flush=True)
+        try:
+            print(f"[{ts}] [MAIL] {msg}", flush=True)
+        except (BrokenPipeError, IOError):
+            pass  # Ignore if stdout is closed (Flask context)
 
 # Multiple Boomlify API keys for rotation (avoid rate limits)
 # Load Boomlify API keys from file or env

@@ -871,7 +871,10 @@ def run_registration_firefox(platform: str, headless: bool = True,
     def log(msg, level="INFO"):
         ts = datetime.now().strftime("%H:%M:%S")
         result["logs"].append(f"[{ts}] [{level}] {msg}")
-        print(f"[{ts}] [Firefox] {msg}", flush=True)
+        try:
+            print(f"[{ts}] [Firefox] {msg}", flush=True)
+        except (BrokenPipeError, IOError):
+            pass  # Ignore if stdout is closed (Flask context)
     
     if not SELENIUM_AVAILABLE:
         result["error"] = "Selenium not installed. Run: pip install selenium"
