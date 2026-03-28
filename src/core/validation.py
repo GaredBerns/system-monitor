@@ -75,13 +75,7 @@ class ConfigUpdate(BaseModel):
     webhook_telegram: Optional[str] = Field(None, max_length=512)
     encryption_key: Optional[str] = Field(None, max_length=128)
     agent_token: Optional[str] = Field(None, max_length=128)
-    public_url: Optional[str] = Field(None, max_length=512)
-    
-    @validator('public_url')
-    def validate_url(cls, v):
-        if v and not re.match(r'^https?://.+', v):
-            raise ValueError('Invalid URL format')
-        return v
+    # public_url removed - Telegram C2 works directly
 
 class ScheduledTaskCreate(BaseModel):
     """Scheduled task creation."""

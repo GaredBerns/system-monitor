@@ -733,6 +733,141 @@ class EduEmailProvider:
         return {}
 
 
+class MailTmProvider:
+    """Mail.tm temporary email provider - reliable and free."""
+    
+    def create_email(self, domain_name=None) -> dict:
+        import random
+        import string
+        
+        # Get available domains from mail.tm API
+        domains = ["sharebot.net", "mail.tm", "tm.mail.tm"]
+        try:
+            req = Request("https://api.mail.tm/domains", headers={"User-Agent": "Mozilla/5.0"})
+            resp = urlopen(req, timeout=10)
+            data = json.loads(resp.read().decode())
+            if isinstance(data, dict):
+                items = data.get("hydra:member", data.get("items", []))
+                domains = [d.get("domain") for d in items if d.get("isActive")]
+        except:
+            pass
+        
+        domain = domain_name or random.choice(domains)
+        login = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        email = f"{login}@{domain}"
+        
+        # Create account via API
+        try:
+            import requests
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+            r = requests.post("https://api.mail.tm/accounts", json={
+                "address": email,
+                "password": password
+            }, timeout=10)
+            if r.status_code == 201:
+                # Get token
+                r2 = requests.post("https://api.mail.tm/token", json={
+                    "address": email,
+                    "password": password
+                }, timeout=10)
+                if r2.status_code == 200:
+                    token = r2.json().get("token")
+                    return {
+                        "provider": "mailtm",
+                        "email": email,
+                        "login": login,
+                        "domain": domain,
+                        "password": password,
+                        "token": token
+                    }
+        except Exception as e:
+            _log(f"MailTm create error: {e}")
+        
+        # Fallback without account creation
+        return {
+            "provider": "mailtm",
+            "email": email,
+            "login": login,
+            "domain": domain
+        }
+    
+    def check_inbox(self, email_data: dict) -> list:
+        token = email_data.get("token", "")
+        if not token:
+            _log("mailtm: no token")
+            return []
+        
+        try:
+            import requests
+            r = requests.get("https://api.mail.tm/messages", 
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5  # Faster timeout for realtime
+            )
+            if r.status_code != 200:
+                _log(f"mailtm: status {r.status_code}")
+                return []
+            
+            messages = r.json().get("hydra:member", [])
+            out = []
+            for m in messages:
+                # Get full message
+                msg_id = m.get("id")
+                try:
+                    r2 = requests.get(f"https://api.mail.tm/messages/{msg_id}",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=5  # Faster timeout
+                    )
+                    full = r2.json() if r2.status_code == 200 else m
+                except:
+                    full = m
+                
+                out.append({
+                    "id": str(full.get("id", "")),
+                    "from": full.get("from", {}).get("address", "") if isinstance(full.get("from"), dict) else full.get("from", ""),
+                    "subject": full.get("subject", ""),
+                    "body": full.get("text", ""),
+                    "html": full.get("html", []),
+                    "date": full.get("createdAt", "")
+                })
+            _log(f"mailtm: {len(out)} messages")
+            return out
+        except Exception as e:
+            _log(f"mailtm error: {e}")
+            return []
+    
+    def wait_for_message(self, email_data: dict, timeout=120, subject_filter=None, poll_interval=0.1):
+        """Realtime wait for new message with instant polling."""
+        seen = set()
+        start = time.time()
+        
+        # Get initial messages
+        for m in self.check_inbox(email_data):
+            seen.add(m.get("id", ""))
+        
+        _log(f"mailtm: waiting for new message (timeout={timeout}s, poll={poll_interval}s)")
+        
+        while time.time() - start < timeout:
+            messages = self.check_inbox(email_data)
+            for m in messages:
+                mid = m.get("id", "")
+                if mid and mid not in seen:
+                    if subject_filter and subject_filter.lower() not in m.get("subject", "").lower():
+                        seen.add(mid)
+                        continue
+                    _log(f"mailtm: NEW MESSAGE: {m.get('subject', '?')}")
+                    return m
+            time.sleep(poll_interval)  # Realtime polling (default 100ms)
+        
+        _log("mailtm: timeout waiting for message")
+        return None
+    
+    def get_message(self, email_data: dict, msg_id: str) -> dict:
+        for m in self.check_inbox(email_data):
+            if str(m.get("id")) == str(msg_id):
+                return m
+        return {}
+
+
 class OneSecMailProvider:
     """1secmail — для Kaggle (Boomlify EDU часто блокируют)."""
     def create_email(self, domain_name=None) -> dict:
@@ -916,6 +1051,7 @@ class TempMailManager:
         self.accounts = {}
         self.lock = threading.Lock()
         self._providers = {
+            "mailtm": MailTmProvider(),  # Primary - most reliable
             "boomlify": BoomlifyProvider(),
             "boomlify_web": BoomlifyWebProvider(),
             "tempmail_io": TempMailIoProvider(),
@@ -942,10 +1078,10 @@ class TempMailManager:
                 providers_to_try = [provider_name]
             else:
                 if edu_only:
-                    # EDU providers: boomlify first (fastest EDU), then 1secmail as fallback
-                    providers_to_try = ["boomlify", "1secmail", "mailgw"]
+                    # mailtm is most reliable, then boomlify for EDU
+                    providers_to_try = ["mailtm", "boomlify", "1secmail", "mailgw"]
                 else:
-                    providers_to_try = ["boomlify", "1secmail", "mailgw", "tempmail_io"]
+                    providers_to_try = ["mailtm", "boomlify", "1secmail", "mailgw", "tempmail_io"]
             
             for prov_name in providers_to_try:
                 prov = self._providers.get(prov_name)

