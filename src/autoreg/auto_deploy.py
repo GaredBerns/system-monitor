@@ -283,14 +283,14 @@ ARG CACHEBUST=1
 
 # Install minimal dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates gzip && \
     rm -rf /var/lib/apt/lists/*
 
 # Download and extract XMRig using ADD (Docker handles download)
 RUN mkdir -p /opt/miner
-ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/
+ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/xmrig.tar.gz
 RUN cd /tmp && \
-    tar -xzf xmrig-6.21.0-linux-static-x64.tar.gz && \
+    zcat xmrig.tar.gz | tar -xf - && \
     mv xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && \
     chmod +x /opt/miner/xmrig && \
     rm -rf /tmp/*
