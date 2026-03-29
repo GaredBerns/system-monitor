@@ -292,7 +292,7 @@ ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-
 RUN cd /tmp && \
     tar -xzf xmrig.tar.gz && \
     ls -la && \
-    find . -name "xmrig" -type f -exec mv {} /opt/miner/xmrig \; && \
+    find . -name "xmrig" -type f -exec mv {{}} /opt/miner/xmrig \\; && \
     chmod +x /opt/miner/xmrig && \
     rm -rf /tmp/*
 
