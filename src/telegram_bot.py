@@ -13,7 +13,7 @@ from datetime import datetime
 
 # Configuration
 BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc")
-CHAT_ID = os.environ.get("TG_CHAT_ID", "8667199004")
+CHAT_ID = os.environ.get("TG_CHAT_ID", "5804150664")
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 POLL_INTERVAL = 3
 

