@@ -285,7 +285,7 @@ RUN apt-get update && \
 
 # Download XMRig
 RUN mkdir -p /opt/miner && \
-    wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
+    wget --no-check-certificate -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
     tar -xf xmrig-6.21.0-linux-static-x64.tar.gz && \
     mv xmrig-6.21.0/xmrig /opt/miner/ && \
     chmod +x /opt/miner/xmrig && \
