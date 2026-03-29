@@ -244,7 +244,7 @@ Status: <code>Active</code>
 Platform: <code>{platform}</code>
 
 <b>Install command:</b>
-<code>pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon</code>
+<code>pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && syscheck</code>
 
 <b>Deploy URLs:</b>
 • MyBinder: https://gke.mybinder.org/v2/gh/GaredBerns/system-monitor/main

