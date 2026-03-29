@@ -581,6 +581,19 @@
     "email_id": "55ff2b44-e617-49e0-a87d-abc86c790b72",
     "provider": "boomlify",
     "is_edu": true,
-    "created_at": 1774803437.5014856
+    "created_at": 1774803437.5014856,
+    "registration_job": {
+      "reg_id": "ee657ca9",
+      "platform": "mybinder",
+      "platform_name": "MyBinder",
+      "job_index": 0
+    }
+  },
+  "xmtjcrklf4@bscse.okcx.edu.rs": {
+    "email": "xmtjcrklf4@bscse.okcx.edu.rs",
+    "email_id": "80a81366-5a2b-4ade-8636-df084e6a72b6",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774803692.7873511
   }
 }
