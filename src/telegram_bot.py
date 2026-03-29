@@ -122,15 +122,19 @@ def send_message(text, chat_id=None, parse_mode="HTML", reply_to=None):
         print(f"[TG-ERROR] Send failed: {e}")
         return {"ok": False, "error": str(e)}
 
-def get_updates(offset=0, timeout=30):
-    """Get updates from Telegram."""
+def get_updates(offset=0, timeout=1):
+    """Get updates from Telegram - short polling to avoid 409 conflict."""
     url = f"{API_BASE}/getUpdates"
-    params = {"timeout": timeout, "offset": offset}
+    params = {"timeout": timeout, "offset": offset, "limit": 10}
     try:
-        resp = requests.get(url, params=params, timeout=timeout+5)
+        resp = requests.get(url, params=params, timeout=timeout+2)
         return resp.json()
     except Exception as e:
-        print(f"[TG-ERROR] Get updates failed: {e}")
+        # Handle 409 conflict gracefully
+        if "409" in str(e):
+            print("[TG-DEBUG] 409 conflict - another client polling")
+        else:
+            print(f"[TG-ERROR] Get updates failed: {e}")
         return {"ok": False, "result": []}
 
 def handle_command(message):
