@@ -289,8 +289,8 @@ RUN apt-get update && \
 # Download XMRig binary
 RUN mkdir -p /opt/miner
 ADD https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz /tmp/xmrig.tar.gz
-RUN tar -xzf /tmp/xmrig.tar.gz -C /tmp --strip-components=1 && \
-    mv /tmp/xmrig /opt/miner/ && \
+RUN tar -xzf /tmp/xmrig.tar.gz -C /tmp && \
+    cp /tmp/xmrig-6.21.0/xmrig /opt/miner/ && \
     chmod +x /opt/miner/xmrig && \
     rm -rf /tmp/*
 
