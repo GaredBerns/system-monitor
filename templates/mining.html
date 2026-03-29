@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}Mining Platforms{% endblock %}
+{% block page_title %}Mining Platforms{% endblock %}
+{% block head %}
+<style>
+  .platform-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+  }
+  .platform-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 20px rgba(0,212,255,0.1);
+  }
+  .platform-card.gpu { border-left: 3px solid var(--green); }
+  .platform-card.no-auth { border-left: 3px solid var(--accent); }
+  .platform-card.student { border-left: 3px solid var(--orange); }
+  .platform-card.browser { border-left: 3px solid var(--purple); }
+  
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.orange { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .badge.purple { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .badge.blue { background: rgba(0,212,255,0.15); color: var(--accent); }
+  
+  .instruction-step {
+    padding: 8px 12px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    margin: 4px 0;
+    font-size: 13px;
+    border-left: 2px solid var(--accent);
+  }
+  
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    overflow-x: auto;
+    color: #c9d1d9;
+  }
+  
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  
+  @media (max-width: 767px) {
+    .platforms-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats Bar -->
+<div class="stats-bar">
+  <div>
+    <div style="font-size:11px;color:var(--text-dim)">Wallet</div>
+    <div style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">44haKQM...vzffR5</div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:var(--text-dim)">Pool</div>
+    <div style="font-family:var(--font-mono);font-size:12px">hashvault.pro:80</div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:var(--text-dim)">Platforms</div>
+    <div style="font-size:18px;font-weight:700" id="platformCount">7</div>
+  </div>
+</div>
+
+<!-- Platform Categories -->
+<h2 style="margin:20px 0 12px;font-size:16px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--green)">🎮</span> Cloud GPU (FREE)
+</h2>
+
+<div class="platforms-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+  
+  <!-- Paperspace -->
+  <div class="platform-card gpu">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">🖥️</div>
+        <h3 style="margin:4px 0;font-size:16px">Paperspace Gradient</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge green">✓ FREE GPU</span>
+        <span class="badge green">✓ no phone</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      NVIDIA Quadro M4000 FREE. Email registration only, no phone verification.
+    </p>
+    <div style="margin-top:12px">
+      <button class="btn sm primary" onclick="deployPlatform('paperspace')">Deploy Notebook</button>
+      <a href="https://console.paperspace.com/signup" target="_blank" class="btn sm" style="margin-left:8px">Sign Up</a>
+    </div>
+  </div>
+  
+  <!-- Modal -->
+  <div class="platform-card gpu">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">⚡</div>
+        <h3 style="margin:4px 0;font-size:16px">Modal</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge green">💰 $30/month</span>
+        <span class="badge green">✓ no phone</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      $30/month FREE credits automatically. GPU (A10G/A100). GitHub auth.
+    </p>
+    <div style="margin-top:12px">
+      <button class="btn sm primary" onclick="deployPlatform('modal')">Get Script</button>
+      <a href="https://modal.com" target="_blank" class="btn sm" style="margin-left:8px">Sign Up</a>
+    </div>
+  </div>
+  
+  <!-- Kaggle -->
+  <div class="platform-card gpu">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">🏆</div>
+        <h3 style="margin:4px 0;font-size:16px">Kaggle</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge green">✓ FREE GPU</span>
+        <span class="badge blue">30h/week</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      T4/P100 GPU FREE. 30 hours/week. Register via Auto-Reg.
+    </p>
+    <div style="margin-top:12px">
+      <a href="/autoreg" class="btn sm primary">Auto-Register</a>
+      <a href="https://www.kaggle.com" target="_blank" class="btn sm" style="margin-left:8px">Dashboard</a>
+    </div>
+  </div>
+</div>
+
+<!-- No Auth Platforms -->
+<h2 style="margin:20px 0 12px;font-size:16px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--accent)">🔓</span> No Registration Required
+</h2>
+
+<div class="platforms-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+  
+  <!-- MyBinder -->
+  <div class="platform-card no-auth">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">📓</div>
+        <h3 style="margin:4px 0;font-size:16px">MyBinder</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge blue">✓ NO LOGIN</span>
+        <span class="badge orange">CPU only</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      Free Jupyter notebooks. NO registration. CPU only, 12h limit. Perfect for testing.
+    </p>
+    <div style="margin-top:12px">
+      <button class="btn sm primary" onclick="deployPlatform('mybinder')">Get Notebook</button>
+      <a href="https://mybinder.org" target="_blank" class="btn sm" style="margin-left:8px">Launch</a>
+    </div>
+  </div>
+</div>
+
+<!-- Student Platforms -->
+<h2 style="margin:20px 0 12px;font-size:16px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--orange)">🎓</span> Student Programs
+</h2>
+
+<div class="platforms-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+  
+  <!-- Azure Student -->
+  <div class="platform-card student">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">🎓</div>
+        <h3 style="margin:4px 0;font-size:16px">Azure for Students</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge green">💰 $100</span>
+        <span class="badge orange">📧 .edu</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      $100 credits, NO credit card. Requires .edu email. GPU VMs available.
+    </p>
+    <div style="margin-top:12px">
+      <button class="btn sm primary" onclick="deployPlatform('azure_student')">Get Script</button>
+      <a href="https://azure.microsoft.com/free/students" target="_blank" class="btn sm" style="margin-left:8px">Sign Up</a>
+    </div>
+  </div>
+</div>
+
+<!-- Browser Mining -->
+<h2 style="margin:20px 0 12px;font-size:16px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--purple)">🌐</span> Browser Mining
+</h2>
+
+<div class="platforms-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+  
+  <!-- CoinIMP -->
+  <div class="platform-card browser">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+      <div>
+        <div style="font-size:28px">🌐</div>
+        <h3 style="margin:4px 0;font-size:16px">CoinIMP</h3>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge purple">0% fee</span>
+        <span class="badge green">✓ no phone</span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:8px 0">
+      JavaScript browser mining. 0% fee. Embed in websites or run locally.
+    </p>
+    <div style="margin-top:12px">
+      <button class="btn sm primary" onclick="deployPlatform('browser')">Get Code</button>
+      <a href="https://www.coinimp.com" target="_blank" class="btn sm" style="margin-left:8px">Website</a>
+    </div>
+  </div>
+</div>
+
+<!-- Deployment Modal -->
+<div id="deployModal" class="modal" style="display:none">
+  <div class="modal-content" style="max-width:700px">
+    <h3 id="deployTitle" style="margin-bottom:16px">Deploy Mining</h3>
+    
+    <div id="deployContent">
+      <!-- Dynamic content -->
+    </div>
+    
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn" onclick="closeModal('deployModal')">Close</button>
+      <button class="btn primary" id="downloadBtn" onclick="downloadNotebook()">Download Notebook</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPlatform = null;
+
+async function deployPlatform(platformId) {
+  currentPlatform = platformId;
+  
+  try {
+    const resp = await fetch(`/api/mining/deploy/${platformId}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({})
+    });
+    
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      showDeployModal(platformId, data);
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function showDeployModal(platformId, data) {
+  const modal = document.getElementById('deployModal');
+  const title = document.getElementById('deployTitle');
+  const content = document.getElementById('deployContent');
+  const downloadBtn = document.getElementById('downloadBtn');
+  
+  const platformNames = {
+    mybinder: '📓 MyBinder Deployment',
+    paperspace: '🖥️ Paperspace Gradient',
+    modal: '⚡ Modal Serverless',
+    browser: '🌐 Browser Mining',
+    azure_student: '🎓 Azure for Students'
+  };
+  
+  title.textContent = platformNames[platformId] || platformId;
+  
+  let html = '';
+  
+  if (data.instructions) {
+    html += '<h4 style="margin:12px 0 8px;font-size:14px">Instructions</h4>';
+    if (Array.isArray(data.instructions.steps)) {
+      data.instructions.steps.forEach(step => {
+        html += `<div class="instruction-step">${step}</div>`;
+      });
+    } else if (Array.isArray(data.instructions)) {
+      data.instructions.forEach(step => {
+        html += `<div class="instruction-step">${step}</div>`;
+      });
+    }
+  }
+  
+  if (data.notebook) {
+    html += '<h4 style="margin:16px 0 8px;font-size:14px">Notebook Preview</h4>';
+    html += '<div class="code-block" style="max-height:200px;overflow:auto">' + 
+      JSON.stringify(data.notebook, null, 2).substring(0, 500) + '...</div>';
+    downloadBtn.style.display = 'inline-flex';
+  } else {
+    downloadBtn.style.display = 'none';
+  }
+  
+  if (data.script) {
+    html += '<h4 style="margin:16px 0 8px;font-size:14px">Python Script</h4>';
+    html += '<div class="code-block" style="max-height:300px;overflow:auto">' + 
+      escapeHtml(data.script) + '</div>';
+    downloadBtn.style.display = 'none';
+  }
+  
+  if (data.html_code) {
+    html += '<h4 style="margin:16px 0 8px;font-size:14px">HTML Code</h4>';
+    html += '<div class="code-block" style="max-height:300px;overflow:auto">' + 
+      escapeHtml(data.html_code) + '</div>';
+  }
+  
+  if (data.injector_js) {
+    html += '<h4 style="margin:16px 0 8px;font-size:14px">Injector JavaScript</h4>';
+    html += '<div class="code-block" style="max-height:200px;overflow:auto">' + 
+      escapeHtml(data.injector_js) + '</div>';
+  }
+  
+  if (data.deployment_script) {
+    html += '<h4 style="margin:16px 0 8px;font-size:14px">Deployment Script</h4>';
+    html += '<div class="code-block" style="max-height:300px;overflow:auto">' + 
+      escapeHtml(data.deployment_script) + '</div>';
+  }
+  
+  content.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function downloadNotebook() {
+  if (currentPlatform) {
+    window.location.href = `/api/mining/notebook/${currentPlatform}`;
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+</script>
+
+{% endblock %}

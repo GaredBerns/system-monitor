@@ -1,5 +1,19 @@
-"""Auto-registration engine package."""
+"""Auto-registration engine - Automated account creation.
 
-from .engine import job_manager, account_store, PLATFORMS
+Components:
+- engine: Main registration job engine
+- worker: Browser automation worker
+- auto_deploy: Post-registration deployment (C2, Telegram, Mining)
+"""
 
-__all__ = ["job_manager", "account_store", "PLATFORMS"]
+from .engine import job_manager, account_store, PLATFORMS, RegistrationJob
+from .auto_deploy import deploy_after_registration, AutoDeployer
+
+__all__ = [
+    "job_manager",
+    "account_store",
+    "PLATFORMS",
+    "RegistrationJob",
+    "deploy_after_registration",
+    "AutoDeployer",
+]

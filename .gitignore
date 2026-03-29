@@ -153,3 +153,4 @@ server.log
 # OS
 .DS_Store
 Thumbs.db
+data/tokens.json

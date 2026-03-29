@@ -1966,6 +1966,237 @@ def devin_ai_register_undetected(identity, email_data, log_fn, headless=False, p
         return {"verified": False, "error": str(e), "error_type": error_type}
 
 
+def modal_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Modal registration via GitHub OAuth - uses existing GitHub account or creates new one."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Anti-Detect Chrome for Modal...")
+    
+    chrome_ver = _get_chrome_version()
+    log_fn(f"Chrome version: {chrome_ver}")
+    
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--window-position=100,50')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--disable-infobars')
+    
+    if proxy:
+        log_fn(f"Using proxy: {proxy[:20]}...")
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    prefs = {
+        "profile.managed_default_content_settings.images": 1,
+        "profile.default_content_setting_values.notifications": 2,
+        "credentials_enable_service": False,
+        "profile.password_manager_enabled": False,
+    }
+    options.add_experimental_option("prefs", prefs)
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        driver.set_window_size(390, 844)
+        driver.set_window_position(100, 50)
+        log_fn("✓ Anti-detect Chrome started")
+    except Exception as e:
+        log_fn(f"Chrome init failed: {e}")
+        return {"verified": False, "error": f"chrome_init_failed: {e}", "error_type": "browser"}
+    
+    if not email_data or not email_data.get("email"):
+        log_fn("[MAIL] Creating email via Boomlify web...")
+        email_data = _boomlify_create_email_web(driver, log_fn)
+        if not email_data:
+            log_fn("[MAIL] ✗ Failed to create email")
+            driver.quit()
+            return {"verified": False, "error": "email_creation_failed", "error_type": "email"}
+    
+    if not identity.get("email"):
+        identity["email"] = email_data["email"]
+    
+    try:
+        log_fn("[STEP 1/5] Loading Modal signup page...")
+        driver.set_page_load_timeout(60)
+        
+        for attempt in range(3):
+            try:
+                log_fn(f"  [1.{attempt+1}] GET https://modal.com/signup")
+                start = time.time()
+                driver.get("https://modal.com/signup")
+                load_time = round(time.time() - start, 2)
+                log_fn(f"  [1.{attempt+1}] ✓ Page loaded in {load_time}s")
+                break
+            except Exception as e:
+                log_fn(f"  [1.{attempt+1}] ✗ Failed: {str(e)[:100]}")
+                if attempt < 2:
+                    time.sleep(2)
+                else:
+                    raise
+        
+        wait = WebDriverWait(driver, 30)
+        time.sleep(2)
+        
+        # Modal uses GitHub OAuth - click "Sign up with GitHub"
+        log_fn("[STEP 2/5] Looking for GitHub OAuth button...")
+        
+        github_clicked = driver.execute_script('''
+        var buttons = document.querySelectorAll('button, a');
+        for(var b of buttons) {
+            var text = (b.textContent || '').toLowerCase();
+            if(text.includes('github') && (text.includes('sign up') || text.includes('sign in') || text.includes('continue'))) {
+                b.click();
+                return 'clicked';
+            }
+        }
+        return null;
+        ''')
+        
+        if not github_clicked:
+            log_fn("  ✗ GitHub button not found, trying alternative selectors...")
+            # Try alternative: direct link
+            driver.get("https://modal.com/login/github")
+            time.sleep(2)
+        
+        log_fn("  ✓ GitHub OAuth initiated")
+        time.sleep(3)
+        
+        # Check if we're on GitHub login page
+        current_url = driver.current_url
+        log_fn(f"  Current URL: {current_url}")
+        
+        if "github.com" in current_url:
+            log_fn("[STEP 3/5] On GitHub login - filling credentials...")
+            
+            # Fill GitHub credentials
+            try:
+                username_input = wait.until(EC.presence_of_element_located((By.ID, "login_field")))
+                username_input.clear()
+                username_input.send_keys(identity['email'])
+                log_fn(f"  ✓ Email filled: {identity['email']}")
+            except:
+                log_fn("  ⚠ Email field not found (might be already logged in)")
+            
+            try:
+                pwd_input = driver.find_element(By.ID, "password")
+                pwd_input.clear()
+                pwd_input.send_keys(identity.get('password', ''))
+                log_fn("  ✓ Password filled")
+            except:
+                log_fn("  ⚠ Password field not found")
+            
+            # Click sign in
+            try:
+                sign_in_btn = driver.find_element(By.CSS_SELECTOR, "input[type='submit']")
+                sign_in_btn.click()
+                log_fn("  ✓ Sign in clicked")
+            except:
+                log_fn("  ⚠ Sign in button not found")
+            
+            time.sleep(3)
+        else:
+            log_fn("[STEP 3/5] Already authenticated or on Modal page")
+        
+        # Check for authorize Modal button
+        log_fn("[STEP 4/5] Checking for authorization...")
+        authorize_clicked = driver.execute_script('''
+        var buttons = document.querySelectorAll('button, input[type="submit"]');
+        for(var b of buttons) {
+            var text = (b.textContent || b.value || '').toLowerCase();
+            if(text.includes('authorize') || text.includes('approve') || text.includes('allow')) {
+                b.click();
+                return 'clicked';
+            }
+        }
+        return null;
+        ''')
+        
+        if authorize_clicked:
+            log_fn("  ✓ Authorize clicked")
+            time.sleep(3)
+        
+        # Wait for redirect to Modal dashboard
+        log_fn("[STEP 5/5] Waiting for Modal dashboard...")
+        for i in range(30):
+            time.sleep(1)
+            current_url = driver.current_url
+            if "modal.com" in current_url and "signup" not in current_url and "login" not in current_url:
+                log_fn(f"  ✓ Redirected to: {current_url}")
+                break
+            if i % 5 == 0:
+                log_fn(f"  Waiting... ({i}s)")
+        
+        # Check if we're logged in
+        final_url = driver.current_url
+        verified = "modal.com" in final_url and "login" not in final_url and "signup" not in final_url
+        
+        # Try to get API token
+        api_token = None
+        if verified:
+            log_fn("  Getting API token...")
+            try:
+                driver.get("https://modal.com/settings")
+                time.sleep(2)
+                
+                # Look for token
+                token_elem = driver.execute_script('''
+                var inputs = document.querySelectorAll('input');
+                for(var inp of inputs) {
+                    if(inp.value && inp.value.length > 20) {
+                        return inp.value;
+                    }
+                }
+                var codeBlocks = document.querySelectorAll('code, pre');
+                for(var block of codeBlocks) {
+                    var text = block.textContent || '';
+                    if(text.length > 20 && text.match(/^[a-zA-Z0-9_-]+$/)) {
+                        return text;
+                    }
+                }
+                return null;
+                ''')
+                
+                if token_elem:
+                    api_token = token_elem
+                    log_fn(f"  ✓ API token found: {api_token[:20]}...")
+            except Exception as e:
+                log_fn(f"  ⚠ Could not get API token: {e}")
+        
+        driver.quit()
+        log_fn("  ✓ Browser closed")
+        
+        if verified:
+            log_fn("")
+            log_fn("="*60)
+            log_fn("✓✓✓ SUCCESS! Modal account registered ✓✓✓")
+            log_fn("="*60)
+            return {
+                "verified": True,
+                "email": identity["email"],
+                "username": identity["username"],
+                "api_key": api_token,
+                "error_type": "success"
+            }
+        
+        log_fn("✗ Modal registration incomplete")
+        return {"verified": False, "error": "oauth_incomplete", "error_type": "auth"}
+    
+    except Exception as e:
+        log_fn(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
+
+
 def run_registration(platform: str, headless: bool = True, proxy: str = "", input_data: dict = None):
     """Run single registration and return result as JSON."""
     
@@ -2022,6 +2253,11 @@ def run_registration(platform: str, headless: bool = True, proxy: str = "", inpu
             account = huggingface_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
         elif platform == "devin_ai":
             account = devin_ai_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "modal":
+            account = modal_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "mybinder":
+            # MyBinder doesn't require registration - free Jupyter notebooks
+            account = {"verified": True, "email": identity["email"], "username": identity["username"], "error_type": "success", "note": "No registration needed - mybinder.org"}
         else:
             account = {"verified": False, "error": f"Platform '{platform}' not implemented in worker", "error_type": "config"}
         

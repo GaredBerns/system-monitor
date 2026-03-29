@@ -1,4 +1,5 @@
-# Kaggle utilities
+# Kaggle utilities - Unified C2 and dataset management
+from .c2 import KaggleC2Agent, DatasetC2, KernelC2, TelegramC2
 from .datasets import (
     create_dataset_with_machines,
     get_kernel_output,
@@ -9,6 +10,12 @@ from .datasets import (
 )
 
 __all__ = [
+    # C2
+    "KaggleC2Agent",
+    "DatasetC2",
+    "KernelC2", 
+    "TelegramC2",
+    # Datasets
     "create_dataset_with_machines",
     "get_kernel_output",
     "get_kernel_status",

