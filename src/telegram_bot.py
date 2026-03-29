@@ -94,11 +94,11 @@ def add_task_to_db(agent_id, task_type, command):
         conn = get_db()
         db = conn.cursor()
         db.execute("""
-            INSERT INTO tasks (agent_id, task_type, command, status, created_at)
-            VALUES (?, ?, ?, 'pending', datetime('now'))
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+            VALUES ((SELECT COALESCE(MAX(id),0)+1 FROM tasks), ?, ?, ?, 'pending', datetime('now'))
         """, (agent_id, task_type, command))
-        task_id = db.lastrowid
         conn.commit()
+        task_id = db.lastrowid
         conn.close()
         return task_id
     except Exception as e:

