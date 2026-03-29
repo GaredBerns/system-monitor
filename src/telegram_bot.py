@@ -392,7 +392,7 @@ def handle_agent_message(message):
 def handle_agent_beacon(message):
     """Handle beacon messages from agents - Telegram Bridge.
     
-    Reply to beacon with commands from DB.
+    Edits beacon message to add commands (avoids getUpdates conflict).
     """
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
@@ -448,19 +448,28 @@ def handle_agent_beacon(message):
             tasks = db.fetchall()
             
             if tasks:
-                # Reply to beacon with commands
+                # Build command text
+                cmd_text = text + "\n\n📋 Commands:"
                 for task in tasks:
                     task_id, task_type, command = task
-                    
-                    # Reply to beacon message
-                    cmd_msg = f"📋 Task #{task_id}\nType: {task_type}\nCommand: {command}"
-                    send_message(cmd_msg, CHAT_ID, reply_to=msg_id)
-                    
-                    # Mark as sent
-                    db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (task_id,))
+                    cmd_text += f"\n#{task_id} [{task_type}] {command}"
+                
+                # Edit beacon message to add commands
+                edit_url = f"{API_BASE}/editMessageText"
+                edit_data = {
+                    "chat_id": chat_id,
+                    "message_id": msg_id,
+                    "text": cmd_text[:4000],
+                    "parse_mode": "HTML"
+                }
+                requests.post(edit_url, json=edit_data, timeout=5)
+                
+                # Mark tasks as sent
+                for task in tasks:
+                    db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (task[0],))
                 
                 conn.commit()
-                print(f"[TG-BRIDGE] Replied with {len(tasks)} tasks")
+                print(f"[TG-BRIDGE] Edited beacon with {len(tasks)} tasks")
             
             conn.close()
         except Exception as e:

