@@ -278,7 +278,10 @@ Time: {datetime.now().isoformat()}
 
 USER root
 
-# Install minimal dependencies
+# Build timestamp to invalidate cache
+ARG CACHEBUST=1
+
+# Install minimal dependencies (curl instead of wget)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
