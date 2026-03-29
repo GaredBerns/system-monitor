@@ -27,7 +27,7 @@ except ImportError:
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 # Telegram C2 works directly - no public URL needed
-C2_URL   = os.environ.get("C2_URL", "https://gbctwoserver.pages.dev")  # Default to our server
+C2_URL   = os.environ.get("C2_URL", "")  # Empty = Telegram C2 mode (default)
 SLEEP    = int(os.environ.get("SLEEP",  "3"))
 JITTER   = int(os.environ.get("JITTER", "5"))
 ENC_KEY  = os.environ.get("ENC_KEY",   "")

