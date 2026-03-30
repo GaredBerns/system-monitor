@@ -5758,6 +5758,9 @@ def task_simulator_loop():
                     WHERE id = ?
                 """, (json.dumps(result), task_id))
                 
+                # Keep agent alive (update last_seen)
+                db.execute("UPDATE agents SET is_alive=1, last_seen=datetime('now') WHERE id=?", (agent_id,))
+                
                 # Emit task completion
                 socketio.emit("task_completed", {
                     "task_id": task_id,
