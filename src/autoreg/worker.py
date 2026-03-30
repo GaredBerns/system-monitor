@@ -2220,11 +2220,117 @@ def brev_register_undetected(identity, email_data, log_fn, headless=False, proxy
 
 
 def together_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
-    """Together AI registration - email only, no captcha."""
-    log_fn("Together AI registration...")
+    """Together AI registration - email only, no captcha, $1 FREE credits."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Together AI registration...")
     log_fn("URL: https://api.together.xyz/")
-    log_fn("Note: Email signup, $1 FREE credits")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "$1 FREE credits for GPU"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://api.together.xyz/signup")
+        time.sleep(3)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        try:
+            email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email']")
+            email_input.send_keys(identity['email'])
+        except:
+            # Try clicking email tab first
+            driver.execute_script("document.querySelector('[class*=email], button:contains(\"Email\")')?.click()")
+            time.sleep(1)
+            email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email']")
+            email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button')) {
+            if(b.textContent.toLowerCase().includes('sign') || b.textContent.toLowerCase().includes('continue')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="together")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        elif code:
+            log_fn(f"Entering verification code: {code}")
+            code_input = driver.find_element(By.CSS_SELECTOR, "input[type='text'], input[name='code'], input[placeholder*='code']")
+            code_input.send_keys(code)
+            time.sleep(2)
+        
+        # Check if logged in
+        if "dashboard" in driver.current_url or "playground" in driver.current_url or "together" in driver.current_url:
+            log_fn("✓ Together AI account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://api.together.xyz/settings/api-keys")
+                time.sleep(2)
+                # Click create API key
+                driver.execute_script("document.querySelector('button:contains(\"Create\"), button:contains(\"New\")')?.click()")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key'], code")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def replicate_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
@@ -2244,11 +2350,110 @@ def coreweave_register_undetected(identity, email_data, log_fn, headless=False, 
 
 
 def genesis_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
-    """Genesis Cloud registration - email signup."""
-    log_fn("Genesis Cloud registration...")
+    """Genesis Cloud registration - email signup, $5 FREE credits."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Genesis Cloud registration...")
     log_fn("URL: https://genesis.cloud/")
-    log_fn("Note: Email signup, $5 FREE credits")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "$5 FREE credits for GPU"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://genesis.cloud/sign-up")
+        time.sleep(3)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email']")
+        email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Fill name if exists
+        try:
+            name_input = driver.find_element(By.CSS_SELECTOR, "input[name='name'], input[placeholder*='name']")
+            name_input.send_keys(identity.get('display_name', identity['username']))
+            time.sleep(0.3)
+        except:
+            pass
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button[type="submit"], button')) {
+            if(b.textContent.toLowerCase().includes('sign') || b.textContent.toLowerCase().includes('create') || b.textContent.toLowerCase().includes('register')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="genesis")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        
+        # Check if logged in
+        if "dashboard" in driver.current_url or "console" in driver.current_url or "genesis" in driver.current_url:
+            log_fn("✓ Genesis Cloud account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://genesis.cloud/settings/api")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key']")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def lightning_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
@@ -2261,34 +2466,433 @@ def lightning_register_undetected(identity, email_data, log_fn, headless=False, 
 
 def paperspace_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
     """Paperspace registration - email only, no phone, FREE GPU."""
-    log_fn("Paperspace registration...")
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Paperspace registration...")
     log_fn("URL: https://console.paperspace.com/signup")
-    log_fn("Note: Email only, no phone, FREE GPU tier")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "FREE GPU M4000"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://console.paperspace.com/signup")
+        time.sleep(3)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email']")
+        email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Fill name if field exists
+        try:
+            name_input = driver.find_element(By.CSS_SELECTOR, "input[name='name'], input[placeholder*='name']")
+            name_input.send_keys(identity.get('display_name', identity['username']))
+            time.sleep(0.3)
+        except:
+            pass
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        signup_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit'], button[contains(text(),'Sign')]")
+        signup_btn.click()
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="verify")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        
+        # Check if logged in
+        if "console" in driver.current_url or "gradient" in driver.current_url:
+            log_fn("✓ Paperspace account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://console.paperspace.com/settings/api")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key']")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def runpod_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
-    """RunPod registration - email or GitHub."""
-    log_fn("RunPod registration...")
+    """RunPod registration - email or GitHub, GPU rental."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting RunPod registration...")
     log_fn("URL: https://www.runpod.io/")
-    log_fn("Note: Email or GitHub OAuth")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "GPU rental, cheap rates"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://www.runpod.io/auth/login")
+        time.sleep(3)
+        
+        # Click signup tab
+        log_fn("Clicking signup tab...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button, a, [role="tab"]')) {
+            if(b.textContent.toLowerCase().includes('sign up') || b.textContent.toLowerCase().includes('register')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(2)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email']")
+        email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button[type="submit"], button')) {
+            if(b.textContent.toLowerCase().includes('sign') || b.textContent.toLowerCase().includes('create')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="runpod")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        
+        # Check if logged in
+        if "console" in driver.current_url or "pods" in driver.current_url or "runpod" in driver.current_url:
+            log_fn("✓ RunPod account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://www.runpod.io/console/user/settings")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key']")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def vastai_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
-    """Vast.ai registration - email only."""
-    log_fn("Vast.ai registration...")
+    """Vast.ai registration - email only, cheapest GPU rental."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Vast.ai registration...")
     log_fn("URL: https://vast.ai/")
-    log_fn("Note: Email signup, cheapest GPU rental")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "Cheapest GPU rental"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://cloud.vast.ai/auth/register")
+        time.sleep(3)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email'], input[id*='email']")
+        email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill username
+        log_fn(f"Filling username: {identity['username']}")
+        try:
+            user_input = driver.find_element(By.CSS_SELECTOR, "input[name='username'], input[placeholder*='username'], input[id*='username']")
+            user_input.send_keys(identity['username'])
+            time.sleep(0.3)
+        except:
+            pass
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button[type="submit"], button')) {
+            if(b.textContent.toLowerCase().includes('sign') || b.textContent.toLowerCase().includes('register') || b.textContent.toLowerCase().includes('create')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="vast")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        
+        # Check if logged in
+        if "console" in driver.current_url or "create" in driver.current_url or "vast" in driver.current_url:
+            log_fn("✓ Vast.ai account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://cloud.vast.ai/account/settings")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key'], code")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def lambda_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
-    """Lambda Labs registration - email signup."""
-    log_fn("Lambda Labs registration...")
+    """Lambda Labs registration - email signup, GPU cloud."""
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log_fn("Starting Lambda Labs registration...")
     log_fn("URL: https://lambdalabs.com/")
-    log_fn("Note: Email signup, GPU cloud")
-    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "GPU cloud A100/H100"}
+    
+    chrome_ver = _get_chrome_version()
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=390,844')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    if proxy:
+        options.add_argument(f'--proxy-server={proxy}')
+    
+    try:
+        driver = uc.Chrome(options=options, version_main=chrome_ver, headless=headless)
+        log_fn("✓ Browser started")
+    except Exception as e:
+        log_fn(f"Browser failed: {e}")
+        return {"verified": False, "error": str(e), "error_type": "browser"}
+    
+    try:
+        # Open signup page
+        driver.get("https://cloud.lambdalabs.com/signup")
+        time.sleep(3)
+        
+        # Fill email
+        log_fn(f"Filling email: {identity['email']}")
+        email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email'], input[name='email'], input[placeholder*='email']")
+        email_input.send_keys(identity['email'])
+        time.sleep(0.5)
+        
+        # Fill password
+        password = identity.get('password', ''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+        log_fn("Filling password...")
+        pwd_input = driver.find_element(By.CSS_SELECTOR, "input[type='password'], input[name='password']")
+        pwd_input.send_keys(password)
+        time.sleep(0.5)
+        
+        # Fill name
+        try:
+            first_name = driver.find_element(By.CSS_SELECTOR, "input[name='first_name'], input[placeholder*='first']")
+            first_name.send_keys(identity.get('first_name', identity['username']))
+            last_name = driver.find_element(By.CSS_SELECTOR, "input[name='last_name'], input[placeholder*='last']")
+            last_name.send_keys(identity.get('last_name', 'User'))
+            time.sleep(0.3)
+        except:
+            pass
+        
+        # Click signup
+        log_fn("Clicking signup button...")
+        driver.execute_script('''
+        for(var b of document.querySelectorAll('button[type="submit"], button')) {
+            if(b.textContent.toLowerCase().includes('sign') || b.textContent.toLowerCase().includes('create') || b.textContent.toLowerCase().includes('register')) {
+                b.click(); break;
+            }
+        }
+        ''')
+        time.sleep(5)
+        
+        # Check for email verification
+        log_fn("Checking for verification email...")
+        msg, code, link = _wait_email(identity['email'], log_fn, timeout=60, subject_filter="lambda")
+        
+        if link:
+            log_fn(f"Opening verification link: {link[:50]}...")
+            driver.get(link)
+            time.sleep(3)
+            log_fn("✓ Email verified")
+        
+        # Check if logged in
+        if "dashboard" in driver.current_url or "instances" in driver.current_url or "lambda" in driver.current_url:
+            log_fn("✓ Lambda Labs account created!")
+            
+            # Try to get API key
+            try:
+                driver.get("https://cloud.lambdalabs.com/settings/api-keys")
+                time.sleep(2)
+                driver.execute_script("document.querySelector('button:contains(\"Create\"), button:contains(\"New\")')?.click()")
+                time.sleep(2)
+                api_key_elem = driver.find_element(By.CSS_SELECTOR, "input[type='text'], .api-key, [class*='key'], code")
+                api_key = api_key_elem.get_attribute('value') or api_key_elem.text
+                if api_key and len(api_key) > 10:
+                    log_fn(f"✓ API Key: {api_key[:20]}...")
+                    driver.quit()
+                    return {"verified": True, "api_key": api_key, "password": password, "error_type": "success"}
+            except:
+                pass
+            
+            driver.quit()
+            return {"verified": True, "password": password, "error_type": "success"}
+        
+        driver.quit()
+        return {"verified": False, "error": "Registration incomplete", "error_type": "verification"}
+        
+    except Exception as e:
+        log_fn(f"Error: {e}")
+        try:
+            driver.quit()
+        except:
+            pass
+        return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
 def run_registration(platform: str, headless: bool = True, proxy: str = "", input_data: dict = None):
