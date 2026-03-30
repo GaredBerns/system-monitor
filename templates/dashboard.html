@@ -612,6 +612,81 @@
   </div>
 </div>
 
+<!-- ── Debug Panel ── -->
+<div class="card" style="margin-top:20px">
+  <h2>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+    Debug Console
+    <span class="card-extra">
+      <span id="debugStats" style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)"></span>
+    </span>
+  </h2>
+  
+  <!-- Log Controls -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:4px">
+      <button class="debug-filter-btn active" data-type="all" onclick="filterDebugLog('all')">ALL</button>
+      <button class="debug-filter-btn" data-type="ws" onclick="filterDebugLog('ws')">WS</button>
+      <button class="debug-filter-btn" data-type="api" onclick="filterDebugLog('api')">API</button>
+      <button class="debug-filter-btn" data-type="agent" onclick="filterDebugLog('agent')">AGENT</button>
+      <button class="debug-filter-btn" data-type="task" onclick="filterDebugLog('task')">TASK</button>
+      <button class="debug-filter-btn" data-type="error" onclick="filterDebugLog('error')">ERROR</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button onclick="exportDebugLog()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);font-size:11px;cursor:pointer">📥 Export</button>
+      <button onclick="clearDebugLog()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);font-size:11px;cursor:pointer">🗑️ Clear</button>
+    </div>
+  </div>
+  
+  <!-- Debug Log -->
+  <div id="debugLog" style="max-height:300px;overflow-y:auto;font-family:var(--font-mono);font-size:11px;background:var(--bg-input);border-radius:8px;padding:10px">
+    <div class="debug-line" data-type="info">
+      <span class="debug-ts">--:--:--</span>
+      <span class="debug-type info">INFO</span>
+      <span class="debug-msg">Debug console initialized</span>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Debug Panel Styles */
+.debug-filter-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.debug-filter-btn:hover { border-color: var(--accent-dim); color: var(--text-bright); }
+.debug-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.debug-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  animation: fadeIn 0.2s ease;
+}
+.debug-line.hidden { display: none; }
+.debug-ts { color: var(--text-dim); flex-shrink: 0; }
+.debug-type { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+.debug-type.ws { background: #a855f722; color: #a855f7; }
+.debug-type.api { background: #3b82f622; color: #3b82f6; }
+.debug-type.agent { background: #22c55e22; color: #22c55e; }
+.debug-type.task { background: #f59e0b22; color: #f59e0b; }
+.debug-type.error { background: #ef444422; color: #ef4444; }
+.debug-type.info { background: #06b6d422; color: #06b6d4; }
+.debug-type.success { background: #10b98122; color: #10b981; }
+.debug-msg { color: var(--text-secondary); word-break: break-word; }
+</style>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1048,8 +1123,262 @@ setInterval(() => {
 
 console.log('%c🚀 C2 Dashboard Loaded', 'color: #00d4ff; font-size: 16px; font-weight: bold;');
 
-// Initialize debug module
-C2_DEBUG.initPage('dashboard');
+/* ═══════════════════════════════════════════════════════════
+   DEBUG CONSOLE - Full Logging
+   ═══════════════════════════════════════════════════════════ */
+
+let debugLogData = [];
+let debugFilter = 'all';
+let debugCounters = { ws: 0, api: 0, agent: 0, task: 0, error: 0, info: 0, success: 0 };
+
+function debugLog(type, message, data = null) {
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  
+  const entry = { ts, type, message, data };
+  debugLogData.push(entry);
+  if (debugLogData.length > 500) debugLogData.shift();
+  
+  debugCounters[type] = (debugCounters[type] || 0) + 1;
+  updateDebugStats();
+  
+  // Add to DOM
+  const container = document.getElementById('debugLog');
+  if (!container) return;
+  
+  const line = document.createElement('div');
+  line.className = 'debug-line' + (debugFilter !== 'all' && debugFilter !== type ? ' hidden' : '');
+  line.dataset.type = type;
+  line.innerHTML = `
+    <span class="debug-ts">${ts}</span>
+    <span class="debug-type ${type}">${type.toUpperCase()}</span>
+    <span class="debug-msg">${message}</span>
+  `;
+  
+  container.appendChild(line);
+  container.scrollTop = container.scrollHeight;
+  
+  // Keep max 100 visible
+  const lines = container.querySelectorAll('.debug-line');
+  if (lines.length > 100) lines[0].remove();
+}
+
+function updateDebugStats() {
+  const el = document.getElementById('debugStats');
+  if (el) {
+    const total = Object.values(debugCounters).reduce((a,b) => a+b, 0);
+    el.textContent = `${total} logs | WS:${debugCounters.ws} API:${debugCounters.api} ERR:${debugCounters.error}`;
+  }
+}
+
+function filterDebugLog(type) {
+  debugFilter = type;
+  
+  // Update buttons
+  document.querySelectorAll('.debug-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  
+  // Filter lines
+  document.querySelectorAll('.debug-line').forEach(line => {
+    line.classList.toggle('hidden', type !== 'all' && line.dataset.type !== type);
+  });
+}
+
+function clearDebugLog() {
+  debugLogData = [];
+  debugCounters = { ws: 0, api: 0, agent: 0, task: 0, error: 0, info: 0, success: 0 };
+  updateDebugStats();
+  
+  const container = document.getElementById('debugLog');
+  if (container) {
+    container.innerHTML = `
+      <div class="debug-line" data-type="info">
+        <span class="debug-ts">${new Date().toTimeString().slice(0,8)}</span>
+        <span class="debug-type info">INFO</span>
+        <span class="debug-msg">Log cleared</span>
+      </div>
+    `;
+  }
+}
+
+function exportDebugLog() {
+  const text = debugLogData.map(e => `[${e.ts}] [${e.type.toUpperCase()}] ${e.message}${e.data ? ' | ' + JSON.stringify(e.data) : ''}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `c2_debug_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  debugLog('success', 'Log exported');
+}
+
+// Initialize debug log
+debugLog('info', 'Dashboard initialized, connecting WebSocket...');
+
+/* ═══════════════════════════════════════════════════════════
+   EXTENDED WEBSOCKET LOGGING
+   ═══════════════════════════════════════════════════════════ */
+
+// Override socket.on to log all events
+const originalOn = socket.on.bind(socket);
+socket.on = function(event, handler) {
+  const wrappedHandler = function(data) {
+    debugLog('ws', `← ${event}`, data);
+    return handler(data);
+  };
+  return originalOn(event, wrappedHandler);
+};
+
+// Log all emits
+const originalEmit = socket.emit.bind(socket);
+socket.emit = function(event, data) {
+  debugLog('ws', `→ ${event}`, data);
+  return originalEmit(event, data);
+};
+
+// Enhanced socket events with full logging
+socket.on('connect', () => {
+  wsConnected = true;
+  wsDot.className = 'conn-dot ok';
+  wsText.textContent = 'Connected';
+  debugLog('success', 'WebSocket connected');
+  console.log('[WS] Connected');
+});
+
+socket.on('disconnect', () => {
+  wsConnected = false;
+  wsDot.className = 'conn-dot err';
+  wsText.textContent = 'Disconnected';
+  debugLog('error', 'WebSocket disconnected');
+  console.log('[WS] Disconnected');
+});
+
+socket.on('connect_error', (err) => {
+  debugLog('error', `WebSocket error: ${err.message}`);
+});
+
+socket.on('agent_update', data => {
+  refreshStats();
+  
+  const logEl = document.getElementById('dashActivityLog');
+  if (logEl) {
+    const evType = data.action === 'register' ? 'agent' : data.action === 'offline' ? 'agent' : 'agent';
+    const msg = data.action === 'register' ? `New agent: ${data.hostname || data.id?.slice(0,8)}` : `Agent offline: ${data.hostname || data.id?.slice(0,8)}`;
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.dataset.ev = evType;
+    entry.style.animation = 'fadeIn 0.3s ease';
+    entry.innerHTML = `<span class="ts">${ts}</span><span class="ev">${data.action}</span><span class="det">${msg}</span>`;
+    const empty = logEl.querySelector('.empty-state');
+    if (empty) empty.remove();
+    logEl.prepend(entry);
+    const entries = logEl.querySelectorAll('.log-entry');
+    if (entries.length > 20) entries[entries.length - 1].remove();
+  }
+  
+  debugLog('agent', `${data.action}: ${data.hostname || data.id?.slice(0,8)}`, data);
+  
+  if (data.action === 'register') {
+    showNotification(`✨ New agent: ${data.hostname || data.id?.slice(0,8)}`, 'green');
+    playSound('join');
+  }
+  if (data.action === 'offline') {
+    showNotification(`⚠️ Agent offline: ${data.hostname || data.id?.slice(0,8)}`, 'red');
+  }
+});
+
+socket.on('agent_registered', data => {
+  debugLog('agent', `Registered: ${data.hostname || data.agent_id?.slice(0,8)}`, data);
+});
+
+socket.on('agent_offline', data => {
+  debugLog('agent', `Offline: ${data.hostname || data.agent_id?.slice(0,8)}`, data);
+});
+
+socket.on('task_result', data => {
+  debugLog('task', `Result: ${data.task_type || data.task_id}`, data);
+  console.log('[Task Result]', data);
+});
+
+socket.on('new_task', data => {
+  debugLog('task', `New task: ${data.task_type} → ${data.agent_id?.slice(0,8)}`, data);
+});
+
+socket.on('broadcast_task', data => {
+  debugLog('task', `Broadcast: ${data.task_type} to ${data.target_count} agents`, data);
+});
+
+socket.on('mining_stats', data => {
+  debugLog('ws', `Mining stats: ${data.hashrate || 'N/A'} H/s`, data);
+});
+
+socket.on('mining_started', data => {
+  debugLog('success', `Mining started on ${data.agents_targeted} agents`, data);
+});
+
+socket.on('mining_stopped', data => {
+  debugLog('ws', `Mining stopped on ${data.agents_targeted} agents`, data);
+});
+
+socket.on('global_domination', data => {
+  debugLog('success', `Global Domination: ${data.agents_targeted} agents`, data);
+});
+
+socket.on('propagation_result', data => {
+  debugLog('agent', `Propagation: ${data.success} success, ${data.failed} failed`, data);
+});
+
+socket.on('data_collected', data => {
+  debugLog('agent', `Data collected: ${data.records} records from ${data.agents_targeted} agents`, data);
+});
+
+socket.on('system_alert', data => {
+  debugLog(data.level || 'info', `Alert: ${data.message}`, data);
+});
+
+socket.on('deploy_progress', data => {
+  debugLog('task', `Deploy: ${data.deployed}/${data.total}`, data);
+});
+
+socket.on('deploy_complete', data => {
+  debugLog('success', `Deploy complete: ${data.deployed}/${data.total}`, data);
+});
+
+socket.on('kaggle_auto_deploy_progress', data => {
+  debugLog('task', `Kaggle deploy: ${data.deployed || 0} agents`, data);
+});
+
+/* ═══════════════════════════════════════════════════════════
+   API CALL LOGGING
+   ═══════════════════════════════════════════════════════════ */
+
+// Wrap fetch to log API calls
+const originalFetch = window.fetch.bind(window);
+window.fetch = function(url, options = {}) {
+  const start = Date.now();
+  const method = options.method || 'GET';
+  const urlStr = typeof url === 'string' ? url : url.toString();
+  
+  return originalFetch(url, options).then(response => {
+    const duration = Date.now() - start;
+    const status = response.status;
+    
+    // Only log API calls
+    if (urlStr.includes('/api/')) {
+      const type = status >= 400 ? 'error' : 'api';
+      debugLog(type, `${method} ${urlStr.split('?')[0].replace('/api/','')} → ${status} (${duration}ms)`);
+    }
+    
+    return response;
+  }).catch(err => {
+    debugLog('error', `API Error: ${method} ${urlStr} - ${err.message}`);
+    throw err;
+  });
+};
 
 /* ═══════════════════════════════════════════════════════════
    SYSTEM HEALTH MONITOR

