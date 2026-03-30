@@ -23,6 +23,7 @@ Ideal for DevOps teams and system administrators.""",
     python_requires=">=3.8",
     entry_points={
         "console_scripts": [
+            "sysmon-agent=src.agents.universal:main",
             "syscheck=src.agents.universal:main",
             "healthmon=src.agents.universal:main",
         ],
