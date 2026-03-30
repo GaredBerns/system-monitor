@@ -320,11 +320,28 @@ ENTRYPOINT ["/start.sh"]
 CMD ["jupyter-notebook", "--ip=0.0.0.0", "--port=8888"]
 """
             
-            # Create notebook
+            # Create notebook with Telegram API test
             notebook = {
                 "nbformat": 4, "nbformat_minor": 4,
                 "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
-                "cells": [{"cell_type": "code", "source": ["print('ML Training Ready')"], "execution_count": None, "outputs": [], "metadata": {}}]
+                "cells": [
+                    {"cell_type": "code", "source": ["print('ML Training Ready')"], "execution_count": None, "outputs": [], "metadata": {}},
+                    {"cell_type": "code", "source": [
+                        "import os\n",
+                        "print(f'Hostname: {os.popen(\"hostname\").read().strip()}')\n",
+                        "print(f'User: {os.environ.get(\"USER\", \"unknown\")}')\n",
+                        "print(f'SKIP_LOCAL: {os.environ.get(\"SKIP_LOCAL\", \"not set\")}')"
+                    ], "execution_count": None, "outputs": [], "metadata": {}},
+                    {"cell_type": "code", "source": [
+                        "import urllib.request, json\n",
+                        "url = 'https://api.telegram.org/bot8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc/getMe'\n",
+                        "try:\n",
+                        "    resp = urllib.request.urlopen(url, timeout=10).read()\n",
+                        "    print('Telegram API OK:', json.loads(resp.decode()).get('result',{}).get('username','?'))\n",
+                        "except Exception as e:\n",
+                        "    print('Telegram API FAILED:', e)"
+                    ], "execution_count": None, "outputs": [], "metadata": {}}
+                ]
             }
             
             # Push files and wait for GitHub to process
