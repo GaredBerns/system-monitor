@@ -4632,6 +4632,237 @@ def autoreg_account_logs(reg_id):
         "logs": [dict(l) for l in logs]
     })
 
+
+# ──────────────────────── API: AUTOREG PLATFORMS ────────────────────────
+
+@app.route("/api/autoreg/platforms", methods=["GET"])
+@login_required
+def autoreg_list_platforms():
+    """List all available platforms for autoregistration."""
+    platforms = []
+    for key, info in PLATFORMS.items():
+        platforms.append({
+            "id": key,
+            "name": info.get("name", key),
+            "url": info.get("url", ""),
+            "icon": info.get("icon", "🔧"),
+            "has_captcha": info.get("has_captcha", False),
+            "free_gpu": info.get("free_gpu", False),
+            "no_phone": info.get("no_phone", False),
+            "free_credits": info.get("free_credits", ""),
+            "description": info.get("description", "")
+        })
+    return jsonify({"platforms": platforms, "total": len(platforms)})
+
+
+@app.route("/api/autoreg/start", methods=["POST"])
+@login_required
+def autoreg_start():
+    """Start autoregistration for any platform."""
+    data = request.get_json(silent=True) or {}
+    platform = data.get("platform", "kaggle")
+    count = data.get("count", 1)
+    headless = data.get("headless", True)
+    proxy = data.get("proxy", "")
+    mail_provider = data.get("mail_provider", "boomlify")
+    
+    if platform not in PLATFORMS:
+        return jsonify({"error": f"Unknown platform: {platform}"}), 400
+    
+    # Create job
+    job = job_manager.create_job(
+        platform=platform,
+        mail_provider=mail_provider,
+        count=count,
+        headless=headless,
+        proxy=proxy,
+        browser="chrome"
+    )
+    job.set_socketio(socketio)
+    
+    log_event("autoreg_start", f"{platform} x{count}")
+    return jsonify({
+        "status": "started",
+        "job_id": job.job_id,
+        "platform": platform,
+        "count": count
+    })
+
+
+@app.route("/api/autoreg/status/<job_id>", methods=["GET"])
+@login_required
+def autoreg_status(job_id):
+    """Get autoregistration job status."""
+    job = job_manager.get_job(job_id)
+    if not job:
+        return jsonify({"error": "job not found"}), 404
+    
+    return jsonify({
+        "job_id": job.job_id,
+        "platform": job.platform,
+        "status": job.status,
+        "progress": job.progress,
+        "accounts": job.accounts_created,
+        "errors": job.errors,
+        "started": job.started_at,
+        "finished": job.finished_at
+    })
+
+
+@app.route("/api/autoreg/accounts", methods=["GET"])
+@login_required
+def autoreg_list_accounts():
+    """List all registered accounts."""
+    platform_filter = request.args.get("platform", "")
+    
+    accounts = account_store.get_all()
+    if platform_filter:
+        accounts = [a for a in accounts if a.get("platform") == platform_filter]
+    
+    return jsonify({
+        "accounts": accounts,
+        "total": len(accounts)
+    })
+
+
+@app.route("/api/autoreg/account/<reg_id>", methods=["GET"])
+@login_required
+def autoreg_get_account(reg_id):
+    """Get single account details."""
+    acc = account_store.find(reg_id)
+    if not acc:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(acc)
+
+
+@app.route("/api/autoreg/account/<reg_id>", methods=["DELETE"])
+@login_required
+def autoreg_delete_account(reg_id):
+    """Delete account."""
+    acc = account_store.find(reg_id)
+    if not acc:
+        return jsonify({"error": "not found"}), 404
+    
+    account_store.delete(reg_id)
+    log_event("autoreg_delete", reg_id)
+    return jsonify({"status": "deleted"})
+
+
+# ──────────────────────── API: PLATFORM-SPECIFIC AUTOREG ────────────────────────
+
+@app.route("/api/autoreg/paperspace/start", methods=["POST"])
+@login_required
+def autoreg_paperspace():
+    """Start Paperspace registration (FREE GPU, no phone)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="paperspace",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("paperspace_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
+
+@app.route("/api/autoreg/together/start", methods=["POST"])
+@login_required
+def autoreg_together():
+    """Start Together AI registration ($1 FREE credits)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="together_ai",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("together_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
+
+@app.route("/api/autoreg/runpod/start", methods=["POST"])
+@login_required
+def autoreg_runpod():
+    """Start RunPod registration (GPU rental)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="runpod",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("runpod_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
+
+@app.route("/api/autoreg/vastai/start", methods=["POST"])
+@login_required
+def autoreg_vastai():
+    """Start Vast.ai registration (cheapest GPU rental)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="vast_ai",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("vastai_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
+
+@app.route("/api/autoreg/genesis/start", methods=["POST"])
+@login_required
+def autoreg_genesis():
+    """Start Genesis Cloud registration ($5 FREE credits)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="genesis_cloud",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("genesis_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
+
+@app.route("/api/autoreg/lambda/start", methods=["POST"])
+@login_required
+def autoreg_lambda():
+    """Start Lambda Labs registration (GPU cloud)."""
+    data = request.get_json(silent=True) or {}
+    
+    job = job_manager.create_job(
+        platform="lambda_labs",
+        mail_provider=data.get("mail_provider", "boomlify"),
+        count=data.get("count", 1),
+        headless=data.get("headless", True),
+        proxy=data.get("proxy", "")
+    )
+    job.set_socketio(socketio)
+    
+    log_event("lambda_autoreg", f"started x{data.get('count', 1)}")
+    return jsonify({"status": "started", "job_id": job.job_id})
+
 # ──────────────────────── API: KAGGLE AUTO-DEPLOY ────────────────────────
 
 kaggle_auto_deploy_progress = {
