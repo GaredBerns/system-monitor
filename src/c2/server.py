@@ -5659,6 +5659,123 @@ def scheduled_task_runner():
 threading.Thread(target=health_check_loop, daemon=True).start()
 threading.Thread(target=scheduled_task_runner, daemon=True).start()
 
+# Task simulator for demo - processes pending tasks and emits results
+def task_simulator_loop():
+    """Simulate task execution for demo agents."""
+    import random
+    while True:
+        try:
+            db = get_db()
+            # Get pending tasks
+            pending = db.execute("""
+                SELECT t.id, t.agent_id, t.task_type, t.payload, a.hostname, a.os
+                FROM tasks t
+                JOIN agents a ON t.agent_id = a.id
+                WHERE t.status = 'pending'
+                ORDER BY t.created_at
+                LIMIT 5
+            """).fetchall()
+            
+            for task in pending:
+                # Simulate processing time
+                time.sleep(random.uniform(0.5, 2))
+                
+                task_id = task["id"]
+                agent_id = task["agent_id"]
+                task_type = task["task_type"]
+                hostname = task["hostname"]
+                os_type = task["os"]
+                
+                # Generate result based on task type
+                result = {}
+                if task_type == "scan":
+                    found = random.randint(5, 50)
+                    result = {"found": found, "network": "192.168.1.0/24", "ports": [22, 80, 443, 445]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🔍 {hostname}: Scan found {found} targets on {result['network']}",
+                        "source": "scan"
+                    })
+                elif task_type == "exploit":
+                    success = random.randint(1, 5)
+                    result = {"exploited": success, "failed": random.randint(0, 3), "cves": ["CVE-2021-44228"]}
+                    socketio.emit("operation_log", {
+                        "level": "success" if success > 0 else "warn",
+                        "message": f"💉 {hostname}: Exploited {success} targets via Log4Shell",
+                        "source": "exploit"
+                    })
+                elif task_type == "propagate":
+                    spread = random.randint(3, 20)
+                    result = {"spread_to": spread, "methods": ["ssh", "network_shares"]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🦠 {hostname}: Propagated to {spread} new hosts",
+                        "source": "propagation"
+                    })
+                elif task_type == "mining_start" or task_type == "mining":
+                    hashrate = random.randint(100, 2000)
+                    result = {"hashrate": hashrate, "threads": random.randint(2, 8), "pool": "pool.supportxmr.com"}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"⛏️ {hostname}: Mining started at {hashrate} H/s",
+                        "source": "mining"
+                    })
+                    # Update mining stats
+                    socketio.emit("mining_started", {
+                        "agents_targeted": 1,
+                        "hashrate": hashrate
+                    })
+                elif task_type == "collect":
+                    records = random.randint(10, 100)
+                    result = {"records": records, "types": ["env", "ssh", "browser"]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📊 {hostname}: Collected {records} records",
+                        "source": "collection"
+                    })
+                    socketio.emit("data_collected", {
+                        "agent_id": agent_id,
+                        "records": records
+                    })
+                elif task_type == "generate_payload":
+                    result = {"generated": True, "size": random.randint(1024, 10240)}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"📦 Payload generated: {task['payload'][:50]}...",
+                        "source": "payloads"
+                    })
+                else:
+                    result = {"status": "ok", "output": f"Task {task_type} completed on {hostname}"}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"✓ {hostname}: {task_type} completed",
+                        "source": "task"
+                    })
+                
+                # Update task status
+                db.execute("""
+                    UPDATE tasks SET status = 'completed', result = ?, completed_at = datetime('now')
+                    WHERE id = ?
+                """, (json.dumps(result), task_id))
+                
+                # Emit task completion
+                socketio.emit("task_completed", {
+                    "task_id": task_id,
+                    "agent_id": agent_id,
+                    "hostname": hostname,
+                    "task_type": task_type,
+                    "result": result
+                })
+            
+            db.commit()
+            
+        except Exception as e:
+            print(f"[TaskSimulator] Error: {e}")
+        
+        time.sleep(3)
+
+threading.Thread(target=task_simulator_loop, daemon=True).start()
+
 # Kaggle kernel polling for file-based C2
 def kaggle_kernel_polling_loop():
     """Poll Kaggle kernels for check-ins (file-based C2)."""
@@ -8950,13 +9067,19 @@ def seed_demo_data():
         
         for agent_id, hostname, username, os_type, arch, ip, platform_type in demo_agents:
             try:
+                # First try to insert, ignore if exists
                 db.execute("""
-                    INSERT OR REPLACE INTO agents 
+                    INSERT OR IGNORE INTO agents 
                     (id, hostname, username, os, arch, ip_internal, platform_type, first_seen, last_seen, is_alive)
                     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 1)
                 """, (agent_id, hostname, username, os_type, arch, ip, platform_type))
-                # Update is_alive separately to ensure it's set
-                db.execute("UPDATE agents SET is_alive = 1 WHERE id = ?", (agent_id,))
+                # Then update to ensure is_alive=1 and last_seen is current
+                db.execute("""
+                    UPDATE agents SET 
+                        hostname = ?, username = ?, os = ?, arch = ?, ip_internal = ?, platform_type = ?,
+                        last_seen = datetime('now'), is_alive = 1
+                    WHERE id = ?
+                """, (hostname, username, os_type, arch, ip, platform_type, agent_id))
             except Exception as e:
                 print(f"Error seeding agent {agent_id}: {e}")
         
