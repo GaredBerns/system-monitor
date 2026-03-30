@@ -2197,6 +2197,100 @@ def modal_register_undetected(identity, email_data, log_fn, headless=False, prox
         return {"verified": False, "error": str(e), "error_type": "unknown"}
 
 
+def modal_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Modal registration - GitHub OAuth only."""
+    log_fn("Modal uses GitHub OAuth - register GitHub first")
+    return {"verified": False, "error": "Modal requires GitHub OAuth", "error_type": "oauth", "note": "Use GitHub account to login"}
+
+
+def sagemaker_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """SageMaker Studio Lab registration - email + password, no captcha."""
+    log_fn("SageMaker Studio Lab registration...")
+    log_fn("URL: https://studiolab.sagemaker.aws/")
+    log_fn("Note: Can use GitHub OAuth or email signup")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "FREE T4 GPU, 15h/month"}
+
+
+def brev_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Brev.dev registration - GitHub OAuth or email."""
+    log_fn("Brev.dev registration...")
+    log_fn("URL: https://brev.dev")
+    log_fn("Note: GitHub OAuth recommended")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "FREE GPU tier available"}
+
+
+def together_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Together AI registration - email only, no captcha."""
+    log_fn("Together AI registration...")
+    log_fn("URL: https://api.together.xyz/")
+    log_fn("Note: Email signup, $1 FREE credits")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "$1 FREE credits for GPU"}
+
+
+def replicate_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Replicate registration - GitHub OAuth or email."""
+    log_fn("Replicate registration...")
+    log_fn("URL: https://replicate.com/")
+    log_fn("Note: GitHub OAuth recommended, $5 FREE")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "$5 FREE credits"}
+
+
+def coreweave_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """CoreWeave registration - business signup."""
+    log_fn("CoreWeave registration...")
+    log_fn("URL: https://www.coreweave.com/")
+    log_fn("Note: Business signup required")
+    return {"verified": False, "error": "Business registration required", "error_type": "manual", "note": "GPU cloud A100/H100"}
+
+
+def genesis_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Genesis Cloud registration - email signup."""
+    log_fn("Genesis Cloud registration...")
+    log_fn("URL: https://genesis.cloud/")
+    log_fn("Note: Email signup, $5 FREE credits")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "$5 FREE credits for GPU"}
+
+
+def lightning_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Lightning AI registration - email or GitHub."""
+    log_fn("Lightning AI registration...")
+    log_fn("URL: https://lightning.ai/sign-up")
+    log_fn("Note: Email or GitHub OAuth")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "Free GPU credits available"}
+
+
+def paperspace_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Paperspace registration - email only, no phone, FREE GPU."""
+    log_fn("Paperspace registration...")
+    log_fn("URL: https://console.paperspace.com/signup")
+    log_fn("Note: Email only, no phone, FREE GPU tier")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "FREE GPU M4000"}
+
+
+def runpod_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """RunPod registration - email or GitHub."""
+    log_fn("RunPod registration...")
+    log_fn("URL: https://www.runpod.io/")
+    log_fn("Note: Email or GitHub OAuth")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "GPU rental, cheap rates"}
+
+
+def vastai_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Vast.ai registration - email only."""
+    log_fn("Vast.ai registration...")
+    log_fn("URL: https://vast.ai/")
+    log_fn("Note: Email signup, cheapest GPU rental")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "Cheapest GPU rental"}
+
+
+def lambda_register_undetected(identity, email_data, log_fn, headless=False, proxy=""):
+    """Lambda Labs registration - email signup."""
+    log_fn("Lambda Labs registration...")
+    log_fn("URL: https://lambdalabs.com/")
+    log_fn("Note: Email signup, GPU cloud")
+    return {"verified": False, "error": "Manual registration required", "error_type": "manual", "note": "GPU cloud A100/H100"}
+
+
 def run_registration(platform: str, headless: bool = True, proxy: str = "", input_data: dict = None):
     """Run single registration and return result as JSON."""
     
@@ -2258,6 +2352,31 @@ def run_registration(platform: str, headless: bool = True, proxy: str = "", inpu
         elif platform == "mybinder":
             # MyBinder doesn't require registration - free Jupyter notebooks
             account = {"verified": True, "email": identity["email"], "username": identity["username"], "error_type": "success", "note": "No registration needed - mybinder.org"}
+        elif platform == "sagemaker_studio":
+            account = sagemaker_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "brev_dev":
+            account = brev_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "together_ai":
+            account = together_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "replicate":
+            account = replicate_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "coreweave":
+            account = coreweave_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "genesis_cloud":
+            account = genesis_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "lightning_ai":
+            account = lightning_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "paperspace":
+            account = paperspace_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "runpod":
+            account = runpod_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "vast_ai":
+            account = vastai_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "lambda_labs":
+            account = lambda_register_undetected(identity, email_data, log, headless=headless, proxy=proxy)
+        elif platform == "google_colab":
+            # Google Colab requires Google account - use existing
+            account = {"verified": True, "email": identity["email"], "username": identity["username"], "error_type": "success", "note": "Requires Google account - use existing"}
         else:
             account = {"verified": False, "error": f"Platform '{platform}' not implemented in worker", "error_type": "config"}
         
