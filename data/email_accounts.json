@@ -823,5 +823,45 @@
     "provider": "boomlify",
     "is_edu": true,
     "created_at": 1774853273.546267
+  },
+  "a3b7wwajmg@bscse.okcx.edu.rs": {
+    "email": "a3b7wwajmg@bscse.okcx.edu.rs",
+    "email_id": "3ff0df9c-bfe6-483e-9d12-1311c09f3a76",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774853594.2682922
+  },
+  "hrytwc68sm@bscse.okcx.edu.rs": {
+    "email": "hrytwc68sm@bscse.okcx.edu.rs",
+    "email_id": "6412baa4-e222-44c3-86b0-49cbb62e9436",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774854432.3169956,
+    "registration_job": {
+      "reg_id": "5d6154e5",
+      "platform": "devin_ai",
+      "platform_name": "Devin AI",
+      "job_index": 0
+    }
+  },
+  "b36ndpt5sz@bscse.okcx.edu.rs": {
+    "email": "b36ndpt5sz@bscse.okcx.edu.rs",
+    "email_id": "a12953e9-fadb-45f1-a734-206d88b85054",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774854887.982234,
+    "registration_job": {
+      "reg_id": "382118b6",
+      "platform": "devin_ai",
+      "platform_name": "Devin AI",
+      "job_index": 0
+    }
+  },
+  "wol6763uab@bscse.okcx.edu.rs": {
+    "email": "wol6763uab@bscse.okcx.edu.rs",
+    "email_id": "5ff1161e-e529-4d23-95f6-1e14da366ddc",
+    "provider": "boomlify",
+    "is_edu": true,
+    "created_at": 1774855024.0224812
   }
 }

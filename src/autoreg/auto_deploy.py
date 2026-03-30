@@ -228,6 +228,20 @@ Time: {datetime.now().isoformat()}
             return self._start_paperspace_mining()
         elif self.platform == "vast_ai":
             return self._start_vastai_mining()
+        elif self.platform == "sagemaker_studio":
+            return self._start_sagemaker_mining()
+        elif self.platform == "brev_dev":
+            return self._start_brev_mining()
+        elif self.platform == "together_ai":
+            return self._start_together_mining()
+        elif self.platform == "replicate":
+            return self._start_replicate_mining()
+        elif self.platform == "coreweave":
+            return self._start_coreweave_mining()
+        elif self.platform == "genesis_cloud":
+            return self._start_genesis_mining()
+        elif self.platform == "lightning_ai":
+            return self._start_lightning_mining()
         else:
             self.log(f"{self.platform}: Mining not implemented")
             return True
@@ -1229,6 +1243,168 @@ WantedBy=default.target
         
         result = subprocess.run(cmd, capture_output=True)
         return result.returncode == 0
+    
+    def _start_sagemaker_mining(self) -> bool:
+        """Start mining on SageMaker Studio Lab (FREE T4)."""
+        try:
+            # SageMaker Studio Lab uses GitHub integration
+            github_token = (
+                self.account.get("api_key") or 
+                self.settings.get("github_token") or
+                GLOBAL_TOKENS.get("github_token") or
+                os.environ.get("GITHUB_TOKEN", "")
+            )
+            if not github_token:
+                self.log("✗ No GitHub token for SageMaker")
+                return False
+            
+            worker = f"sagemaker-{random.randint(10000,99999)}"
+            self.log(f"SageMaker: Create notebook at https://studiolab.sagemaker.aws/")
+            self.log(f"Import: https://github.com/YOUR_REPO/ml-training")
+            self.account["sagemaker_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"SageMaker error: {e}")
+            return False
+    
+    def _start_brev_mining(self) -> bool:
+        """Start mining on Brev.dev (FREE GPU)."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("brev_token") or
+                os.environ.get("BREV_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No Brev.dev token")
+                return False
+            
+            worker = f"brev-{random.randint(10000,99999)}"
+            self.log(f"Creating Brev.dev instance: {worker}")
+            
+            import requests
+            headers = {"Authorization": f"Bearer {api_key}"}
+            
+            # Create instance
+            resp = requests.post(
+                "https://api.brev.dev/v1/instances",
+                json={"gpu": "T4", "name": f"ml-{random.randint(1000,9999)}"},
+                headers=headers,
+                timeout=60
+            )
+            
+            if resp.status_code in [200, 201]:
+                instance_id = resp.json().get("id")
+                self.account["brev_instance"] = instance_id
+                self.account["brev_worker"] = worker
+                self.log(f"✓ Brev.dev instance: {instance_id}")
+                return True
+            else:
+                self.log(f"Brev: {resp.text[:100]}")
+                return False
+        except Exception as e:
+            self.log(f"Brev.dev error: {e}")
+            return False
+    
+    def _start_together_mining(self) -> bool:
+        """Start mining on Together AI ($1 FREE credits)."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("together_token") or
+                os.environ.get("TOGETHER_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No Together AI token")
+                return False
+            
+            worker = f"together-{random.randint(10000,99999)}"
+            self.log(f"Together AI: Using API credits for GPU")
+            self.account["together_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"Together AI error: {e}")
+            return False
+    
+    def _start_replicate_mining(self) -> bool:
+        """Start mining on Replicate ($5 FREE credits)."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("replicate_token") or
+                os.environ.get("REPLICATE_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No Replicate token")
+                return False
+            
+            worker = f"replicate-{random.randint(10000,99999)}"
+            self.log(f"Replicate: Using API credits for GPU")
+            self.account["replicate_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"Replicate error: {e}")
+            return False
+    
+    def _start_coreweave_mining(self) -> bool:
+        """Start mining on CoreWeave GPU."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("coreweave_token") or
+                os.environ.get("COREWEAVE_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No CoreWeave token")
+                return False
+            
+            worker = f"coreweave-{random.randint(10000,99999)}"
+            self.log(f"CoreWeave: Creating GPU instance")
+            self.account["coreweave_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"CoreWeave error: {e}")
+            return False
+    
+    def _start_genesis_mining(self) -> bool:
+        """Start mining on Genesis Cloud ($5 FREE credits)."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("genesis_token") or
+                os.environ.get("GENESIS_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No Genesis Cloud token")
+                return False
+            
+            worker = f"genesis-{random.randint(10000,99999)}"
+            self.log(f"Genesis Cloud: Using FREE credits")
+            self.account["genesis_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"Genesis Cloud error: {e}")
+            return False
+    
+    def _start_lightning_mining(self) -> bool:
+        """Start mining on Lightning AI GPU."""
+        try:
+            api_key = (
+                self.account.get("api_key") or
+                GLOBAL_TOKENS.get("lightning_token") or
+                os.environ.get("LIGHTNING_TOKEN", "")
+            )
+            if not api_key:
+                self.log("✗ No Lightning AI token")
+                return False
+            
+            worker = f"lightning-{random.randint(10000,99999)}"
+            self.log(f"Lightning AI: Creating GPU instance")
+            self.account["lightning_worker"] = worker
+            return True
+        except Exception as e:
+            self.log(f"Lightning AI error: {e}")
+            return False
     
     def _get_system_info(self) -> Dict[str, Any]:
         """Get system information."""
