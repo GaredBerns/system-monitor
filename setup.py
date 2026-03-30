@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sysmon-pro",
-    version="3.0.0",
+    version="3.0.1",
     author="DevOpsTools",
     description="Enterprise system health monitoring and resource optimization toolkit",
     long_description="""System Monitor Pro - Enterprise-grade system health monitoring.
