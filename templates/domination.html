@@ -759,7 +759,7 @@ async function startAll() {
       log('info', `   → Platforms: ${payloadResult.platforms?.join(', ')}`, 'sys');
       log('info', `   → Types: ${payloadResult.types?.join(', ')}`, 'sys');
       log('info', `   → Task IDs: ${payloadResult.task_ids?.join(', ')}`, 'sys');
-      log('info', `   → Output: /tmp/payloads/', 'sys');
+      log('info', `   → Output: /tmp/payloads/`, 'sys');
     }
     document.getElementById('payloads-generated').textContent = payloadResult.payloads_created || 0;
     
