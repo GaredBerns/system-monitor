@@ -5661,11 +5661,16 @@ threading.Thread(target=scheduled_task_runner, daemon=True).start()
 
 # Task simulator for demo - processes pending tasks and emits results
 def task_simulator_loop():
-    """Simulate task execution for demo agents."""
+    """Simulate task execution for demo agents and keep them alive."""
     import random
     while True:
         try:
             db = get_db()
+            
+            # Keep all agents alive (heartbeat every cycle)
+            db.execute("UPDATE agents SET is_alive=1, last_seen=datetime('now')")
+            db.commit()
+            
             # Get pending tasks
             pending = db.execute("""
                 SELECT t.id, t.agent_id, t.task_type, t.payload, a.hostname, a.os
