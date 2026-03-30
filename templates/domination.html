@@ -105,6 +105,64 @@
   .log-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  
+  /* Panel Grid - 3 equal columns */
+  .panel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+  @media (max-width: 1200px) { .panel-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 768px) { .panel-grid { grid-template-columns: 1fr; } }
+  
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    font-size: 11px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-content {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 250px;
+  }
+  .panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .panel-row:last-child { border-bottom: none; }
+  .panel-label { color: var(--text-muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .panel-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+  
+  /* Panel color variants */
+  .panel.exploit { border-left: 3px solid #ff4444; }
+  .panel.exploit .panel-header { color: #ff4444; }
+  .panel.payloads { border-left: 3px solid #00aaaa; }
+  .panel.payloads .panel-header { color: #00aaaa; }
+  .panel.propagation { border-left: 3px solid #aaaa00; }
+  .panel.propagation .panel-header { color: #aaaa00; }
+  .panel.agents { border-left: 3px solid #00aa00; }
+  .panel.agents .panel-header { color: #00aa00; }
+  .panel.scan { border-left: 3px solid #aa00aa; }
+  .panel.scan .panel-header { color: #aa00aa; }
+  .panel.workers { border-left: 3px solid #0066ff; }
+  .panel.workers .panel-header { color: #0066ff; }
+  .panel.demo { border-left: 3px solid #666; }
+  .panel.demo .panel-header { color: #aaa; }
+  .panel.cve { border-left: 3px solid var(--accent); }
+  .panel.cve .panel-header { color: var(--accent); }
 </style>
 {% endblock %}
 
@@ -274,95 +332,103 @@
         </div>
         <div style="font-family:var(--font-mono); color:var(--text-muted); font-size:12px;" id="val-websocket">Disconnected</div>
       </div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><div class="dom-system-indicator" id="ind-mining-sys"></div>
-        
-    <!-- EXPLOITATION PANEL -->
-    <div style="background:linear-gradient(135deg, #1a0a0a 0%, #2a1010 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #ff4444;">
-      <div style="font-size:11px; color:#ff4444; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">💥 EXPLOITATION ENGINE</div>
+    </div>
+    
+    <!-- Panel Grid - 3 Equal Columns -->
+    <div class="panel-grid">
+      <!-- EXPLOITATION PANEL -->
+      <div class="panel exploit">
+        <div class="panel-header">💥 EXPLOITATION ENGINE</div>
+        <div class="panel-content">
+          <div class="panel-row">
+            <div class="panel-label">🎯 Targets Scanned</div>
+            <div class="panel-value" id="exploit-scanned">0</div>
+          </div>
+          <div class="panel-row">
+            <div class="panel-label">🔓 Vulnerable</div>
+            <div class="panel-value" style="color:#ffaa00;" id="exploit-vulnerable">0</div>
+          </div>
+          <div class="panel-row">
+            <div class="panel-label">✅ Exploited</div>
+            <div class="panel-value" style="color:#00ff00;" id="exploited-count">0</div>
+          </div>
+        </div>
+      </div>
       
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>🎯 Targets Scanned</span></div>
-        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="exploit-scanned">0</div>
+      <!-- PAYLOADS PANEL -->
+      <div class="panel payloads">
+        <div class="panel-header">📦 PAYLOADS</div>
+        <div class="panel-content">
+          <div class="panel-row">
+            <div class="panel-label">Generated</div>
+            <div class="panel-value" style="color:#00aaaa;" id="payloads-generated">0</div>
+          </div>
+          <div class="panel-row">
+            <div class="panel-label">Available</div>
+            <div class="panel-value" style="color:#00aaaa;" id="payloads-available">0</div>
+          </div>
+        </div>
       </div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>🔓 Vulnerable</span></div>
-        <div style="font-family:var(--font-mono); color:#ffaa00; font-size:13px;" id="exploit-vulnerable">0</div>
-      </div>
-      <div class="dom-system-row">
-        <div class="div-system-name"><span>✅ Exploited</span></div>
-        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="exploited-count">0</div>
-      </div>
-    </div>
-    
-    <!-- PAYLOADS PANEL -->
-    <div style="background:linear-gradient(135deg, #0a1a1a 0%, #102a2a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #00aaaa;">
-      <div style="font-size:11px; color:#00aaaa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">📦 PAYLOADS</div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>Generated</span></div>
-        <div style="font-family:var(--font-mono); color:#00aaaa; font-size:13px;" id="payloads-generated">0</div>
-      </div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>Available</span></div>
-        <div style="font-family:var(--font-mono); color:#00aaaa; font-size:13px;" id="payloads-available">0</div>
-      </div>
-    </div>
-    
-    <!-- PROPAGATION PANEL -->
-    <div style="background:linear-gradient(135deg, #1a1a0a 0%, #2a2a10 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #aaaa00;">
-      <div style="font-size:11px; color:#aaaa00; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🦠 PROPAGATION</div>
       
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>📤 Attempts</span></div>
-        <div style="font-family:var(--font-mono); color:var(--text); font-size:13px;" id="prop-attempts">0</div>
+      <!-- PROPAGATION PANEL -->
+      <div class="panel propagation">
+        <div class="panel-header">🦠 PROPAGATION</div>
+        <div class="panel-content">
+          <div class="panel-row">
+            <div class="panel-label">📤 Attempts</div>
+            <div class="panel-value" id="prop-attempts">0</div>
+          </div>
+          <div class="panel-row">
+            <div class="panel-label">✅ Successful</div>
+            <div class="panel-value" style="color:#00ff00;" id="prop-success">0</div>
+          </div>
+          <div class="panel-row">
+            <div class="panel-label">🆕 New Agents (24h)</div>
+            <div class="panel-value" style="color:#00ff00;" id="prop-new-agents">0</div>
+          </div>
+        </div>
       </div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>✅ Successful</span></div>
-        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="prop-success">0</div>
+      
+      <!-- CONNECTED AGENTS LIST -->
+      <div class="panel agents">
+        <div class="panel-header">🤖 CONNECTED AGENTS</div>
+        <div class="panel-content" id="agents-list-panel">
+          <div style="color:var(--text-muted); text-align:center; padding:20px;">Loading agents...</div>
+        </div>
       </div>
-      <div class="dom-system-row">
-        <div class="dom-system-name"><span>🆕 New Agents (24h)</span></div>
-        <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="prop-new-agents">0</div>
+      
+      <!-- SCAN RESULTS -->
+      <div class="panel scan">
+        <div class="panel-header">🔍 SCAN RESULTS</div>
+        <div class="panel-content" id="scan-results">
+          <div style="color:var(--text-muted); text-align:center; padding:20px;">No scan results yet...</div>
+        </div>
       </div>
-    </div>
-    
-    <!-- DEMO DATA -->
-    <div style="background:linear-gradient(135deg, #1a1a2a 0%, #2a2a3a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #666;">
-      <div style="font-size:11px; color:#aaa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🧪 DEMO / TESTING</div>
-      <button style="background:#444; border:1px solid #666; padding:8px 15px; border-radius:5px; color:#fff; cursor:pointer; font-size:11px; width:100%;" onclick="seedDemoData()">
-        📊 Seed Demo Data
-      </button>
-    </div>
-    
-    <!-- CONNECTED AGENTS LIST -->
-    <div style="background:linear-gradient(135deg, #0a1a0a 0%, #102a10 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #00aa00;">
-      <div style="font-size:11px; color:#00aa00; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🤖 CONNECTED AGENTS</div>
-      <div id="agents-list" style="max-height:300px; overflow-y:auto; font-size:11px;">
-        <div style="color:var(--text-muted);">Loading agents...</div>
+      
+      <!-- WORKERS / MACHINES -->
+      <div class="panel workers">
+        <div class="panel-header">⚙️ WORKERS & MACHINES</div>
+        <div class="panel-content" id="workers-list">
+          <div style="color:var(--text-muted); text-align:center; padding:20px;">No workers connected...</div>
+        </div>
       </div>
-    </div>
-    
-    <!-- SCAN RESULTS -->
-    <div style="background:linear-gradient(135deg, #1a0a1a 0%, #2a102a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #aa00aa;">
-      <div style="font-size:11px; color:#aa00aa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">🔍 SCAN RESULTS</div>
-      <div id="scan-results" style="max-height:200px; overflow-y:auto; font-size:11px;">
-        <div style="color:var(--text-muted);">No scan results yet...</div>
+      
+      <!-- DEMO DATA -->
+      <div class="panel demo">
+        <div class="panel-header">🧪 DEMO / TESTING</div>
+        <div class="panel-content" style="display:flex; align-items:center; justify-content:center;">
+          <button style="background:#444; border:1px solid #666; padding:12px 20px; border-radius:8px; color:#fff; cursor:pointer; font-size:12px; width:100%;" onclick="seedDemoData()">
+            📊 Seed Demo Data
+          </button>
+        </div>
       </div>
-    </div>
-    
-    <!-- WORKERS / MACHINES -->
-    <div style="background:linear-gradient(135deg, #0a0a1a 0%, #10102a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #0000aa;">
-      <div style="font-size:11px; color:#0066ff; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">⚙️ WORKERS & MACHINES</div>
-      <div id="workers-list" style="max-height:200px; overflow-y:auto; font-size:11px;">
-        <div style="color:var(--text-muted);">No workers connected...</div>
-      </div>
-    </div>
-    
-    <!-- CVE DATABASE -->
-    <div style="background:var(--bg-input); border-radius:10px; padding:15px;">
-      <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase;">CVE Database</div>
-      <div id="cve-list" style="max-height:150px; overflow-y:auto; font-size:11px;">
-        <div style="color:var(--text-muted);">Loading CVEs...</div>
+      
+      <!-- CVE DATABASE -->
+      <div class="panel cve">
+        <div class="panel-header">🔓 CVE DATABASE</div>
+        <div class="panel-content" id="cve-list">
+          <div style="color:var(--text-muted); text-align:center; padding:20px;">Loading CVEs...</div>
+        </div>
       </div>
     </div>
     
@@ -693,7 +759,7 @@ async function loadAll() {
 
 // Render Agents
 function renderAgents() {
-  const list = document.getElementById('agents-list');
+  const list = document.getElementById('agents-list-panel');
   document.getElementById('agents-count').textContent = agents.length;
   
   if (agents.length === 0) {
