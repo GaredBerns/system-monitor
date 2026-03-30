@@ -1097,7 +1097,8 @@ async function stopAll() {
 
 // Utilities
 function setButtonStatus(btn, status) {
-  document.getElementById(`${btn}-status`).textContent = status;
+  const el = document.getElementById(`${btn}-status`);
+  if (el) el.textContent = status;
 }
 
 function setSystemStatus(sys, on, value) {

@@ -6478,7 +6478,7 @@ def global_agent_task_all():
         # Get all online agents
         agents = db.execute("""
             SELECT id FROM agents 
-            WHERE last_seen > datetime('now', '-5 minutes')
+            WHERE is_alive = 1 OR last_seen > datetime('now', '-1 hour')
         """).fetchall()
         
         if not agents:
