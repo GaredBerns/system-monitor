@@ -219,19 +219,6 @@
       Global Domination Control
     </h2>
     
-    <!-- Main Buttons -->
-    <div style="display:grid; gap:15px; margin-bottom:20px;">
-      <button class="dom-btn-main" style="background:linear-gradient(135deg, var(--green) 0%, #00e676 100%); padding:25px; font-size:18px;" onclick="startAll()" id="btn-start-all">
-        <span>🚀 START ALL OPERATIONS</span>
-        <span class="dom-btn-status" id="start-status">READY</span>
-      </button>
-      
-      <button class="dom-btn-main dom-btn-stop" style="padding:25px; font-size:18px;" onclick="stopAll()" id="btn-stop-all">
-        <span>⏹️ STOP ALL OPERATIONS</span>
-        <span class="dom-btn-status">EMERGENCY</span>
-      </button>
-    </div>
-    
     <!-- REAL STATISTICS -->
     <div style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid var(--green);">
       <div style="font-size:11px; color:var(--green); margin-bottom:10px; text-transform:uppercase; font-weight:bold;">📊 REAL STATISTICS (Live)</div>
@@ -555,19 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAll();
   setInterval(loadAll, 30000);
   setInterval(updateMiningStatus, 10000);
-  setInterval(saveState, 5000); // Save state every 5 sec
-  
-  // Auto-start after 3 seconds if agents exist and not already started
-  setTimeout(async () => {
-    const total = parseInt(document.getElementById('stat-total')?.textContent || '0');
-    if (total > 0 && !operationsStarted) {
-      log('info', 'Auto-starting operations...', 'sys');
-      await startAll();
-    } else if (operationsStarted) {
-      log('info', 'Operations already running, restoring...', 'sys');
-      setButtonStatus('start', 'RUNNING');
-    }
-  }, 3000);
+  setInterval(saveState, 5000);
 });
 
 // Socket.IO - use existing global socket or create new

