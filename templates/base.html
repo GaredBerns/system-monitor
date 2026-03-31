@@ -736,6 +736,11 @@
       
       <div class="nav-section">Tools</div>
       
+      <a href="/imagine" class="nav-link {% if request.endpoint == 'imagine_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span>AI Image Gen</span>
+      </a>
+      
       <a href="/tempmail" class="nav-link {% if request.endpoint == 'tempmail_page' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         <span>Temp Mail</span>

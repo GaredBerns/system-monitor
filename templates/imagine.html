@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+{% block title %}AI Image/Video Generator{% endblock %}
+{% block page_title %}AI Image/Video Generator{% endblock %}
+{% block page_subtitle %}x.ai Playground Direct{% endblock %}
+{% block page_icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 text-accent"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+{% endblock %}
+
+{% block head %}
+<style>
+  .gen-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 140px);
+    gap: 16px;
+  }
+  
+  .gen-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .gen-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  
+  .gen-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  }
+  
+  .gen-btn-primary {
+    background: linear-gradient(135deg, #6c5ce7 0%, #5a4bd1 100%);
+    color: #fff;
+  }
+  
+  .gen-btn-danger {
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    color: #fff;
+  }
+  
+  .gen-btn-success {
+    background: linear-gradient(135deg, #00d68f 0%, #00a870 100%);
+    color: #000;
+  }
+  
+  .gen-btn-warning {
+    background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+    color: #000;
+  }
+  
+  .gen-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    padding: 8px 14px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+  }
+  
+  .status-dot.active {
+    animation: pulse 2s infinite;
+  }
+  
+  .gen-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(108,92,231,0.15);
+    border: 1px solid rgba(108,92,231,0.3);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  
+  .counter-value {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 16px;
+  }
+  
+  .gen-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .gen-info {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(108,92,231,0.05);
+  }
+  
+  .gen-info h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+  
+  .gen-info p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  
+  .gen-actions {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  
+  .gen-action-card {
+    padding: 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .gen-action-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  
+  .gen-action-card svg {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 10px;
+    color: var(--accent);
+  }
+  
+  .gen-action-card h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+  
+  .gen-action-card p {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  
+  .gen-gallery {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    align-content: start;
+  }
+  
+  .gen-item {
+    position: relative;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .gen-item:hover {
+    border-color: var(--accent);
+    transform: scale(1.02);
+  }
+  
+  .gen-item img, .gen-item video {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+  
+  .gen-item-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .gen-item:hover .gen-item-overlay {
+    opacity: 1;
+  }
+  
+  .gen-item-prompt {
+    font-size: 10px;
+    color: #fff;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .gen-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  
+  .gen-empty svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+  
+  .gen-warning {
+    padding: 12px 16px;
+    background: rgba(255,170,0,0.1);
+    border: 1px solid rgba(255,170,0,0.3);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--yellow);
+    line-height: 1.5;
+    margin: 16px 20px;
+  }
+  
+  @media (max-width: 767px) {
+    .gen-toolbar {
+      padding: 12px;
+    }
+    
+    .gen-btn {
+      padding: 10px 14px;
+      font-size: 12px;
+    }
+    
+    .gen-status {
+      width: 100%;
+      margin-left: 0;
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gen-container">
+  <!-- Toolbar -->
+  <div class="gen-toolbar">
+    <button class="gen-btn gen-btn-primary" onclick="openPlayground()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      Open Playground
+    </button>
+    
+    <button class="gen-btn gen-btn-danger" onclick="clearXaiData()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        <line x1="10" y1="11" x2="10" y2="17"/>
+        <line x1="14" y1="11" x2="14" y2="17"/>
+      </svg>
+      Clear x.ai Data
+    </button>
+    
+    <button class="gen-btn gen-btn-warning" onclick="clearAllCookies()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      Clear All Cookies
+    </button>
+    
+    <div class="gen-status">
+      <div class="status-dot active" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+    
+    <div class="gen-counter">
+      <span>Sessions:</span>
+      <span class="counter-value" id="sessionCount">0</span>
+    </div>
+  </div>
+  
+  <!-- Main Area -->
+  <div class="gen-main">
+    <div class="gen-info">
+      <h3>🚀 x.ai Image & Video Generator</h3>
+      <p>Direct access to x.ai playground for generating images and videos. Click "Open Playground" to start. After each generation, use "Clear x.ai Data" to reset session for fresh generations without censorship accumulation.</p>
+    </div>
+    
+    <div class="gen-warning">
+      <strong>⚠️ Important:</strong> After each generation, click "Clear x.ai Data" to remove cookies and site data. This ensures a fresh session for subsequent generations without previous context restrictions.
+    </div>
+    
+    <div class="gen-actions">
+      <div class="gen-action-card" onclick="openPlayground()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <h4>Generate Images</h4>
+        <p>Open x.ai playground for image generation</p>
+      </div>
+      
+      <div class="gen-action-card" onclick="openPlayground('video')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="23 7 16 12 23 17 23 7"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+        <h4>Generate Videos</h4>
+        <p>Open x.ai playground for video generation</p>
+      </div>
+      
+      <div class="gen-action-card" onclick="clearXaiData()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+        <h4>Clear Session</h4>
+        <p>Reset x.ai cookies and data</p>
+      </div>
+      
+      <div class="gen-action-card" onclick="newIncognito()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4M12 8h.01"/>
+        </svg>
+        <h4>New Incognito</h4>
+        <p>Open in incognito/private mode</p>
+      </div>
+    </div>
+    
+    <!-- Gallery -->
+    <div class="gen-gallery" id="gallery">
+      <div class="gen-empty" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <div>
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No generations yet</div>
+          <div style="font-size: 13px;">Click "Open Playground" to start generating</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// State
+let sessionCount = parseInt(localStorage.getItem('xai_session_count') || '0');
+let generations = JSON.parse(localStorage.getItem('xai_generations') || '[]');
+let playgroundWindow = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sessionCount').textContent = sessionCount;
+  renderGallery();
+  
+  // Check if playground window is closed
+  setInterval(checkPlaygroundStatus, 1000);
+});
+
+function setStatus(text, active = true) {
+  document.getElementById('statusText').textContent = text;
+  const dot = document.getElementById('statusDot');
+  if (active) {
+    dot.classList.add('active');
+  } else {
+    dot.classList.remove('active');
+  }
+}
+
+function openPlayground(type = 'image') {
+  const url = type === 'video' 
+    ? 'https://console.x.ai/playground/imagine?mode=video'
+    : 'https://console.x.ai/playground/imagine?campaign=imagine-landing';
+  
+  // Open in new window
+  playgroundWindow = window.open(url, 'xai_playground', 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no');
+  
+  sessionCount++;
+  localStorage.setItem('xai_session_count', sessionCount.toString());
+  document.getElementById('sessionCount').textContent = sessionCount;
+  
+  setStatus('Playground opened');
+  
+  // Focus the window
+  if (playgroundWindow) {
+    playgroundWindow.focus();
+  }
+}
+
+function checkPlaygroundStatus() {
+  if (playgroundWindow && playgroundWindow.closed) {
+    setStatus('Playground closed - ready to clear');
+    playgroundWindow = null;
+  }
+}
+
+async function clearXaiData() {
+  setStatus('Clearing x.ai data...', true);
+  
+  try {
+    // Clear via backend
+    const response = await fetch('/api/xai/clear-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const result = await response.json();
+    
+    // Clear local tracking
+    localStorage.removeItem('xai_generations');
+    generations = [];
+    renderGallery();
+    
+    setStatus('x.ai data cleared');
+    
+    if (result.message) {
+      console.log(result.message);
+    }
+  } catch (error) {
+    console.error('Clear error:', error);
+    setStatus('Clear failed');
+  }
+}
+
+function clearAllCookies() {
+  // Clear all cookies for current domain
+  document.cookie.split(';').forEach(cookie => {
+    const [name] = cookie.split('=');
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+  });
+  
+  // Clear localStorage for x.ai
+  localStorage.removeItem('xai_session_count');
+  localStorage.removeItem('xai_generations');
+  
+  sessionCount = 0;
+  generations = [];
+  document.getElementById('sessionCount').textContent = '0';
+  renderGallery();
+  
+  setStatus('All cookies cleared');
+}
+
+function newIncognito() {
+  // Open in new incognito-like window (minimal UI)
+  const url = 'https://console.x.ai/playground/imagine?campaign=imagine-landing';
+  window.open(url, '_blank', 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no,incognito=yes');
+  
+  sessionCount++;
+  localStorage.setItem('xai_session_count', sessionCount.toString());
+  document.getElementById('sessionCount').textContent = sessionCount;
+  
+  setStatus('New session started');
+}
+
+function addGeneration(prompt, url, type = 'image') {
+  const generation = {
+    id: Date.now(),
+    type: type,
+    prompt: prompt,
+    url: url,
+    created: new Date().toISOString()
+  };
+  
+  generations.unshift(generation);
+  localStorage.setItem('xai_generations', JSON.stringify(generations.slice(0, 50)));
+  renderGallery();
+}
+
+function renderGallery() {
+  const gallery = document.getElementById('gallery');
+  const emptyState = document.getElementById('emptyState');
+  
+  if (generations.length === 0) {
+    gallery.innerHTML = '';
+    gallery.appendChild(emptyState.cloneNode(true));
+    return;
+  }
+  
+  gallery.innerHTML = generations.map(gen => `
+    <div class="gen-item" onclick="downloadGen(${gen.id})">
+      ${gen.type === 'video' 
+        ? `<video src="${gen.url}" controls></video>`
+        : `<img src="${gen.url}" alt="${gen.prompt}">`
+      }
+      <div class="gen-item-overlay">
+        <div class="gen-item-prompt">${gen.prompt}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function downloadGen(id) {
+  const gen = generations.find(g => g.id === id);
+  if (!gen) return;
+  
+  const link = document.createElement('a');
+  link.href = gen.url;
+  link.download = `xai_${gen.type}_${gen.id}.${gen.type === 'video' ? 'mp4' : 'png'}`;
+  link.click();
+}
+
+// Listen for messages from playground (if same-origin)
+window.addEventListener('message', (event) => {
+  if (event.origin.includes('x.ai')) {
+    if (event.data.type === 'generation_complete') {
+      addGeneration(event.data.prompt, event.data.url, event.data.genType);
+      setStatus('Generation saved');
+    }
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    switch(e.key) {
+      case 'o':
+        e.preventDefault();
+        openPlayground();
+        break;
+      case 'Delete':
+        e.preventDefault();
+        clearXaiData();
+        break;
+      case 'n':
+        e.preventDefault();
+        newIncognito();
+        break;
+    }
+  }
+});
+</script>
+{% endblock %}

